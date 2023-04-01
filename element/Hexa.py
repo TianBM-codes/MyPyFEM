@@ -19,8 +19,8 @@ class C3D8(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        e = self.ele_mat_dict[MaterialKey.E]
-        niu = self.ele_mat_dict[MaterialKey.Niu]
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
         a = e / ((1 + niu) * (1 - 2 * niu))
         self.D = a * np.mat(np.array([[1 - niu, niu, niu, 0, 0, 0],
                                       [niu, 1 - niu, niu, 0, 0, 0],

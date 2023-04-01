@@ -26,8 +26,8 @@ class MITC4(ElementBaseClass, ABC):
         TODO: 现在只能处理平面应力, 平面应变如何？
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        e = self.ele_mat_dict[MaterialKey.E]
-        niu = self.ele_mat_dict[MaterialKey.Niu]
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
         if an_type == MaterialMatrixType.PlaneStree or an_type is None:
             a = e / (1 - niu ** 2)
             self.D = a * np.mat(np.array([[1, niu, 0],
@@ -82,7 +82,7 @@ class MITC4(ElementBaseClass, ABC):
                                      [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2], 0, B_pre[1, 3]],
                                      [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2], B_pre[1, 3], B_pre[0, 3]]]), dtype=float)
 
-                self.K = self.K + g_weight * B.T * self.D * B * det_J * self.ele_prop_dict[PropertyKey.ThicknessOrArea]
+                self.K = self.K + g_weight * B.T * self.D * B * det_J * self.cha_dict[PropertyKey.ThicknessOrArea]
 
         return self.K
 
@@ -92,8 +92,8 @@ class MITC4(ElementBaseClass, ABC):
         """
 
 
-class CPS3(ElementBaseClass, ABC):
-    """ plane2D 3node Element class """
+class MITC3(ElementBaseClass, ABC):
+    """ plate 3node Element class """
 
     def __init__(self, eid=None):
         super().__init__(eid)
@@ -106,8 +106,8 @@ class CPS3(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        e = self.ele_mat_dict[MaterialKey.E]
-        niu = self.ele_mat_dict[MaterialKey.Niu]
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
         if an_type == MaterialMatrixType.PlaneStree or an_type is None:
             a = e / (1 - niu ** 2)
             self.D = a * np.mat(np.array([[1, niu, 0],
@@ -152,7 +152,7 @@ class CPS3(ElementBaseClass, ABC):
                              [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
                              [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]]), dtype=float)
 
-        return B.T * self.D * B * det_J * 0.5 * self.ele_prop_dict[PropertyKey.ThicknessOrArea]
+        return B.T * self.D * B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
 
     def ElementStress(self, displacement):
         """
@@ -161,8 +161,8 @@ class CPS3(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    ele = CPS3(-1)
-    ele.ele_mat_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
+    ele = MITC3(-1)
+    ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
     ele.node_coords = np.mat(np.array([[0, 0],
                                        [4, 0],
                                        [1, 3]]), dtype=float)

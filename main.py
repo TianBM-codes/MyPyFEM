@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+import logging
 import os
 import pathlib
 import sys
@@ -33,10 +33,13 @@ class MyPyFEM:
         """
         suffix = self.input_file_path.suffix
         if suffix == ".inp":
+            GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.INP
             return InpReader(self.input_file_path)
         elif suffix == ".cdb":
+            GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.CDB
             return CDBReader(self.input_file_path)
         elif suffix == ".bdf":
+            GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.BDF
             return BDFReader(self.input_file_path)
         else:
             mlogger.fatal("UnSupport File Suffix:{}".format(suffix))
@@ -50,18 +53,27 @@ class MyPyFEM:
         logging.debug("Step 0: Parse File And Define the Problem FEMDB")
         reader = self.InitReader()
         reader.ParseFileAndInitFEMDB()
+
         domain = Domain()
         # domain.PrintFEMDBSummary()
-        # domain.Prepare4Calculate()
+        if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
+            logging.debug("#"*6+"Linear Analyse"+"#"*6)
+            logging.debug("Step0: Prepare For Calculate Stiffness")
+            domain.AssignElementCharacter()
+            domain.CallBoundaryEffect()
+            domain.CalculateEquationNumber()
 
-        logging.debug("Step 1: Calculate Element StiffnessMatrix & Force Vector")
-        # domain.AssembleStiffnessMatrix()
+            logging.debug("Step 1: Calculate Element StiffnessMatrix & Force Vector")
+            domain.AssembleStiffnessMatrix()
 
-        logging.debug("Step 2: Solve the Equation")
-        # domain.SolveDisplacement()
-        # Step 4: BackSubstitution
-        # Step 5: Calculate & Output Stress of All Elements
-        logging.debug("Step 5: Calculate & Output Stress of All Element\n\n")
+            logging.debug("Step 2: Solve the Equation")
+            domain.SolveDisplacement()
+            # Step 4: BackSubstitution
+            logging.debug("Step 5: Calculate & Output of All Element\n")
+        else:
+            mlogger.fatal("UnSupport Analyse Type")
+            sys.exit(1)
+
         domain.WriteOutPutFile(output_path)
 
 
@@ -76,8 +88,9 @@ if __name__ == "__main__":
     input_file = pathlib.Path("./tests/static/linear/truss/trussbridge/truss_static.inp")
     input_file = pathlib.Path("./tests/static/linear/truss/trusstower/tower.inp")
     input_file = pathlib.Path("./tests/ANSYS/bridge/bridge.cdb")
+    input_file = pathlib.Path("./tests/ANSYS/linyi/yihe_bridge.cdb")
     """
-
+    
     input_file = pathlib.Path("./tests/ANSYS/linyi/yihe_bridge.cdb")
     cal = MyPyFEM(input_file)
     output_file = input_file.with_suffix(".vtu")

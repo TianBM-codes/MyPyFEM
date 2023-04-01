@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import sys
 
 from femdb.GlobalEnum import *
 from utils.Singleton import Singleton
@@ -47,11 +48,6 @@ class FEMDataBase(object):
         self.total_stiff_matrix = None
         self.load_case = LoadCase()
 
-        # 与分析相关的变量, 默认分析文件为CDB
-        self.an_dimension = AnalyseDimension.ThreeDimension
-        self.an_type = AnalyseType.LinearStatic
-        self.input_file_type = InputFileType.CDB
-
     """ 
     以下的函数为解析文件的相关函数, 添加节点、单元、节点集、单元集、属性、材料、边界条件、LoadCase等 
     """
@@ -94,6 +90,10 @@ class FEMDataBase(object):
             for mat in self.materials:
                 if mat.GetName() == obj_name:
                     return mat
+        elif obj_type == FEMObject.Section:
+            for sec in self.sections:
+                if sec.GetName() == obj_name:
+                    return sec
         else:
             print("Fatal Error: Can't find object: {} with type: {}".format(obj_name, obj_type))
             sys.exit(1)
@@ -142,8 +142,48 @@ class FEMDataBase(object):
         return coords
 
     def AssignElementProperty(self):
+        if GlobalInfor[GlobalVariant.InputFileSuffix] == InputFileType.CDB:
+            self.AssignElementPropertyAnsys()
+        elif GlobalInfor[GlobalVariant.InputFileSuffix] == InputFileType.INP:
+            self.AssignElementPropertyAbaqus()
+        elif GlobalInfor[GlobalVariant.InputFileSuffix] == InputFileType.BDF:
+            self.AssignElementPropertyNastran()
+        else:
+            mlogger.fatal("UnSupport Input File Type:{}".format(self.input_file_type))
+            sys.exit(1)
+
+    def AssignElementPropertyNastran(self):
+        pass
+
+    def AssignElementPropertyAnsys(self):
         """
-        将属性分配给对应的单元
+        将属性分配给对应的单元, 适配Ansys cdb格式
+        """
+        # 计算解析完输入文件后暂未计算的量
+        for sec in self.sections:
+            e_type, sec_type = sec.type.split("-")
+            if e_type == "BEAM":
+                inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(sec_type, sec.sec_data)
+                area_character = BeamCalculator.CalEffectiveShearArea(sec_type, sec.sec_data)
+                sec.SetSectionCharacter({**inertia_character, **area_character})
+            else:
+                mlogger.fatal("UnSupport Element Type")
+                sys.exit(1)
+
+        """
+        对每个单元进行循环, 赋予属性, 计算单刚. 假设ANSYS的单元信息全部存储在了mat、sec、real_const三者中
+        """
+        for e_type, grp in self.ele_grp_hash.items():
+            for iter_ele in grp.Elements():
+                mat_dict = self.GetSpecificFEMObject(FEMObject.Material, iter_ele.mat_id).GetValueDict()
+                sec_characters = self.GetSpecificFEMObject(FEMObject.Section, iter_ele.sec_id).GetSectionCharacter()
+
+                # 所有计算单刚的参数均已设置完毕, 可以计算单刚
+                iter_ele.SetAllCharacterAndCalD({**mat_dict, **sec_characters})
+
+    def AssignElementPropertyAbaqus(self):
+        """
+        将属性分配给对应的单元, 适配Abaqus inp格式
         """
         # 大部分情况是模型中绝大部分的单元是同一类型, 只有少量的单元是其他类型, 所以首先找出包含单元最多的grp, 再确定了
         # 目标单元ID不属于其他包含少量单元的grp之后, 即可确定属于包含单元最多的grp, 从而确定单元类型. 但是有一点需要注
@@ -170,7 +210,7 @@ class FEMDataBase(object):
                 cur_ele = self.ele_grp_hash[ele_type].Elements()[list_idx]
 
                 # 材料属性设置完成, 计算单元的D阵和B阵, 从而计算单元的刚度阵
-                cur_ele.SetMatAndCalBTDB(mat_dict, prop_dict)
+                cur_ele.SetAllCharacterAndCalD(mat_dict, prop_dict)
 
     def GetElementTypeByID(self, eid):
         """
@@ -187,7 +227,6 @@ class FEMDataBase(object):
                 break
 
         return ele_type
-
 
     def InitAssemblyMatrix(self, eq_count):
         """

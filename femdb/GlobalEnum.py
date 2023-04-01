@@ -113,9 +113,14 @@ Ansys2VTKType = {
     45: "hexahedron",
     # beams
     188: "line",
+    189: "line3",
     # shell
     181: "quad",
 }
+
+"""
+将Material、Property、Section以及RealConst打包塞给每一个单元
+"""
 
 
 class MaterialKey(Enum):
@@ -123,13 +128,27 @@ class MaterialKey(Enum):
     E = 1
     Density = 2
     Niu = 3
+    G = 4
 
 
 class PropertyKey(Enum):
     """
     属性关键字集合, 从100开始是因为需要与MaterialKey相结合, 不能发生重复
+    TODO: ANSYS的real const和Abaqus的property是不是相同含义
     """
     ThicknessOrArea = 100
+
+
+class SectionKey(Enum):
+    """
+    截面属性, It、Is为截面抗弯惯性矩, Tor为抗扭, At与As为截面的等效抗剪面积
+    """
+    It = 200
+    Is = 201
+    Tor = 202
+    Area = 203
+    At = 204
+    As = 205
 
 
 class FEMObject(Enum):
@@ -137,6 +156,7 @@ class FEMObject(Enum):
     NodeSet = 1
     EleSet = 2
     Material = 3
+    Section = 4
 
 
 class MaterialMatrixType(Enum):
@@ -176,6 +196,20 @@ class BeamSectionType(Enum):
     """
     梁横截面类型
     """
-    GongZiGang = 1
-    Circle = 2
-    Square = 3
+    I = 1
+    CircleSolid = 2
+    Rectangle = 3
+    CircleTube = 4
+
+
+# 全局变量, 用于存储分析类型、导入文件类型等信息
+class GlobalVariant(Enum):
+    InputFileSuffix = 1
+    AnaType = 2
+    Dimension = 3
+
+
+GlobalInfor = {GlobalVariant.InputFileSuffix: -1,
+               GlobalVariant.AnaType: -1,
+               GlobalVariant.Dimension: AnalyseDimension.ThreeDimension
+               }

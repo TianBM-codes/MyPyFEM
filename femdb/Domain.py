@@ -36,28 +36,32 @@ class Domain(object):
         """
         self.femdb.PrintParseSummary()
 
-    def Prepare4Calculate(self):
+    def AssignElementCharacter(self):
         """
         不同类型的输入文件会调用不同的函数
         """
         if self.femdb.input_file_type == InputFileType.CDB:
-            self.Prepare4CalculateAnsys()
+            self.AssignElementCharacterAnsys()
         elif self.femdb.input_file_type == InputFileType.INP:
-            self.Prepare4CalculateAnsys()
+            self.AssignElementCharacterAbaqus()
         elif self.femdb.input_file_type == InputFileType.BDF:
-            self.Prepare4CalculateNastran()
+            self.AssignElementCharacterNastran()
 
-    def Prepare4CalculateAnsys(self):
+    def AssignElementCharacterAnsys(self):
         """
         对于cdb文件的准备计算函数
+        1. 计算各个截面属性, 赋值给对应单元
+        2. 计算单元刚度阵
+        3. 计算总刚矩阵维度, 初始化总刚(type: np.mat)
         """
+        self.femdb.AssignElementProperty()
 
-    def Prepare4CalculateNastran(self):
+    def AssignElementCharacterNastran(self):
         """
         对于bdf文件的准备计算函数
         """
 
-    def Prepare4CalculateAbaqus(self):
+    def AssignElementCharacterAbaqus(self):
         """
         为计算做准备, 此时文件已经解析完成, 所有set和单元材料均已解析, 是准备开始计算的第一步
         1. 将Section属性赋予每个单元, 包括材料、几何尺寸等, 执行此操作要对section进行循环,
@@ -81,6 +85,7 @@ class Domain(object):
         # 分配属性参数, 并计算单元刚度阵
         self.femdb.AssignElementProperty()
 
+    def CallBoundaryEffect(self):
         # 计算每个节点有多少自由度
         six_dof_nodes = []
         two_dof_nodes = []
@@ -112,8 +117,6 @@ class Domain(object):
                 nd_idx = self.femdb.node_hash[nd]
                 self.femdb.node_list[nd_idx].SetBoundary(b_type=bd_type)
 
-        # 计算每个自由度对应的方程号
-        self.CalculateEquationNumber()
 
     def CalculateEquationNumber(self):
         """

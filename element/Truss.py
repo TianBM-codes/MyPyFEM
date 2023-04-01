@@ -40,8 +40,8 @@ class T3D2(ElementBaseClass, ABC):
 
         # 单元参数
         delta = np.asarray(np.diff(self.node_coords, axis=0))[0]
-        E = self.ele_mat_dict[MaterialKey.E]
-        A = self.ele_prop_dict[PropertyKey.ThicknessOrArea]
+        E = self.cha_dict[MaterialKey.E]
+        A = self.cha_dict[PropertyKey.ThicknessOrArea]
         L = np.sqrt(np.dot(delta.T, delta))
 
         # 几何关系

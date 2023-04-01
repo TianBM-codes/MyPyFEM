@@ -11,6 +11,7 @@ from element.Shell import *
 from element.Plane import *
 
 # 3D Elements
+from element.Plate import *
 from element.Tetra import *
 from element.Wedge import *
 from element.Hexa import *
@@ -35,9 +36,17 @@ class ElementFactory:
         if e_type in ["T3D2"]:
             return T3D2(e_id), 2
         elif e_type in ["B31", 188]:
-            return B3D2(e_id), 2
+            return Beam188(e_id), 2
+        elif e_type in [189]:
+            return Beam189(e_id), 3
 
         # 2D Element
+        elif e_type in ["CPS3"]:
+            return CPS3(e_id), 3
+        elif e_type in ["CPS4"]:
+            return CPS4(e_id), 4
+
+        # 3D Element
         elif e_type in ["S3"]:
             return Shell3(e_id), 3
         elif e_type in ["S4", "S4R", "S4RT"]:
@@ -47,12 +56,7 @@ class ElementFactory:
                 return MITC3(e_id), 3
             elif opt == 4:
                 return MITC4(e_id), 4
-        elif e_type in ["CPS3"]:
-            return MITC3(e_id), 3
-        elif e_type in ["CPS4"]:
-            return MITC4(e_id), 4
 
-        # 3D Element
         elif e_type in ["C3D8", 45]:
             return C3D8(e_id), 8
         elif e_type in ["C3D8R"]:

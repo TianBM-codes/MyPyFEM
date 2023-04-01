@@ -34,7 +34,7 @@ class CDBReader(object):
                 # 解析分析类型
                 if self.iter_line.startswith("ANTYPE,"):
                     if self.iter_line.split(",")[1].strip() == "0":
-                        self.fem_data.an_type = AnalyseType.LinearStatic
+                        GlobalInfor[GlobalVariant.AnaType] = AnalyseType.LinearStatic
                     else:
                         mlogger.fatal("UnSupport Analyse Type:{}".format(self.iter_line))
                         sys.exit(1)
@@ -47,7 +47,7 @@ class CDBReader(object):
                     self.et_hash[int(splits[1].strip())] = int(splits[2].strip())
                     self.iter_line = cdb_f.readline().strip()
 
-                # 解析节点, 暂时只支持(3i9,6e21.13e3)格式, TODO:平面应变平面应力这种只有二维坐标的
+                # 解析节点信息, TODO:平面应变平面应力这种只有二维坐标的
                 elif self.iter_line.startswith("NBLOCK,"):
                     node_index = 0  # 相当于节点个数, 也是对应数据库中node_list中的index
                     fortran_format = cdb_f.readline().strip()  # skip format of node line
@@ -251,7 +251,7 @@ class CDBReader(object):
         """
         while True:
             splits = self.iter_line.strip().split(",")
-            sec_id = int(splits[1])
+            sec_id = splits[1]
             if splits[2] == "BEAM":
                 beam_type = splits[3]
                 msec_data = f_handle.readline().strip().split(",")

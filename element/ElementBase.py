@@ -37,23 +37,25 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.nodes_count = 0  # Number of nodes per element
         self.node_ids = np.asarray([])  # Node list of the element
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
-        self.ele_mat_dict = None  # Pars of Material of the element
-        self.ele_prop_dict = None  # 属性字典
+        self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
         self.vtp_type = ""
         self.eq_numbers = np.asarray([], dtype=np.uint32)
         self.D = None  # 本构矩阵
+
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
         [[x1, y1, z1], [x2, y2, z2], ...[x8, y8, z8]], type: np.mat, dtype: float
         """
         self.node_coords = None
+
         """
         不一定实例的成员, 这是由于CDB、BDF以及INP文件格式不统一造成的, 但这些变量都会转化为上述变量,
-        例如在解析完成文件后会根据mat_id初始化self.ele_mat_dict
+        例如在解析完成文件后会根据mat_id初始化self.cha_dict
         """
         self.mat_id = None
         self.sec_id = None
         self.real_const_id = None
+        self.prop_id = None
 
     def SetId(self, eid):
         self.id = eid
@@ -83,11 +85,11 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         """ 构造树的时候需要比较大小 """
         return self.id < other.id
 
-    def SetMatAndCalBTDB(self, mat_dict, prop_dict):
-        self.ele_mat_dict = mat_dict
-        self.ele_prop_dict = prop_dict
+    def SetAllCharacterAndCalD(self, cha_dict:dict):
+        """ cha_dict必须包括计算单元刚度阵的所有内容 """
+        self.cha_dict = cha_dict
         self.CalElementDMatrix()
-        # self.ElementStiffness()
+
 
     def SetEquationNumber(self, eq_nums):
         self.eq_numbers = eq_nums
@@ -128,7 +130,3 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
 
     def GetElementEquationNumber(self):
         return self.eq_numbers
-
-    def GetElementMaterial(self):
-        """ Return material of the element """
-        return self.ele_mat_dict
