@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from femdb.GlobalEnum import *
 
 class ISOMaterial(object):
     """ 各向同性材料 """

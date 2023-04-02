@@ -24,12 +24,13 @@ class Node(object):
         # 属性设置
         self.vtk_type = ""
         self.is_boundary_node = False  # 节点是否为边界节点, 即自由度是否有被约束
+        self.is_assist_node = False  # 定义梁方向的节点为辅助节点, 在计算总刚维度的时候不予考虑
 
         # 结果保存
         self.strain, self.stress = np.zeros(6), np.zeros(6)
         self.displacement = None  # 节点位移, 计算方法为 np.sqrt(np.square(dx,dy,dz))
 
-        # 根据单元自由度改变的量
+        # 根据单元自由度改变的量, 默认节点有3个自由度
         self.dof_disp = np.asarray([None] * 3, dtype=float)
         self.eq_num = np.asarray([0] * 3, dtype=np.uint32)
         self.b_code = [False] * 3  # 如果自由度被约束, 那么为True
@@ -74,11 +75,11 @@ class Node(object):
             self.eq_num[i] = eq_num + i
         return len(self.eq_num)
 
-    def CalNodeSpaceDisplacement(self):
+    def CalNodeMagnitudeDisplacement(self):
         """
         计算节点空间位移
         """
-        if self.dof_count == 3:
+        if (self.dof_count == 3) or (self.dof_count == 6):
             self.displacement = np.sqrt(np.sum(np.square([self.dof_disp[0], self.dof_disp[1], self.dof_disp[2]])))
         elif self.dof_count == 2:
             self.displacement = np.sqrt(np.sum(np.square([self.dof_disp[0], self.dof_disp[1]])))
@@ -95,7 +96,7 @@ class Node(object):
     def GetDisplacement(self):
         return self.displacement
 
-    def SetBoundaryByCDBType(self, direct_str:str, value:float):
+    def SetBoundaryWithCDBType(self, direct_str:str, value:float):
         """
         ANSYS CDB文件施加约束的方式, 与INP文件的不同
         :param direct_str: 约束的方向
@@ -122,9 +123,10 @@ class Node(object):
         else:
             mlogger.fatal("UnSupport boundary type:{}".format(str))
             sys.exit(1)
+        self.is_boundary_node = True
 
 
-    def SetBoundary(self, begin_idx=None, end_idx=None, value=0, b_type=None):
+    def SetBoundaryWithINPType(self, begin_idx=None, end_idx=None, value=0, b_type=None):
         """
         TODO: 对应不同自由度个数的情况补充完整
         设置边界条件, 如果idx大于6, 那么是其他的约束，比如温度, 还是壳单元自由度高？比如
@@ -133,7 +135,7 @@ class Node(object):
         """
         if b_type is None:
             if (begin_idx > 6) or (end_idx > 6):
-                mlogger.fatal("Unknown Boundary Index")
+                mlogger.fatal("Unknown AbaqusBoundary Index")
                 sys.exit(1)
             for i in range(begin_idx, end_idx):
                 self.dof_disp[i] = value
@@ -166,6 +168,6 @@ class Node(object):
             self.b_code = [True] * self.dof_count
 
         else:
-            mlogger.fatal("Unknown Boundary Type: {}".format(b_type))
+            mlogger.fatal("Unknown AbaqusBoundary Type: {}".format(b_type))
             sys.exit(1)
         self.is_boundary_node = True

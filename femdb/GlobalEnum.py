@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 # 配置logging, handler可以添加控制台, 即可实现控制台和文件同时输出
 logging.basicConfig(level=logging.DEBUG)
 handler = logging.FileHandler(r"D:\WorkSpace\FEM\MyPyFEM\analyse_output.log", encoding="utf-8", mode="a")
-formatter = logging.Formatter('%(asctime)s - %(funcName)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 handler.setFormatter(formatter)
 
 mlogger = logging.getLogger(__name__)

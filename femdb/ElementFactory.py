@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
 # 1D Elements
 from element.Truss import *
 from element.Beam import *
@@ -29,7 +28,7 @@ class ElementFactory:
         静态函数, 用于返回
         :param e_type: 单元类型，这里包含了Abaqus、Nastran和Ansys的
         :param e_id: 初始化单元需要单元ID
-        :param opt: 附加参数, 比如181可能是3节点壳也可能是4节点壳
+        :param opt: 附加参数, 比如181可能是3节点壳也可能是4节点壳, solid45可能是8节点也可能是4节点
         :return: 单元和节点个数
         """
         # 1D Element
@@ -80,7 +79,7 @@ class ElementFactory:
         # 1D Element
         if e_type in ["T3D2"]:
             return 3
-        elif e_type in ["B31"]:
+        elif e_type in ["B31", 188]:
             return 6
 
         # 2D Element
@@ -104,3 +103,4 @@ class ElementFactory:
             return 3
 
         mlogger.fatal("No Such ElementType: {}".format(e_type))
+        sys.exit(1)

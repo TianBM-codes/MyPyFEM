@@ -1,17 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from femdb.GlobalEnum import *
 
-class Section(object):
+
+class BeamSection(object):
     """
-    保存截面信息, 包括梁的还有壳的
+    保存梁的截面信息
     """
 
-    def __init__(self, sec_name:str, sec_type:str, sec_data:list[float]):
+    def __init__(self, sec_name: int, sec_type: BeamSectionType, sec_data: list[float]):
         self.name = sec_name
         self.sec_type = sec_type
         self.sec_data = sec_data
         self.characters = None
+        self.IsBeamSection = True
 
     def GetName(self):
         return self.name

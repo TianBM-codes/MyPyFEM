@@ -23,13 +23,14 @@ class CDBReader(object):
     def ParseFileAndInitFEMDB(self):
         """
         解析ANSYS软件的CDB文件, 主要功能为将pyansys库读取的结果转化为自身程序适用的, 初始化数据库
+        readline()不用strip(), 在具体的splits中再strip()
         Reference:
         1. D:\\software\\python\\setup394\\Lib\\site-packages\\ansys\\mapdl\\reader
         2. ANSYS Help - Mechanical APDL Element Reference
         """
         mlogger.debug("Parsing CDB file: {}".format(self.cdb_path))
         with open(self.cdb_path, 'r') as cdb_f:
-            self.iter_line = cdb_f.readline().strip()
+            self.iter_line = cdb_f.readline()
             while True:
                 # 解析分析类型
                 if self.iter_line.startswith("ANTYPE,"):
@@ -38,14 +39,14 @@ class CDBReader(object):
                     else:
                         mlogger.fatal("UnSupport Analyse Type:{}".format(self.iter_line))
                         sys.exit(1)
-                    self.iter_line = cdb_f.readline().strip()
+                    self.iter_line = cdb_f.readline()
 
                 # 解析单元类型, TODO: 解析KeyOption
                 elif self.iter_line.startswith("ET,"):
                     splits = self.iter_line.split(",")
                     assert len(splits) == 3
                     self.et_hash[int(splits[1].strip())] = int(splits[2].strip())
-                    self.iter_line = cdb_f.readline().strip()
+                    self.iter_line = cdb_f.readline()
 
                 # 解析节点信息, TODO:平面应变平面应力这种只有二维坐标的
                 elif self.iter_line.startswith("NBLOCK,"):
@@ -57,13 +58,12 @@ class CDBReader(object):
                     while self.iter_line.startswith(" "):
                         nd_data = f_reader.read(self.iter_line)
                         n_id = int(nd_data[0])
-                        x, y, z = 0.0, 0.0, 0.0
-                        if nd_data[4] is None:
-                            x = float(nd_data[3])
-                        elif nd_data[5] is None:
+                        x, y, z = float(nd_data[3]), 0.0, 0.0
+                        if nd_data[4] is not None:
                             y = float(nd_data[4])
-                        elif nd_data[6] is None:
+                        elif nd_data[5] is not None:
                             z = float(nd_data[5])
+
                         self.fem_data.AddNode(Node(n_id, x, y, z))
                         self.fem_data.node_hash[n_id] = node_index
                         node_index += 1
@@ -80,28 +80,37 @@ class CDBReader(object):
 
                 elif self.iter_line.startswith("ACEL,"):
                     # TODO: 处理加速度, 重力
-                    self.iter_line = cdb_f.readline().strip()
+                    self.iter_line = cdb_f.readline()
 
                 elif self.iter_line.startswith("D,"):
                     # 一般会约束很多很多自由度, 所以先暂时不跳出分支
                     nodes, directs, values = [], [], []
+                    bd = AnsysBoundary()
                     while self.iter_line.startswith("D,"):
-                        splits = self.iter_line.split()
-                        nodes.append(splits[1].strip())
-                        directs.append(splits[2])
-                        values.append(splits[3])
-                        self.iter_line = cdb_f.readline().strip()
+                        splits = self.iter_line.split(",")
+                        nodes.append(int(splits[1]))
+                        directs.append(splits[2].strip())
+                        values.append(float(splits[3].strip()))
+                        self.iter_line = cdb_f.readline()
+
+                    bd.SetConstraintInfor(nodes, directs, values)
+                    self.fem_data.load_case.AddBoundary(bd)
 
                 elif self.iter_line.startswith("F,"):
-                    splits = self.iter_line.split()
-                    self.fem_data.load_case.AddAnsysCLoad(int(splits[1]), splits[2], float(splits[3]))
-                    self.iter_line = cdb_f.readline().strip()
+                    # 一般F也不止施加在一个自由度上, 所以用while暂不跳出分支
+                    while self.iter_line.startswith("F,"):
+                        splits = self.iter_line.split(",")
+                        self.fem_data.load_case.AddAnsysCLoad(
+                            int(splits[1]), splits[2].strip(), float(splits[3].strip())
+                        )
+                        self.iter_line = cdb_f.readline()
 
-                # 不认识的关键字或注释直接读取下一行
                 else:
+                    # 文件底部
                     if not self.iter_line:
                         break
-                    self.iter_line = cdb_f.readline().strip()
+                    # 不支持的关键字或注释直接读取下一行, 不可以strip(), 否则空行会被认作程序结束
+                    self.iter_line = cdb_f.readline()
 
         self.fem_data.et_hash = self.et_hash
         self.fem_data.SetGrpHash(self.ele_group_hash, self.ele_count)
@@ -146,29 +155,32 @@ class CDBReader(object):
                 e_type = e_data[1]
                 real_constant_num = e_data[2]
                 sec_id = e_data[3]
-                nodes_count = e_data[8]
+                parsed_nodes_count = e_data[8]
                 ele_num = e_data[10]
-
-                # 节点编号是无符号32位的, 也就是节点最大4294967295
-                node_ids = np.zeros(nodes_count, dtype=np.uint32)
-                assert nodes_count == (len(e_data) - 11)
-                for idx in range(nodes_count):
-                    node_ids[idx] = e_data[idx + 11]
 
                 """
                 保存至数据库, ANSYS单元的每一行都指定了材料等信息, 与ABAQUS不同. 在最后文件解析完成后再
                 PrepareCalculateAnsys中分配各个单元信息
                 """
-                iter_ele, _ = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=nodes_count)
+                iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=parsed_nodes_count)
+
+                # 节点编号是无符号32位的, 也就是节点最大4294967295
+                node_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)
+                search_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)
+                for idx in range(parsed_nodes_count):
+                    node_ids[idx] = e_data[idx + 11]
+                    search_ids[idx] = self.fem_data.node_hash[node_ids[idx]]
+                iter_ele.SetNodeSearchIndex(search_ids)
+
+                # 除了组成单元所需的节点以外都是辅助节点, 默认e_node_count至parsed_nodes_count外的都是辅助节点
+                for idx in range(e_node_count, parsed_nodes_count):
+                    self.fem_data.node_list[self.fem_data.node_hash[node_ids[idx]]].is_assist_node = True
+
                 iter_ele.SetId(ele_num)
                 iter_ele.SetNodes(node_ids)
                 iter_ele.mat_id = mat_num
                 iter_ele.sec_id = sec_id
                 iter_ele.real_const_id = real_constant_num
-                search_ids = np.zeros(nodes_count, dtype=np.uint32)
-                for idx in range(nodes_count):
-                    search_ids[idx] = self.fem_data.node_hash[node_ids[idx]]
-                iter_ele.SetNodeSearchIndex(search_ids)
 
                 # 计算单元包括的节点的坐标矩阵
                 coords = []
@@ -232,17 +244,18 @@ class CDBReader(object):
                         self.fem_data.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         self.iter_line = f_handle.readline()
                         break
-                    if splits[3] == "EX":
+                    if splits[3].startswith("EX"):
                         value_dict[MaterialKey.E] = float(splits[6])
-                    elif splits[3] == "DENS":
+                    elif splits[3].startswith("DENS"):
                         value_dict[MaterialKey.Density] = float(splits[6])
-                    elif splits[3] == "NUXY":
+                    elif splits[3].startswith("NUXY"):
                         value_dict[MaterialKey.Niu] = float(splits[6])
                     self.iter_line = f_handle.readline()
                 else:
                     # 当前行为其他信息, 跳出读材料分支, 读取其他
                     jump_out = not (self.iter_line.startswith("MPDATA,") or self.iter_line.startswith("MPTEMP"))
                     if jump_out:
+                        self.fem_data.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         break
 
     def ReadSection(self, f_handle):
@@ -251,14 +264,19 @@ class CDBReader(object):
         """
         while True:
             splits = self.iter_line.strip().split(",")
-            sec_id = splits[1]
+            sec_id = int(splits[1])
             if splits[2] == "BEAM":
                 beam_type = splits[3]
                 msec_data = f_handle.readline().strip().split(",")
                 sec_data = [float(msec_data[idx]) for idx in range(1, len(msec_data)) if msec_data[idx]]
                 f_handle.readline()  # section offset
                 f_handle.readline()  # section control
-                self.fem_data.sections.append(Section(sec_id, "BEAM-{}".format(beam_type), sec_data))
+                if beam_type == "RECT":
+                    self.fem_data.sections.append(BeamSection(sec_id, BeamSectionType.Rectangle, sec_data))
+                else:
+                    mlogger.fatal("UnSupport Beam Type:{}".format(beam_type))
+                    sys.exit(1)
+
                 self.iter_line = f_handle.readline()
 
             elif splits[2] == "SHELL":
@@ -288,5 +306,3 @@ if __name__ == "__main__":
     reader = ff.FortranRecordReader(f_format)
     aa = reader.read("         1         1         1         0         0         0         0         0         8         0         1       979       980       987       987      1376      1372      1375      1375")
     print("finish")
-
-

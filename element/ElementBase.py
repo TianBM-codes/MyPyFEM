@@ -34,7 +34,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         """
         self.id = eid
         self.id_key = None  # 用来重新排列后在map中的key值, self.id为value
-        self.nodes_count = 0  # Number of nodes per element
+        self.nodes_count = -1  # Number of nodes per element
         self.node_ids = np.asarray([])  # Node list of the element
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
@@ -44,7 +44,10 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
-        [[x1, y1, z1], [x2, y2, z2], ...[x8, y8, z8]], type: np.mat, dtype: float
+        [[x1, y1, z1], 
+         [x2, y2, z2],
+          ...
+         [x8, y8, z8]], type: np.mat, dtype: float
         """
         self.node_coords = None
 
@@ -113,7 +116,11 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
 
     def SetNodeCoords(self, coords):
         """
-        初始化单元包括的节点坐标矩阵
+        初始化单元包括的节点坐标矩阵, 包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
+        [[x1, y1, z1],
+         [x2, y2, z2],
+          ...
+         [x8, y8, z8]], type: np.mat, dtype: float
         """
         self.node_coords = np.mat(coords)
 

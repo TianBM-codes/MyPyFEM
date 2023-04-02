@@ -5,7 +5,7 @@ import sys
 from femdb.GlobalEnum import *
 
 
-class Boundary(object):
+class AbaqusBoundary:
     def __init__(self, set_name, direction=None, value=None, b_type=None):
         # ABAQUS mode
         self.set_name = set_name
@@ -13,13 +13,8 @@ class Boundary(object):
         self.value = value
         self.b_type = b_type
 
-        # ANSYS mode
-        self.node_list = None
-        self.directs = None
-        self.values = None
-
     def __str__(self):
-        return "Boundary name: {}, direction: {}, value:{}, Boundary Type:{}".format(
+        return "AbaqusBoundary name: {}, direction: {}, value:{}, AbaqusBoundary Type:{}".format(
             self.set_name, self.direction, self.value, self.b_type)
 
     def GetSetName(self):
@@ -34,19 +29,55 @@ class Boundary(object):
         """
         return self.b_type
 
-    def SetConstraintInfor(self, node_list: list, directs: list, values: list):
+
+class AnsysBoundary:
+    def __init__(self):
+        # ANSYS mode
+        self.node_list = None
+        self.directs = None
+        self.con_values = None
+
+    def SetConstraintInfor(self, node_list: list[int], directs: list[str], values: list[float]):
         """
         ANSYS格式的约束施加方式
         """
         assert len(node_list) == len(directs) == len(values)
         self.node_list = node_list
         self.directs = directs
-        self.values = values
+        self.con_values = values
+
+    def GetConstrainInfor(self):
+        """
+        暂时支持ANSYS的施加约束方式是每一行一个自由度
+        """
+        return self.node_list, self.directs, self.con_values
 
 
-class ConcentratedLoad(object):
-    """ 集中力类 """
+class NastranBoundary:
+    # TODO: 还未添加测试
+    def __init__(self):
+        # Nastran mode
+        self.node_list = None
+        self.directs = None
+        self.con_values = None
 
+    def SetConstraintInfor(self, node_list: list[int], directs: list[str], values: list[float]):
+        """
+        Nastran格式的约束施加方式
+        """
+        assert len(node_list) == len(directs) == len(values)
+        self.node_list = node_list
+        self.directs = directs
+        self.con_values = values
+
+    def GetConstrainInfor(self):
+        """
+        暂时支持ANSYS的施加约束方式是每一行一个自由度
+        """
+        return self.node_list, self.directs, self.con_values
+
+class InpConcentratedLoad(object):
+    """ ABAQUS集中力类 """
     def __init__(self, set_name=None, direction=None, value=None):
         """
         :param set_name: 集中力施加的节点集(string)
@@ -58,10 +89,14 @@ class ConcentratedLoad(object):
         self.direction = direction
         self.value = value
 
-        # Ansys cdb mode
-        self.direction, self.node, value = None, None, None
 
-    def SetAnsysCForce(self, node: int, direction: str, value: float):
+class CdbConcentratedLoad(object):
+    """ ANSYS集中力类 """
+    def __init__(self):
+        self.direction, self.node, self.value = None, None, None
+        self.force_type = {"FX":0, "FY":1, "FZ":2}
+
+    def SetCForce(self, node: int, direction: str, value: float):
         """
         TODO: 添加施加弯矩
         ANSYS CDB样式的添加集中力
@@ -70,12 +105,8 @@ class ConcentratedLoad(object):
         :param value: 大小
         """
         self.node = node
-        if direction.startswith("FX"):
-            self.direction = 0
-        elif direction.startswith("FY"):
-            self.direction = 1
-        elif direction.startswith("FZ"):
-            self.direction = 2
+        if self.force_type.__contains__(direction):
+            self.direction = self.force_type[direction]
         else:
             mlogger.fatal("UnSupport CForce Type:{}".format(direction))
             sys.exit(1)
@@ -99,13 +130,18 @@ class LoadCase(object):
         return desc
 
     def AddBoundary(self, boundary):
+        """
+        无论是ANSYS、ABAQUS还是NASTRAN格式的约束都存在这里
+        :param boundary: AnsysBoundary、AbaqusBoundary或者NastranBoundary类型
+        :return: None
+        """
         self.boundaries.append(boundary)
 
     def AddAbaqusCLoad(self, set_name, direction, value):
         """
         ABAQUS类型的添加集中力
         """
-        self.c_loads.append(ConcentratedLoad(set_name, direction, value))
+        self.c_loads.append(InpConcentratedLoad(set_name, direction, value))
 
     def AddAnsysCLoad(self, node: int, direction: str, value: float):
         """
@@ -114,12 +150,12 @@ class LoadCase(object):
         :param direction: 集中力的方向
         :param value: 集中力的大小
         """
-        cf = ConcentratedLoad()
-        cf.SetAnsysCForce(node,direction, value)
+        cf = CdbConcentratedLoad()
+        cf.SetCForce(node, direction, value)
         self.c_loads.append(cf)
 
     def GetBoundaries(self):
         return self.boundaries
 
-    def GetConcentratedLoad(self):
+    def GetConcentratedLoads(self):
         return self.c_loads

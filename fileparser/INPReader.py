@@ -76,7 +76,7 @@ class InpReader(object):
                 elif self.iter_line.startswith("*Step,"):
                     self.ReadLoadCase(inp_f)
 
-                elif self.iter_line.startswith("*Boundary"):
+                elif self.iter_line.startswith("*AbaqusBoundary"):
                     self.ReadBoundary(inp_f)
 
                 else:
@@ -327,7 +327,7 @@ class InpReader(object):
         """
         self.iter_line = f_handle.readline().strip()
         while self.iter_line != "*End Step":
-            if self.iter_line == "*Boundary":
+            if self.iter_line == "*AbaqusBoundary":
                 self.ReadBoundary(f_handle)
             elif self.iter_line == "*Cload":
                 self.iter_line = f_handle.readline().strip()
@@ -349,13 +349,13 @@ class InpReader(object):
         keywords = self.iter_line.split(",")
         if len(keywords) == 2:
             # 如果改行为一个逗号间隔, 那么约束方式是用字符串来标识的
-            self.fem_data.load_case.AddBoundary(Boundary(keywords[0].strip(), b_type=keywords[1].strip()))
+            self.fem_data.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), b_type=keywords[1].strip()))
         elif len(keywords) == 3:
             # 如果该行用两个逗号间隔, 那么是固定该自由度为零
-            self.fem_data.load_case.AddBoundary(Boundary(keywords[0].strip(), int(keywords[1]), 0.0))
+            self.fem_data.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), 0.0))
         elif len(keywords) == 4:
             # 如果该行为三个逗号间隔, 那么为指定位移形式
-            self.fem_data.load_case.AddBoundary(Boundary(keywords[0].strip(), int(keywords[1]), float(keywords[3])))
+            self.fem_data.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), float(keywords[3])))
         self.iter_line = f_handle.readline().strip()
 
 

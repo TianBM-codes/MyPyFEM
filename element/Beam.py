@@ -24,7 +24,7 @@ class BeamCalculator:
     """
 
     @staticmethod
-    def CalculateMomentOfInertiaOfArea(sec_type:str, sec_data:list[float])->dict:
+    def CalculateMomentOfInertiaOfArea(sec_type: str, sec_data: list[float]) -> dict:
         """
         计算梁横截面惯性矩, 抗扭刚度
         """
@@ -43,7 +43,7 @@ class BeamCalculator:
             else:
                 alpha = d / b * 0.15
             Torsional = 2 * K1 + K2 + 2 * alpha * pow(D, 4)
-            return {SectionKey.It:It, SectionKey.Is:Is, SectionKey.Tor:Torsional}
+            return {SectionKey.It: It, SectionKey.Is: Is, SectionKey.Tor: Torsional}
 
         elif sec_type == BeamSectionType.Rectangle:
             assert len(sec_data) == 2
@@ -55,20 +55,20 @@ class BeamCalculator:
                 Torsional = 9 * pow(a, 4) / 64
             else:
                 Torsional = a * pow(b, 3) * (16 / 3 - 3.36 * b / a * (1 - pow(b / a, 4) / 12)) / 16
-            return {SectionKey.It:It, SectionKey.Is:Is, SectionKey.Tor:Torsional}
+            return {SectionKey.It: It, SectionKey.Is: Is, SectionKey.Tor: Torsional}
 
         elif sec_type == BeamSectionType.CircleSolid:
             assert len(sec_data) == 1
             I = 0.25 * np.pi * pow(sec_data[0], 4)
             Torsional = I * 2
-            return {SectionKey.It:I, SectionKey.Is:I, SectionKey.Tor:Torsional}
+            return {SectionKey.It: I, SectionKey.Is: I, SectionKey.Tor: Torsional}
 
         else:
             mlogger.fatal("UnSupport Beam Section Type:{}".format(sec_type))
             sys.exit(1)
 
     @staticmethod
-    def CalEffectiveShearArea(sec_type:BeamSectionType, sec_data:tuple)->dict:
+    def CalEffectiveShearArea(sec_type: BeamSectionType, sec_data: tuple) -> dict:
         """
         计算截面的面积属性, 包括面积、两个方向的抗剪等效面积, 圆的输入是半径
         """
@@ -76,13 +76,13 @@ class BeamCalculator:
             assert len(sec_data) == 2
             Area = sec_data[0] * sec_data[1]
             E_Area = 5 / 6 * sec_data[0] * sec_data[1]
-            return {SectionKey.Area:Area, SectionKey.Is:E_Area, SectionKey.It:E_Area}
+            return {SectionKey.Area: Area, SectionKey.At: E_Area, SectionKey.As: E_Area}
 
         elif sec_type == BeamSectionType.CircleSolid:
             assert len(sec_data) == 1
             Area = np.pi * pow(sec_data[0], 2)
             E_Area = 0.9 * np.pi * sec_data[0] ** 2
-            return {SectionKey.Area:Area, SectionKey.Is:E_Area, SectionKey.It:E_Area}
+            return {SectionKey.Area: Area, SectionKey.At: E_Area, SectionKey.As: E_Area}
 
         elif sec_type == BeamSectionType.I:
             assert len(sec_data) == 6
@@ -90,7 +90,7 @@ class BeamCalculator:
             Area = 2 * sec_data[0] * sec_data[3] + h * sec_data[5]
             E_Area_t = sec_data[0] * sec_data[5]
             E_Area_s = 5 / 6 * (2 * sec_data[0] * sec_data[3])
-            return {SectionKey.Area:Area, SectionKey.Is:E_Area_t, SectionKey.It:E_Area_s}
+            return {SectionKey.Area: Area, SectionKey.As: E_Area_t, SectionKey.At: E_Area_s}
 
         else:
             mlogger.fatal("UnSupport Section Type: {}".format(sec_type))
@@ -104,7 +104,7 @@ class Beam188(ElementBaseClass, ABC):
 
     def __init__(self, eid):
         super().__init__(eid)
-        self.nodes_count = 2  # Each element has 2 nodes
+        self.nodes_count = 2  # 每个单元包含2个节点, 表示方向的辅助节点不计算在内
         self._vtp_type = "line"
         self.stiffness = None
         self.stress = None
@@ -112,14 +112,6 @@ class Beam188(ElementBaseClass, ABC):
         # 截面相关, 面积、有效面积
         self.It, self.Is, self.Tor = None, None, None
         self.A, self.effect_as, self.effect_at = None, None, None
-
-    def SetSectionData(self, inertia_v, area_v):
-        """
-        设置截面参数
-        """
-        assert len(inertia_v) == len(area_v) == 3
-        self.It, self.Is, self.Tor = inertia_v
-        self.A, self.effect_as, self.effect_at = area_v
 
     def CalElementDMatrix(self, an_type=None):
         pass
@@ -133,51 +125,79 @@ class Beam188(ElementBaseClass, ABC):
         assert self.node_coords.shape == (3, 3)
 
         # 单元参数
-        delta = np.asarray(np.diff(self.node_coords, axis=0))[0]
+        delta = np.asarray(self.node_coords[1, :] - self.node_coords[0, :])
         E = self.cha_dict[MaterialKey.E]
-        A = self.cha_dict[PropertyKey.ThicknessOrArea]
-        G = self.cha_dict[MaterialKey.G]
-        L = np.sqrt(np.dot(delta.T, delta))
-        I = BeamCalculator.CalculateMomentOfInertiaOfArea(self.sec_type, self.sec_data)
-        k1, k2 = BeamCalculator.GetEquivalentCoff(self.sec_type)
+        A = self.cha_dict[SectionKey.Area]
+        At = self.cha_dict[SectionKey.At]
+        As = self.cha_dict[SectionKey.As]
+        G = E / (1 + 2 * self.cha_dict[MaterialKey.Niu])
+        L = np.sqrt(np.dot(delta, delta.T))
+        It = self.cha_dict[SectionKey.It]
+        Is = self.cha_dict[SectionKey.Is]
+        Tor = self.cha_dict[SectionKey.Tor]
 
         # 计算弯曲和剪切的刚度阵, 并组装成矩阵
-        EA_L = E * I / L
-        GA_kL = G * A / (k1 * L)
-        GA_2K = G * A * 0.5 / k1
-        GAL_4k = G * A * L * 0.25 / k1
-        K = np.mat(np.zeros(12, 12), dtype=float)
+        EA_L = E * A / L
+        GAt_L = G * At / L
+        GAs_L = G * As / L
+        GAt_2 = G * At * 0.5
+        GAs_2 = G * As * 0.5
+        GAtL_4 = G * At * L * 0.25
+        GAsL_4 = G * As * L * 0.25
+        EIt_L = E * It / L
+        EIs_L = E * Is / L
+        K = np.mat(np.zeros((12, 12)), dtype=float)
 
         # 轴力因素
         K[0, 0], K[0, 6] = EA_L, -EA_L
         K[6, 0], K[6, 6] = -EA_L, EA_L
 
         # 扭转因素
-        Tor = 3
         K[3, 3], K[3, 9] = Tor, -Tor
+        K[9, 3], K[9, 9] = -Tor, Tor
 
         # 剪切因素
-        Ks = np.mat(np.array([[GA_kL, GA_2K, -GA_kL, GA_2K],
-                              [GA_2K, GAL_4k, -GA_2K, GAL_4k],
-                              [-GA_kL, -GA_2K, GA_kL, -GA_2K],
-                              [GA_2K, GAL_4k, -GA_2K, GAL_4k]]))
+        K[1, 1], K[1, 7], K[7, 1], K[7, 7] = GAt_L, -GAt_L, -GAt_L, GAt_L
+        K[1, 5], K[1, 11], K[7, 5], K[7, 11] = GAt_2, GAt_2, -GAt_2, -GAt_2
+        K[5, 1], K[5, 7], K[11, 1], K[11, 7] = GAt_2, -GAt_2, GAt_2, -GAt_2
+        K[5, 5], K[5, 11], K[11, 5], K[11, 11] = GAtL_4, GAtL_4, GAtL_4, GAtL_4
+
+        K[2, 2], K[2, 8], K[8, 2], K[8, 8] = GAs_L, -GAs_L, -GAs_L, GAs_L
+        K[2, 4], K[2, 10], K[8, 4], K[8, 10] = GAs_2, GAs_2, -GAs_2, -GAs_2
+        K[4, 2], K[4, 8], K[10, 2], K[10, 8] = GAs_2, -GAs_2, GAs_2, -GAs_2
+        K[4, 4], K[4, 10], K[10, 4], K[10, 10] = GAsL_4, GAsL_4, GAsL_4, GAsL_4
 
         # 弯曲因素
-        Kb = np.mat(np.array([[0, 0, 0, 0],
-                              [0, EA_L, 0, -EA_L],
-                              [0, 0, 0, 0],
-                              [0, -EA_L, 0, EA_L]]))
+        K[4, 4] += EIs_L
+        K[5, 5] += EIt_L
+        K[10, 10] += EIs_L
+        K[11, 11] += EIt_L
 
-        K = Ks + Kb
+        K[4, 10] -= EIs_L
+        K[5, 11] -= EIt_L
+        K[10, 4] -= EIs_L
+        K[11, 5] -= EIt_L
 
-        # 几何关系, 笛卡尔坐标变换为自然坐标, 梁主轴方向r, 梁方向点方向s
-        Cx, Cy, Cz = delta / L
-        Cx, Cy, Cz = delta / L
-        Cx, Cy, Cz = delta / L
-        # trans_mat = np.mat(np.array([[Cx, Cy, Cz, -Cx2, -CxCy, -CxCz],
-        #                              [-CxCz, -CyCz, -Cz2, CxCz, CyCz, Cz2]]))
-        #
-        # return np.matmul(np.matmul(trans_mat.T, K), trans_mat)
+        # 笛卡尔坐标变换为自然坐标, 梁主轴方向r, 梁方向点方向s, 王勖成P331
+        normal_direct = np.asarray(self.node_coords[2, :] - (self.node_coords[0, :] + self.node_coords[1, :]) / 2)
+        cross_direct = np.cross(normal_direct, delta)
+        lxx, lxy, lxz = (delta / L)[0, :]
+        lyx, lyy, lyz = (normal_direct / np.linalg.norm(normal_direct))[0, :]
+        lzx, lzy, lzz = (cross_direct / np.linalg.norm(cross_direct))[0, :]
+        trans_mat = np.mat([[lxx, lxy, lxz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                            [lyx, lyy, lyz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                            [lzx, lzy, lzz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, lxx, lxy, lxz, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, lyx, lyy, lyz, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, lzx, lzy, lzz, 0, 0, 0, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, lxx, lxy, lxz, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, lyx, lyy, lyz, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, lzx, lzy, lzz, 0, 0, 0],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 0, lxx, lxy, lxz],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 0, lyx, lyy, lyz],
+                            [0, 0, 0, 0, 0, 0, 0, 0, 0, lzx, lzy, lzz]], dtype=float)
+
+        return np.matmul(np.matmul(trans_mat.T, K), trans_mat)
 
     def ElementStress(self, displacement):
         """

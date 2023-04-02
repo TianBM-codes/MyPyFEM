@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
 
-from femdb.GlobalEnum import *
 from utils.Singleton import Singleton
 from femdb.LoadCase import *
 from femdb.Material import *
@@ -11,7 +9,6 @@ from femdb.Sets import *
 from femdb.Property import *
 from femdb.Section import *
 from femdb.ElementGroup import *
-import numpy as np
 
 
 @Singleton
@@ -21,8 +18,6 @@ class FEMDataBase(object):
     """
 
     def __init__(self):
-        # mlogger.debug("FEMDataBase ID:", id)  # 检测是否真的是Singleton
-
         # nodes
         self.node_list = []  # List of all nodes in the domain
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
@@ -161,8 +156,8 @@ class FEMDataBase(object):
         """
         # 计算解析完输入文件后暂未计算的量
         for sec in self.sections:
-            e_type, sec_type = sec.type.split("-")
-            if e_type == "BEAM":
+            sec_type = sec.sec_type
+            if sec.IsBeamSection:
                 inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(sec_type, sec.sec_data)
                 area_character = BeamCalculator.CalEffectiveShearArea(sec_type, sec.sec_data)
                 sec.SetSectionCharacter({**inertia_character, **area_character})

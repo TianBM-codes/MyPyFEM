@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import logging
 import os
 import pathlib
 import sys
@@ -55,12 +54,12 @@ class MyPyFEM:
         reader.ParseFileAndInitFEMDB()
 
         domain = Domain()
-        # domain.PrintFEMDBSummary()
+        domain.PrintFEMDBSummary()
         if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
-            logging.debug("#"*6+"Linear Analyse"+"#"*6)
+            logging.debug("Analyse Type: Linear Analyse")
             logging.debug("Step0: Prepare For Calculate Stiffness")
             domain.AssignElementCharacter()
-            domain.CallBoundaryEffect()
+            domain.CalBoundaryEffect()
             domain.CalculateEquationNumber()
 
             logging.debug("Step 1: Calculate Element StiffnessMatrix & Force Vector")
@@ -89,9 +88,10 @@ if __name__ == "__main__":
     input_file = pathlib.Path("./tests/static/linear/truss/trusstower/tower.inp")
     input_file = pathlib.Path("./tests/ANSYS/bridge/bridge.cdb")
     input_file = pathlib.Path("./tests/ANSYS/linyi/yihe_bridge.cdb")
+    input_file = pathlib.Path("./tests/ANSYS/beam/beam1882/beam1882.cdb")
     """
-    
-    input_file = pathlib.Path("./tests/ANSYS/linyi/yihe_bridge.cdb")
+
+    input_file = pathlib.Path("./tests/ANSYS/beam/beam1881/one_beam.cdb")
     cal = MyPyFEM(input_file)
     output_file = input_file.with_suffix(".vtu")
     cal.RunAnalyseFlow(output_file)
