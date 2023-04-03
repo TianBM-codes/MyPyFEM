@@ -25,7 +25,8 @@ class ElementGroup:
 
     def SetEleIdSet(self, id_set):
         """
-        设置单元组内包含的id
+        设置单元组内包含的id, 因为需要查找某些单元是否属于该组, 所以
+        设置为set类型, set是一种树结构, 比list列表结构快很多
         :param id_set: 节点id的set
         """
         self.ele_id_sets = id_set
@@ -33,7 +34,7 @@ class ElementGroup:
     def Elements(self):
         return self.eles
 
-    def IsElementInGroup(self, eid):
+    def IsElementInGroup(self, eid: int) -> bool:
         """
         通过单元id判断单元是否属于本Group, 从而判断单元的类型
         :param eid: 单元的真实ID

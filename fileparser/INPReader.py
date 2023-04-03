@@ -237,7 +237,7 @@ class InpReader(object):
             else:
                 # 对于暂不支持的内容直接读取下一行
                 self.iter_line = f_handle.readline().strip()
-                # 读取结束
+                # 文件的结尾, 读取结束
                 if not self.iter_line:
                     return
         self.iter_line = f_handle.readline().strip()

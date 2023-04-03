@@ -39,7 +39,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
         self.vtp_type = ""
-        self.eq_numbers = np.asarray([], dtype=np.uint32)
+        self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
 
         """
@@ -60,7 +60,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.real_const_id = None
         self.prop_id = None
 
-    def SetId(self, eid):
+    def SetId(self, eid: int):
         self.id = eid
 
     @abc.abstractmethod
@@ -88,33 +88,32 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         """ 构造树的时候需要比较大小 """
         return self.id < other.id
 
-    def SetAllCharacterAndCalD(self, cha_dict:dict):
+    def SetAllCharacterAndCalD(self, cha_dict: dict):
         """ cha_dict必须包括计算单元刚度阵的所有内容 """
         self.cha_dict = cha_dict
         self.CalElementDMatrix()
 
-
-    def SetEquationNumber(self, eq_nums):
+    def SetEquationNumber(self, eq_nums: list[int]):
         self.eq_numbers = eq_nums
 
     """
     设置类相关函数
     """
 
-    def SetNodes(self, nds):
+    def SetNodes(self, nds: np.ndarray):
         """
-        设置单元节点
+        设置单元节点, 真实ID
         :param nds: 必须是列表, 内容为节点id, int型
         """
         self.node_ids = nds
 
-    def SetNodeSearchIndex(self, idx):
+    def SetNodeSearchIndex(self, idx: np.ndarray):
         """
         设置单元中所有节点对应的搜索编号
         """
         self.search_node_ids = idx
 
-    def SetNodeCoords(self, coords):
+    def SetNodeCoords(self, coords: np.mat):
         """
         初始化单元包括的节点坐标矩阵, 包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
         [[x1, y1, z1],
@@ -129,11 +128,19 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
     """
 
     def GetNodes(self):
-        """ Return nodes of the element """
+        """
+        Return nodes of the element
+        """
         return self.node_ids
 
     def GetNodeSearchIndex(self):
+        """
+        search_node_ids的含义: Domain中node_list中该节点的index
+        """
         return self.search_node_ids
 
     def GetElementEquationNumber(self):
+        """
+        方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
+        """
         return self.eq_numbers

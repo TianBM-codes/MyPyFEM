@@ -75,6 +75,8 @@ class ElementFactory:
     def GetElementNodeDofCount(e_type):
         """
         返回组成单元的节点所需的自由度个数
+        :param e_type: 对于Abaqus是字符串, 对于ANSYS是int
+        :return: 单元的自由度个数
         """
         # 1D Element
         if e_type in ["T3D2"]:

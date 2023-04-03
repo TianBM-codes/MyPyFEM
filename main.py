@@ -12,10 +12,7 @@ from femdb.Domain import Domain
 
 class MyPyFEM:
     """
-    # TODO:
-    1. 可以将单元的面编号，对面做一个可识别的ID，用于区分，ID = str(sorted(nodeIds)), 参考MySTAP C++
-    2. SigleTon.py研究
-    3. meshio中包含很多格式解析以及互相转换的功能, 包括ansys和nastran等等，需要测试
+    TODO: 可以将单元的面编号，对面做一个可识别的ID，用于区分，ID = str(sorted(nodeIds)), 参考MySTAP C++
     """
 
     def __init__(self, file_path):
@@ -54,7 +51,7 @@ class MyPyFEM:
         reader.ParseFileAndInitFEMDB()
 
         domain = Domain()
-        domain.PrintFEMDBSummary()
+        # domain.PrintFEMDBSummary()
         if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
             logging.debug("Analyse Type: Linear Analyse")
             logging.debug("Step0: Prepare For Calculate Stiffness")

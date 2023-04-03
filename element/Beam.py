@@ -99,7 +99,9 @@ class BeamCalculator:
 
 class Beam188(ElementBaseClass, ABC):
     """
-    Beam188 Element class
+    一般直梁, 两节点混合插值单元, 横向剪应变被假设为常量(一阶高斯点处的剪应变)
+    Reference:
+    1. 《有限元法 理论、格式与求解方法》上 Bathe P382
     """
 
     def __init__(self, eid):
@@ -121,7 +123,7 @@ class Beam188(ElementBaseClass, ABC):
         TODO: 有整理的pdf
         Reference:
         """
-        # 节点顺序为起始点, 终点, 方向点
+        # 节点顺序为起始点, 终点, 方向点  TODO: 如何求解默认的, 也就是没定义梁方向的截面法向
         assert self.node_coords.shape == (3, 3)
 
         # 单元参数
@@ -180,7 +182,7 @@ class Beam188(ElementBaseClass, ABC):
 
         # 笛卡尔坐标变换为自然坐标, 梁主轴方向r, 梁方向点方向s, 王勖成P331
         normal_direct = np.asarray(self.node_coords[2, :] - (self.node_coords[0, :] + self.node_coords[1, :]) / 2)
-        cross_direct = np.cross(normal_direct, delta)
+        cross_direct = np.cross(delta, normal_direct)
         lxx, lxy, lxz = (delta / L)[0, :]
         lyx, lyy, lyz = (normal_direct / np.linalg.norm(normal_direct))[0, :]
         lzx, lzy, lzz = (cross_direct / np.linalg.norm(cross_direct))[0, :]
