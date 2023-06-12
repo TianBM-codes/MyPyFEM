@@ -19,8 +19,6 @@ logging.getLogger('matplotlib.font_manager').disabled = True
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
-mlogger.info("\n{} Analysis Calculate Begin {}".format("#" * 6, "#" * 6))
-
 Abaqus2VTKType = {
     # trusses
     "T2D2": "line",

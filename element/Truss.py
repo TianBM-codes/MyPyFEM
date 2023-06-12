@@ -50,12 +50,12 @@ class T3D2(ElementBaseClass, ABC):
         CxCy, CxCz, CyCz = Cx * Cy, Cx * Cz, Cy * Cz
 
         eps = 1e-7
-        return E * A / L * np.mat(np.array([[Cx2 + eps, CxCy, CxCz, -Cx2, -CxCy, -CxCz],
-                                            [CxCy, Cy2 + eps, CyCz, -CxCy, -Cy2, -CyCz],
-                                            [CxCz, CyCz, Cz2 + eps, -CxCz, -CyCz, -Cz2],
-                                            [-Cx2, -CxCy, -CxCz, Cx2 + eps, CxCy, CxCz],
-                                            [-CxCy, -Cy2, -CyCz, CxCy, Cy2 + eps, CyCz],
-                                            [-CxCz, -CyCz, -Cz2, CxCz, CyCz, Cz2 + eps]]))
+        return E * A / L * np.array([[Cx2 + eps, CxCy, CxCz, -Cx2, -CxCy, -CxCz],
+                                     [CxCy, Cy2 + eps, CyCz, -CxCy, -Cy2, -CyCz],
+                                     [CxCz, CyCz, Cz2 + eps, -CxCz, -CyCz, -Cz2],
+                                     [-Cx2, -CxCy, -CxCz, Cx2 + eps, CxCy, CxCz],
+                                     [-CxCy, -Cy2, -CyCz, CxCy, Cy2 + eps, CyCz],
+                                     [-CxCz, -CyCz, -Cz2, CxCz, CyCz, Cz2 + eps]])
 
     def ElementStress(self, displacement):
         """
@@ -70,7 +70,7 @@ class T3D2(ElementBaseClass, ABC):
 if __name__ == "__main__":
     ele = T3D2(-1)
     ele.ele_mat_dict = {MaterialKey.E: 1, PropertyKey.ThicknessOrArea: np.sqrt(3)}
-    ele.node_coords = np.mat(np.array([[0, 0, 0],
-                                       [1, 1, 1]], dtype=float))
+    ele.node_coords = np.array([[0, 0, 0],
+                                [1, 1, 1]], dtype=float)
     print(ele.ElementStiffness())
     mlogger.debug("finish")

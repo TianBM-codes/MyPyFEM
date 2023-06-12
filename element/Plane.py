@@ -13,7 +13,7 @@ class CPS4(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 8 nodes
-        self.K = np.mat(np.zeros([8, 8], dtype=float))  # 刚度矩阵
+        self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
         self.vtp_type = "quad"
         self.thickness = None
 
@@ -26,14 +26,14 @@ class CPS4(ElementBaseClass, ABC):
         niu = self.cha_dict[MaterialKey.Niu]
         if an_type == MaterialMatrixType.PlaneStree or an_type is None:
             a = e / (1 - niu ** 2)
-            self.D = a * np.mat(np.array([[1, niu, 0],
-                                          [niu, 1, 0],
-                                          [0, 0, 0.5 * (1 - niu)]]), dtype=float)
+            self.D = a * np.array([[1, niu, 0],
+                                   [niu, 1, 0],
+                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
         elif an_type == MaterialMatrixType.PlaneStrain:
             a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.mat(np.array([[1, niu / (1 - niu), 0],
-                                          [niu(1 - niu), 1, 0],
-                                          [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]]), dtype=float)
+            self.D = a * np.array([[1, niu / (1 - niu), 0],
+                                   [niu(1 - niu), 1, 0],
+                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
         else:
             mlogger.fatal("Unknown an_dimension")
             sys.exit(1)
@@ -42,7 +42,7 @@ class CPS4(ElementBaseClass, ABC):
         """
         TODO: Wilson协调元, 王勖成P211, 剪切锁死
         Bathe 上册 P323
-        dimension: 8*3, [[x1,y1,z1],[x2,y2,z2],...[x8,y8,z8]], type:np.mat, dtype:float
+        dimension: 8*3, [[x1,y1,z1],[x2,y2,z2],...[x8,y8,z8]], type:np.ndarray, dtype:float
 
         # Shape Function:
         N1 = 0.25 * (1 + r) * (1 + s)
@@ -56,7 +56,7 @@ class CPS4(ElementBaseClass, ABC):
         dN3dr, dN3ds =  0.25 * (s - 1),  0.25 * (r - 1)
         dN4dr, dN4ds =  0.25 * (1 - s), -0.25 * (1 + r)
         """
-        assert self.node_coords.shape == (4,2)
+        assert self.node_coords.shape == (4, 2)
 
         # Gaussian Weight
         sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
@@ -65,8 +65,8 @@ class CPS4(ElementBaseClass, ABC):
         for ri in range(2):
             for si in range(2):
                 r, s = sample_pt[ri], sample_pt[si]
-                dNdr = np.mat(np.array([[0.25 * (1 + s), -0.25 * (1 + s), 0.25 * (s - 1), 0.25 * (1 - s)],
-                                        [0.25 * (1 + r), 0.25 * (1 - r), 0.25 * (r - 1), -0.25 * (1 + r)]]), dtype=float)
+                dNdr = np.array([[0.25 * (1 + s), -0.25 * (1 + s), 0.25 * (s - 1), 0.25 * (1 - s)],
+                                 [0.25 * (1 + r), 0.25 * (1 - r), 0.25 * (r - 1), -0.25 * (1 + r)]], dtype=float)
                 g_weight = weight[ri] * weight[si]
 
                 # Jacobi 2*2 & B Matrix 3*8
@@ -74,9 +74,9 @@ class CPS4(ElementBaseClass, ABC):
                 det_J = np.linalg.det(J)
                 J_inv = np.linalg.inv(J)
                 B_pre = np.matmul(J_inv, dNdr)
-                B = np.mat(np.array([[B_pre[0, 0], 0, B_pre[0, 1], 0, B_pre[0, 2], 0, B_pre[0, 3], 0],
-                                     [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2], 0, B_pre[1, 3]],
-                                     [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2], B_pre[1, 3], B_pre[0, 3]]]), dtype=float)
+                B = np.array([[B_pre[0, 0], 0, B_pre[0, 1], 0, B_pre[0, 2], 0, B_pre[0, 3], 0],
+                              [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2], 0, B_pre[1, 3]],
+                              [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2], B_pre[1, 3], B_pre[0, 3]]], dtype=float)
 
                 self.K = self.K + g_weight * B.T * self.D * B * det_J * self.cha_dict[PropertyKey.ThicknessOrArea]
 
@@ -94,7 +94,7 @@ class CPS3(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
-        self.K = np.mat(np.zeros([6, 6], dtype=float))  # 刚度矩阵
+        self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
         self.vtp_type = "triangle"
         self.thickness = None
 
@@ -106,14 +106,14 @@ class CPS3(ElementBaseClass, ABC):
         niu = self.cha_dict[MaterialKey.Niu]
         if an_type == MaterialMatrixType.PlaneStree or an_type is None:
             a = e / (1 - niu ** 2)
-            self.D = a * np.mat(np.array([[1, niu, 0],
-                                          [niu, 1, 0],
-                                          [0, 0, 0.5 * (1 - niu)]]), dtype=float)
+            self.D = a * np.array([[1, niu, 0],
+                                   [niu, 1, 0],
+                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
         elif an_type == MaterialMatrixType.PlaneStrain:
             a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.mat(np.array([[1, niu / (1 - niu), 0],
-                                          [niu(1 - niu), 1, 0],
-                                          [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]]), dtype=float)
+            self.D = a * np.array([[1, niu / (1 - niu), 0],
+                                   [niu(1 - niu), 1, 0],
+                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
         else:
             mlogger.fatal("Unknown an_dimension")
             sys.exit(1)
@@ -122,7 +122,7 @@ class CPS3(ElementBaseClass, ABC):
         """
         TODO: 积分过程是否正确?
         Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
-        dimension: 2*2, [[x1,y1],[x2,y2]], type:np.mat, dtype:float
+        dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
 
         # Shape Function:
         N1 = 1 - r - s
@@ -134,19 +134,19 @@ class CPS3(ElementBaseClass, ABC):
         dN2dr, dN2ds =  1,  0
         dN3dr, dN3ds =  0,  1
         """
-        assert self.node_coords.shape == (3,2)
+        assert self.node_coords.shape == (3, 2)
 
-        dNdr = np.mat(np.array([[-1, 1, 0],
-                                [-1, 0, 1]]), dtype=float)
+        dNdr = np.array([[-1, 1, 0],
+                         [-1, 0, 1]], dtype=float)
 
         # Jacobi 2*2 & B Matrix 3*8
         J = np.matmul(dNdr, self.node_coords)
         det_J = np.linalg.det(J)
         J_inv = np.linalg.inv(J)
         B_pre = np.matmul(J_inv, dNdr)
-        B = np.mat(np.array([[B_pre[0, 0], 0, B_pre[0, 1], 0, B_pre[0, 2], 0],
-                             [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
-                             [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]]), dtype=float)
+        B = np.array([[B_pre[0, 0], 0, B_pre[0, 1], 0, B_pre[0, 2], 0],
+                      [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
+                      [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]], dtype=float)
 
         return B.T * self.D * B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
 
@@ -159,9 +159,9 @@ class CPS3(ElementBaseClass, ABC):
 if __name__ == "__main__":
     ele = CPS3(-1)
     ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
-    ele.node_coords = np.mat(np.array([[0, 0],
-                                       [4, 0],
-                                       [1, 3]]), dtype=float)
+    ele.node_coords = np.array([[0, 0],
+                                [4, 0],
+                                [1, 3]], dtype=float)
     ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
     ele.ElementStiffness()
     mlogger.debug("finish")

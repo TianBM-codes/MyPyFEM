@@ -53,7 +53,7 @@ class Domain(object):
         对于cdb文件的准备计算函数
         1. 计算各个截面属性, 赋值给对应单元
         2. 计算单元刚度阵
-        3. 计算总刚矩阵维度, 初始化总刚(type: np.mat)
+        3. 计算总刚矩阵维度, 初始化总刚(type: np.ndarray)
         """
         self.femdb.AssignElementProperty()
 
@@ -67,7 +67,7 @@ class Domain(object):
         为计算做准备, 此时文件已经解析完成, 所有set和单元材料均已解析, 是准备开始计算的第一步
         1. 将Section属性赋予每个单元, 包括材料、几何尺寸等, 执行此操作要对section进行循环,
         2. 计算单元刚度矩阵
-        3. 计算总刚矩阵维度, 初始化总刚(type: np.mat)
+        3. 计算总刚矩阵维度, 初始化总刚(type: np.ndarray)
         """
         # 检查各个节点和单元Set是否有重名, 如果有重名, 那么是建模问题, 可以
         n_set_names = []
@@ -271,7 +271,7 @@ class Domain(object):
     def GetDisplacementBySearchId(self, nd_id):
         return self.femdb.node_list[nd_id].displacement
 
-    def WriteOutPutFile(self, path):
+    def WriteVTPFile(self, path):
         """
         将结果写至vtp文件
         Reference:
@@ -306,4 +306,35 @@ class Domain(object):
             # cell_data=cell_data,
             # field_data=field_data
         )
-        mlogger.debug("Finish Write Output File")
+
+    def WriteUNV(self, u_path):
+        with open(u_path, 'w') as uf:
+            uf.write('{ Header\n'
+                     '( " ", 3.0, 1)\n'
+                     '}\n'
+                     '{ Node\n')
+            uf.write(f' ({len(self.femdb.node_list)})\n')
+            for nd in self.femdb.node_list:
+                uf.write("( {}, {}, {}, {}, 0)\n".format(nd.id, nd.coord[0], nd.coord[1], nd.coord[2]))
+            uf.write('}\n'
+                     '{ Element\n')
+            uf.write(f'( {len(self.femdb.ele_count)})\n')
+            for _, group in self.femdb.ele_grp_hash.items:
+                for ele in group:
+                    node_str = ""
+                    for nd in ele.node_ids:
+                        node_str = node_str + str(nd.id) + ", "
+                    node_str = node_str[:-1]
+                    ele_line = "({},{}, 1, 0, 0, {})\n".format(ele.id, ele.unv_code, node_str)
+                    uf.write(ele_line)
+
+            uf.write('}\n'
+                     '{ ResultSet\n'
+                     '( name="Static Displacement", target="NodeResult", type="Vector", varlabels="X|Y|Z", subcase=0)\n')
+
+            # 节点只保存位移幅值, 所以这里都保存在x方向的位移上
+            for ii in range(len(self.femdb.node_list)):
+                displacement = self.femdb.node_list[ii].displacement
+                uf.write("( {}, {}, 0, 0)\n".format(nd.id, displacement))
+
+            uf.write('}\n')

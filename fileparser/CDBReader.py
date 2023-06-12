@@ -297,9 +297,9 @@ class CDBReader(object):
 
 if __name__ == "__main__":
     # filename = "./mixed_missing_midside.cdb"
-    # filename = "../tests/ANSYS/multi/mixed_ele_mat.cdb"
-    filename = "../tests/ANSYS/bridge/bridge.cdb"
-    # filename = "../tests/ANSYS/Structualt.cdb"
+    # filename = "../testcases/ANSYS/multi/mixed_ele_mat.cdb"
+    filename = "../testcases/ANSYS/bridge/bridge.cdb"
+    # filename = "../testcases/ANSYS/Structualt.cdb"
     rd = CDBReader(filename)
     # rd.ParseFileAndInitFEMDB()
     f_format = "(19i10)"

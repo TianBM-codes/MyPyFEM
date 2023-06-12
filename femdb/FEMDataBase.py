@@ -14,12 +14,12 @@ from femdb.ElementGroup import *
 @Singleton
 class FEMDataBase(object):
     """
-    有限元数据库, 实例化的都存储在这里, 不包含
+    有限元数据库, 实例化的都存储在这里
     """
 
     def __init__(self):
         # nodes
-        self.node_list = []  # List of all nodes in the domain
+        self.node_list = []  # List of all nodes in the domain, 实例化数据
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
 
         # elements

@@ -1,7 +1,8 @@
 /.idea
+.pytest_cache
 __pycache__
 /docs
-/tests
+/testcases
 /to_assemble_code
 
 __init__.py

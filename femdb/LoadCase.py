@@ -76,8 +76,10 @@ class NastranBoundary:
         """
         return self.node_list, self.directs, self.con_values
 
+
 class InpConcentratedLoad(object):
     """ ABAQUS集中力类 """
+
     def __init__(self, set_name=None, direction=None, value=None):
         """
         :param set_name: 集中力施加的节点集(string)
@@ -92,9 +94,10 @@ class InpConcentratedLoad(object):
 
 class CdbConcentratedLoad(object):
     """ ANSYS集中力类 """
+
     def __init__(self):
         self.direction, self.node, self.value = None, None, None
-        self.force_type = {"FX":0, "FY":1, "FZ":2}
+        self.force_type = {"FX": 0, "FY": 1, "FZ": 2}
 
     def SetCForce(self, node: int, direction: str, value: float):
         """

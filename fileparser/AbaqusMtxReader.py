@@ -38,6 +38,6 @@ def mtx2mat(mtx_path: str, debug: bool = True):
     return matrix
 
 
-# data_dir = "./../tests/static/linear/solid/hexaC3D8/stiff/"
+# data_dir = "./../testcases/static/linear/solid/hexaC3D8/stiff/"
 # stiff_mat = mtx2mat(data_dir+"Job-1_STIF1.mtx")
-stiff_mat = mtx2mat("./../tests/static/linear/solid/hexaC3D8/cube/Job-1_STIF1.mtx")
+stiff_mat = mtx2mat("../testcases/static/linear/solid/hexaC3D8/cube/Job-1_STIF1.mtx")

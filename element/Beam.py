@@ -148,7 +148,7 @@ class Beam188(ElementBaseClass, ABC):
         GAsL_4 = G * As * L * 0.25
         EIt_L = E * It / L
         EIs_L = E * Is / L
-        K = np.mat(np.zeros((12, 12)), dtype=float)
+        K = np.zeros((12, 12), dtype=float)
 
         # 轴力因素
         K[0, 0], K[0, 6] = EA_L, -EA_L
@@ -186,18 +186,18 @@ class Beam188(ElementBaseClass, ABC):
         lxx, lxy, lxz = (delta / L)[0, :]
         lyx, lyy, lyz = (normal_direct / np.linalg.norm(normal_direct))[0, :]
         lzx, lzy, lzz = (cross_direct / np.linalg.norm(cross_direct))[0, :]
-        trans_mat = np.mat([[lxx, lxy, lxz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                            [lyx, lyy, lyz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                            [lzx, lzy, lzz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, lxx, lxy, lxz, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, lyx, lyy, lyz, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, lzx, lzy, lzz, 0, 0, 0, 0, 0, 0],
-                            [0, 0, 0, 0, 0, 0, lxx, lxy, lxz, 0, 0, 0],
-                            [0, 0, 0, 0, 0, 0, lyx, lyy, lyz, 0, 0, 0],
-                            [0, 0, 0, 0, 0, 0, lzx, lzy, lzz, 0, 0, 0],
-                            [0, 0, 0, 0, 0, 0, 0, 0, 0, lxx, lxy, lxz],
-                            [0, 0, 0, 0, 0, 0, 0, 0, 0, lyx, lyy, lyz],
-                            [0, 0, 0, 0, 0, 0, 0, 0, 0, lzx, lzy, lzz]], dtype=float)
+        trans_mat = np.asarray([[lxx, lxy, lxz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                [lyx, lyy, lyz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                [lzx, lzy, lzz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, lxx, lxy, lxz, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, lyx, lyy, lyz, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, lzx, lzy, lzz, 0, 0, 0, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, lxx, lxy, lxz, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, lyx, lyy, lyz, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, lzx, lzy, lzz, 0, 0, 0],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 0, lxx, lxy, lxz],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 0, lyx, lyy, lyz],
+                                [0, 0, 0, 0, 0, 0, 0, 0, 0, lzx, lzy, lzz]], dtype=float)
 
         return np.matmul(np.matmul(trans_mat.T, K), trans_mat)
 
@@ -251,7 +251,7 @@ class Beam189(ElementBaseClass, ABC):
 
         # 计算弯曲和剪切的刚度部分, 并组装成矩阵
         spt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-        K = np.mat(np.zeros((6, 6), dtype=float))
+        K = np.np.zeros((6, 6), dtype=float)
         for i in range(2):
             Ks1 = 2 * spt[i] / L - 1 / L
             Ks2 = spt[i] - 1 / 12
@@ -259,12 +259,12 @@ class Beam189(ElementBaseClass, ABC):
             Ks4 = -2 / 3
             Ks5 = 1 / L + 2 * spt[i] / L
             Ks6 = -1 / 6 - spt[i] * 0.5
-            Ks = np.mat(np.array([[Ks1 * Ks1, Ks1 * Ks2, Ks1 * Ks3, Ks1 * Ks4, Ks1 * Ks5, Ks1 * Ks6],
-                                  [Ks2 * Ks1, Ks2 * Ks2, Ks2 * Ks3, Ks2 * Ks4, Ks2 * Ks5, Ks2 * Ks6],
-                                  [Ks3 * Ks1, Ks3 * Ks2, Ks3 * Ks3, Ks3 * Ks4, Ks3 * Ks5, Ks3 * Ks6],
-                                  [Ks4 * Ks1, Ks4 * Ks2, Ks4 * Ks3, Ks4 * Ks4, Ks4 * Ks5, Ks4 * Ks6],
-                                  [Ks5 * Ks1, Ks5 * Ks2, Ks5 * Ks3, Ks5 * Ks4, Ks5 * Ks5, Ks5 * Ks6],
-                                  [Ks6 * Ks1, Ks6 * Ks2, Ks6 * Ks3, Ks6 * Ks4, Ks6 * Ks5, Ks6 * Ks6]]))
+            Ks = np.array([[Ks1 * Ks1, Ks1 * Ks2, Ks1 * Ks3, Ks1 * Ks4, Ks1 * Ks5, Ks1 * Ks6],
+                           [Ks2 * Ks1, Ks2 * Ks2, Ks2 * Ks3, Ks2 * Ks4, Ks2 * Ks5, Ks2 * Ks6],
+                           [Ks3 * Ks1, Ks3 * Ks2, Ks3 * Ks3, Ks3 * Ks4, Ks3 * Ks5, Ks3 * Ks6],
+                           [Ks4 * Ks1, Ks4 * Ks2, Ks4 * Ks3, Ks4 * Ks4, Ks4 * Ks5, Ks4 * Ks6],
+                           [Ks5 * Ks1, Ks5 * Ks2, Ks5 * Ks3, Ks5 * Ks4, Ks5 * Ks5, Ks5 * Ks6],
+                           [Ks6 * Ks1, Ks6 * Ks2, Ks6 * Ks3, Ks6 * Ks4, Ks6 * Ks5, Ks6 * Ks6]])
             K += weight[i] * Ks
 
         # 几何关系, 笛卡尔坐标变换为自然坐标
@@ -272,12 +272,12 @@ class Beam189(ElementBaseClass, ABC):
         Cx2, Cy2, Cz2 = Cx ** 2, Cy ** 2, Cz ** 2
         CxCy, CxCz, CyCz = Cx * Cy, Cx * Cz, Cy * Cz
 
-        return E * A / L * np.mat(np.array([[Cx2, CxCy, CxCz, -Cx2, -CxCy, -CxCz],
-                                            [CxCy, Cy2, CyCz, -CxCy, -Cy2, -CyCz],
-                                            [CxCz, CyCz, Cz2, -CxCz, -CyCz, -Cz2],
-                                            [-Cx2, -CxCy, -CxCz, Cx2, CxCy, CxCz],
-                                            [-CxCy, -Cy2, -CyCz, CxCy, Cy2, CyCz],
-                                            [-CxCz, -CyCz, -Cz2, CxCz, CyCz, Cz2]]))
+        return E * A / L * np.array([[Cx2, CxCy, CxCz, -Cx2, -CxCy, -CxCz],
+                                     [CxCy, Cy2, CyCz, -CxCy, -Cy2, -CyCz],
+                                     [CxCz, CyCz, Cz2, -CxCz, -CyCz, -Cz2],
+                                     [-Cx2, -CxCy, -CxCz, Cx2, CxCy, CxCz],
+                                     [-CxCy, -Cy2, -CyCz, CxCy, Cy2, CyCz],
+                                     [-CxCz, -CyCz, -Cz2, CxCz, CyCz, Cz2]])
 
     def ElementStress(self, displacement):
         """
@@ -292,8 +292,8 @@ class Beam189(ElementBaseClass, ABC):
 if __name__ == "__main__":
     # ele = Beam188(-1)
     # ele.cha_dict = {MaterialKey.E: 1, PropertyKey.ThicknessOrArea: np.sqrt(3)}
-    # ele.node_coords = np.mat(np.array([[0, 0, 0],
-    #                                    [1, 1, 1]], dtype=float))
+    # ele.node_coords = np.array([[0, 0, 0],
+    #                             [1, 1, 1]], dtype=float)
     # print(ele.ElementStiffness())
     # mlogger.debug("finish")
     # print(BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.Rectangle, (10, 12)))

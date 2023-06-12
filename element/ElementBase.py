@@ -1,6 +1,52 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+    SiPESC平台单元类型对应的code
+    xx-yy-zz
+    xx：拓扑类型，节点数
+    yy：单元分类，1梁，2杆，3膜，4板，5壳，6体，7轴对称壳，8轴对称四边形，9夹层板壳，10层合板壳，11柳钉，12连接
+    zz：单元子类。
+    TYPE=10000,    1点三向拉压弹簧单元;
+    TYPE=11100,    1点铆钉单元;
+    TYPE=20100,    2点偏心梁单元;
+    TYPE=20200,    2点轴力杆单元;
+    TYPE=20210,    2点弹塑性轴力杆单元;
+    TYPE=21200，   2点平面接触单元;
+    TYPE=21201，   2点空间接触单元;
+    TYPE=30100,    3点弯管单元;
+    TYPE=30300,    3点平面应力膜单元;
+    TYPE=30310,    3点三角形弹塑性平面应力膜单元 ;
+    TYPE=30400,    3点三角形薄板单元;
+    TYPE=30500,    3点三角形薄壳单元;
+    TYPE=30501,    3点三角形各向异性薄壳单元;
+    TYPE=30900,    3点三角形复合材料夹层板壳单元;
+    TYPE=31000,    3点三角形复合材料层合板壳单元
+    TYPE=40300,    4点平面应力膜单元;
+    TYPE=40301,    4点平面应变膜单元;
+    TYPE=40302,    4点非协调平面应力膜单元;
+    TYPE=40303,    4点非协调平面应变膜单元;
+    TYPE=40304,    4点矩形膜单元;
+    TYPE=40310,    4点弹塑性平面应力膜单元;
+    TYPE=40500,    4点任意四边形壳单元;
+    TYPE=40501,    4点任意四边形各向异性壳单元;
+    TYPE=40700,    4点轴对称旋转壳单元;
+    TYPE=40800,    4点任意四边形4节点轴对称环体单元;
+    TYPE=40900,    4点任意四边形复合材料夹层板壳单元;
+    TYPE=41000,    4点任意四边形复合材料层合板壳单元;
+    TYPE=50300,    5点等参平面膜单元;
+    TYPE=50600,    5点金字塔单元;
+    TYPE=60300,    6点高阶三角形单元;
+    TYPE=60600,    6点三棱柱单元;
+    TYPE=80300,    8点高阶四边形单元;
+    TYPE=80600,    8点块体单元;
+    TYPE=80601,    8点非协调块体单元;
+    TYPE=80610,    8点弹塑性块体单元;
+    TYPE=100600,   10点高阶四面体单元;
+    TYPE=130600,   13点高阶金字塔单元;
+    TYPE=150600,   15点高阶三棱柱单元;
+    TYPE=200600,   20点高阶六面体单元;
+"""
 import abc
 import numpy as np
 from femdb.GlobalEnum import *
@@ -38,7 +84,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.node_ids = np.asarray([])  # Node list of the element
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
-        self.vtp_type = ""
+        self.vtp_type = None
+        self.unv_code = None  # SiPESC平台显示的UNV结果, 单元代号
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
 
@@ -47,7 +94,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         [[x1, y1, z1], 
          [x2, y2, z2],
           ...
-         [x8, y8, z8]], type: np.mat, dtype: float
+         [x8, y8, z8]], type: np.ndarray, dtype: float
         """
         self.node_coords = None
 
@@ -113,15 +160,15 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         """
         self.search_node_ids = idx
 
-    def SetNodeCoords(self, coords: np.mat):
+    def SetNodeCoords(self, coords: np.ndarray):
         """
         初始化单元包括的节点坐标矩阵, 包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
         [[x1, y1, z1],
          [x2, y2, z2],
           ...
-         [x8, y8, z8]], type: np.mat, dtype: float
+         [x8, y8, z8]], type: np.ndarray, dtype: float
         """
-        self.node_coords = np.mat(coords)
+        self.node_coords = coords
 
     """
     获取信息相关函数
