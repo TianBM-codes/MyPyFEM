@@ -18,6 +18,6 @@ My FEM Python Scripts
 * Static
 
 ## To Do List
-- [] Dynamic Analysis
--[ ] Stress
+- [ ] Dynamic Analysis
+- [ ] Stress
 - [ ] Compare With Commercial Software
