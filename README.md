@@ -1,12 +1,12 @@
-# MyPyFEM
+## MyPyFEM
 My FEM Python Scripts
 
-# Support Input File Type:
+## Support Input File Type:
 * Nastran *.bdf
 * Abaqus *.inp
 * Ansys *.cdb
 
-# Support Element
+## Support Element
 * Truss
 * Plane
 * Beam
@@ -14,5 +14,9 @@ My FEM Python Scripts
 * DKT Shell
 * DKQ Shell
 
-# Support Analysis Type
+## Support Analysis Type
 * Static
+
+## To Do List
+-[ ] Dynamic Analysis
+-[ ] Stress
