@@ -122,6 +122,7 @@ class CPM8(ElementBaseClass, ABC):
     1. A COMPATIBLE TRIANGULAR ELEMENT INCLUDING VERTEX ROTATIONS FOR PLANE ELASTICITY ANALYSIS   D.J.ALLMAN
     2. TECHNICAL NOTE ON THE ALLMAN TRIANGLE AND A RELATED QUADRILATERAL ELEMENT  Robert D.Cook
     3. A Refined Four-Noded Membrane Element With Rotational Degrees Of Freedom
+    4. 有限元法 理论、格式与求解方法 上 K.J Bath P322
     """
 
     def __init__(self, eid=None):

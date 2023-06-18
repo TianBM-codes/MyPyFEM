@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
 
 from element.ElementBase import *
 import numpy as np
@@ -135,7 +134,7 @@ class MITC4(ElementBaseClass, ABC):
                 r, s = sample_pt[ri], sample_pt[si]
                 g_weight = weight[ri] * weight[si]
 
-                self.K = self.K + g_weight * B.T * self.D * B * det_J * self.cha_dict[PropertyKey.ThicknessOrArea]
+                # self.K += g_weight * self.B.T * self.D * B * det_J * self.cha_dict[PropertyKey.ThicknessOrArea]
 
         return self.K
 
@@ -211,6 +210,133 @@ class MITC3(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+
+class DKT(ElementBaseClass, ABC):
+    """
+    DKT plate 3node Element class
+    Reference:
+    1. 有限单元法  王勖成  P364
+    2. A_Study_of_Three-Node_Triangular_Plate_Bending_Elements.pdf
+    3. Note And Explanation of Formulation for DKT Shell Element and its Implementation
+       through Open Source Finite Software,Elmer.pdf
+    """
+
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        self.nodes_count = 3  # Each element has 3 nodes
+        self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
+        self.vtp_type = "triangle"
+        self.thickness = None
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
+            a = e / (1 - niu ** 2)
+            self.D = a * np.array([[1, niu, 0],
+                                   [niu, 1, 0],
+                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
+        elif an_type == MaterialMatrixType.PlaneStrain:
+            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
+            self.D = a * np.array([[1, niu / (1 - niu), 0],
+                                   [niu(1 - niu), 1, 0],
+                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
+        else:
+            mlogger.fatal("Unknown an_dimension")
+            sys.exit(1)
+
+    def ElementStiffness(self):
+        """
+        TODO: 积分过程是否正确?
+        Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
+        dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
+
+        # Shape Function:
+        N1 = 1 - r - s
+        N2 = r
+        N2 = s
+
+        # Partial
+        dN1dr, dN1ds = -1, -1
+        dN2dr, dN2ds =  1,  0
+        dN3dr, dN3ds =  0,  1
+        """
+        assert self.node_coords.shape == (3, 2)
+
+        dNdr = np.array([[-1, 1, 0],
+                         [-1, 0, 1]], dtype=float)
+
+        # Jacobi 2*2 & B Matrix 3*8
+        J = np.matmul(dNdr, self.node_coords)
+        det_J = np.linalg.det(J)
+        J_inv = np.linalg.inv(J)
+        B_pre = np.matmul(J_inv, dNdr)
+
+
+class DKQ(ElementBaseClass, ABC):
+    """
+    DKQ plate 4node Element class
+    Reference:
+    1. Evaluation of a new quadrilateral thin plate bending element.pdf  JEAN-LOUIS BATOZ
+    """
+
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        self.nodes_count = 3  # Each element has 3 nodes
+        self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
+        self.vtp_type = "triangle"
+        self.thickness = None
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
+            a = e / (1 - niu ** 2)
+            self.D = a * np.array([[1, niu, 0],
+                                   [niu, 1, 0],
+                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
+        elif an_type == MaterialMatrixType.PlaneStrain:
+            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
+            self.D = a * np.array([[1, niu / (1 - niu), 0],
+                                   [niu(1 - niu), 1, 0],
+                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
+        else:
+            mlogger.fatal("Unknown an_dimension")
+            sys.exit(1)
+
+    def ElementStiffness(self):
+        """
+        TODO: 积分过程是否正确?
+        Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
+        dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
+
+        # Shape Function:
+        N1 = 1 - r - s
+        N2 = r
+        N2 = s
+
+        # Partial
+        dN1dr, dN1ds = -1, -1
+        dN2dr, dN2ds =  1,  0
+        dN3dr, dN3ds =  0,  1
+        """
+        assert self.node_coords.shape == (3, 2)
+
+        dNdr = np.array([[-1, 1, 0],
+                         [-1, 0, 1]], dtype=float)
+
+        # Jacobi 2*2 & B Matrix 3*8
+        J = np.matmul(dNdr, self.node_coords)
+        det_J = np.linalg.det(J)
+        J_inv = np.linalg.inv(J)
+        B_pre = np.matmul(J_inv, dNdr)
 
 
 if __name__ == "__main__":
