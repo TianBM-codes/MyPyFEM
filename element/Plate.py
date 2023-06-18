@@ -220,6 +220,7 @@ class DKT(ElementBaseClass, ABC):
     2. A_Study_of_Three-Node_Triangular_Plate_Bending_Elements.pdf
     3. Note And Explanation of Formulation for DKT Shell Element and its Implementation
        through Open Source Finite Software,Elmer.pdf
+    4. Code_Aster Elements of plate: modelings DKT, DST, DKTG and Q4G
     """
 
     def __init__(self, eid=None):
