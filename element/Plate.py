@@ -220,8 +220,8 @@ class DKT(ElementBaseClass, ABC):
     2. A_Study_of_Three-Node_Triangular_Plate_Bending_Elements.pdf
     3. Note And Explanation of Formulation for DKT Shell Element and its Implementation
        through Open Source Finite Software,Elmer.pdf
-    TODO: 三角形积分, 面积坐标和r,s参数坐标的区别, 面积坐标见王勖成P366
     4. Code_Aster Elements of plate: modelings DKT, DST, DKTG and Q4G
+    TODO: 三角形积分, 面积坐标和r,s参数坐标的区别, 面积坐标见王勖成P366
     """
 
     def __init__(self, eid=None):
