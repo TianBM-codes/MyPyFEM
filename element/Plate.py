@@ -253,30 +253,11 @@ class DKT(ElementBaseClass, ABC):
 
     def ElementStiffness(self):
         """
-        TODO: 积分过程是否正确?
         Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
         dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
-
-        # Shape Function:
-        N1 = 1 - r - s
-        N2 = r
-        N2 = s
-
-        # Partial
-        dN1dr, dN1ds = -1, -1
-        dN2dr, dN2ds =  1,  0
-        dN3dr, dN3ds =  0,  1
         """
         assert self.node_coords.shape == (3, 2)
 
-        dNdr = np.array([[-1, 1, 0],
-                         [-1, 0, 1]], dtype=float)
-
-        # Jacobi 2*2 & B Matrix 3*8
-        J = np.matmul(dNdr, self.node_coords)
-        det_J = np.linalg.det(J)
-        J_inv = np.linalg.inv(J)
-        B_pre = np.matmul(J_inv, dNdr)
 
 
 class DKQ(ElementBaseClass, ABC):
@@ -315,30 +296,116 @@ class DKQ(ElementBaseClass, ABC):
 
     def ElementStiffness(self):
         """
-        TODO: 积分过程是否正确?
-        Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
-        dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
-
-        # Shape Function:
-        N1 = 1 - r - s
-        N2 = r
-        N2 = s
-
-        # Partial
-        dN1dr, dN1ds = -1, -1
-        dN2dr, dN2ds =  1,  0
-        dN3dr, dN3ds =  0,  1
+        形函数与膜单元(CPM8)类似, 为8节点四边形单元
         """
-        assert self.node_coords.shape == (3, 2)
+        assert self.node_coords.shape == (4, 2)
 
-        dNdr = np.array([[-1, 1, 0],
-                         [-1, 0, 1]], dtype=float)
+        x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
+        x23 = self.node_coords[1, 0] - self.node_coords[2, 0]
+        x34 = self.node_coords[2, 0] - self.node_coords[3, 0]
+        x41 = self.node_coords[3, 0] - self.node_coords[0, 0]
+        x13 = self.node_coords[0, 0] - self.node_coords[2, 0]
+        x24 = self.node_coords[1, 0] - self.node_coords[3, 0]
 
-        # Jacobi 2*2 & B Matrix 3*8
-        J = np.matmul(dNdr, self.node_coords)
-        det_J = np.linalg.det(J)
-        J_inv = np.linalg.inv(J)
-        B_pre = np.matmul(J_inv, dNdr)
+        y12 = self.node_coords[0, 1] - self.node_coords[1, 1]
+        y23 = self.node_coords[1, 1] - self.node_coords[2, 1]
+        y34 = self.node_coords[2, 1] - self.node_coords[3, 1]
+        y41 = self.node_coords[3, 1] - self.node_coords[0, 1]
+        y13 = self.node_coords[0, 1] - self.node_coords[2, 1]
+        y24 = self.node_coords[1, 1] - self.node_coords[3, 1]
+
+        L5_square = x12 ** 2 + y12 ** 2
+        L6_square = x23 ** 2 + y23 ** 2
+        L7_square = x34 ** 2 + y34 ** 2
+        L8_square = x41 ** 2 + y41 ** 2
+
+        a5 = - x12 / L5_square
+        a6 = - x23 / L6_square
+        a7 = - x34 / L7_square
+        a8 = - x41 / L8_square
+
+        b5 = 0.75 * x12 * y12 / L5_square
+        b6 = 0.75 * x23 * y23 / L6_square
+        b7 = 0.75 * x34 * y34 / L7_square
+        b8 = 0.75 * x41 * y41 / L8_square
+
+        c5 = (0.25 * x12 ** 2 - 0.5 * y12 ** 2) / L5_square
+        c6 = (0.25 * x23 ** 2 - 0.5 * y23 ** 2) / L6_square
+        c7 = (0.25 * x34 ** 2 - 0.5 * y34 ** 2) / L7_square
+        c8 = (0.25 * x41 ** 2 - 0.5 * y41 ** 2) / L8_square
+
+        d5 = - y12 / L5_square
+        d6 = - y23 / L6_square
+        d7 = - y34 / L7_square
+        d8 = - y41 / L8_square
+
+        e5 = (0.25 * y12 ** 2 - 0.5 * x12 ** 2) / L5_square
+        e6 = (0.25 * y23 ** 2 - 0.5 * x23 ** 2) / L6_square
+        e7 = (0.25 * y34 ** 2 - 0.5 * x34 ** 2) / L7_square
+        e8 = (0.25 * y41 ** 2 - 0.5 * x41 ** 2) / L8_square
+
+        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+
+        # 在4个高斯点上积分
+        for ri in range(2):
+            for si in range(2):
+                r, s = sample_pt[ri], sample_pt[si]
+                pN1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
+                pN2pr = -pN1pr
+                pN3pr = -0.25 * (1 - s) + 0.25 * (1 - s ** 2) + 0.5 * r * (1 - s)
+                pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r(1 - s)
+                pN5pr = -r * (1 + s)
+                pN6pr = 0.5 * (s ** 2 - 1)
+                pN7pr = r * (s - 1)
+                pN8pr = 0.5 * (1 - s ** 2)
+
+                pN1ps = 0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
+                pN2ps = 0.25 * (r ** 2 - r) + 0.5 * s * (1 - r)
+                pN3ps = 0.25 * (r - r ** 2) + 0.5 * s * (1 - r)
+                pN4ps = -0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
+                pN5ps = 0.5 * (1 - r ** 2)
+                pN6ps = s * (1 - r)
+                pN7ps = 0.5 * (r ** 2 - 1)
+                pN8ps = -s * (1 + r)
+
+                pHxpr = np.asarray([1.5 * (a5 * pN5pr - a8 * pN8pr), b5 * pN5pr + b8 * pN8pr, pN1pr - c5 * pN5pr - c8 * pN8pr,
+                                    1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN2pr - c6 * pN6pr - c5 * pN5pr,
+                                    1.5 * (a7 * pN7pr - a6 * pN6pr), b7 * pN7pr + b6 * pN6pr, pN3pr - c7 * pN7pr - c6 * pN6pr,
+                                    1.5 * (a8 * pN8pr - a7 * pN7pr), b8 * pN8pr + b7 * pN7pr, pN4pr - c8 * pN8pr - c7 * pN7pr], dtype=float)
+
+                pHxps = np.asarray([1.5 * (a5 * pN5ps - a8 * pN8ps), b5 * pN5ps + b8 * pN8ps, pN1ps - c5 * pN5ps - c8 * pN8ps,
+                                    1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN2ps - c6 * pN6ps - c5 * pN5ps,
+                                    1.5 * (a7 * pN7ps - a6 * pN6ps), b7 * pN7ps + b6 * pN6ps, pN3ps - c7 * pN7ps - c6 * pN6ps,
+                                    1.5 * (a8 * pN8ps - a7 * pN7ps), b8 * pN8ps + b7 * pN7ps, pN4ps - c8 * pN8ps - c7 * pN7ps], dtype=float)
+
+                pHypr = np.asarray([1.5 * (d5 * pN5pr - d8 * pN8pr), -pN1pr + e5 * pN5pr + e8 * pN8pr, -b5 * pN5pr - b8 * pN8pr,
+                                    1.5 * (d6 * pN6pr - d5 * pN5pr), -pN2pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr,
+                                    1.5 * (d7 * pN7pr - d6 * pN6pr), -pN3pr + e7 * pN7pr + e6 * pN6pr, -b7 * pN7pr - b6 * pN6pr,
+                                    1.5 * (d8 * pN8pr - d7 * pN7pr), -pN4pr + e8 * pN8pr + e7 * pN7pr, -b8 * pN8pr - b7 * pN7pr], dtype=float)
+
+                pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -b5 * pN5ps - b8 * pN8ps,
+                                    1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -b6 * pN6ps - b5 * pN5ps,
+                                    1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -b7 * pN7ps - b6 * pN6ps,
+                                    1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -b8 * pN8ps - b7 * pN7ps], dtype=float)
+
+                # Jacobi 2*2
+                J11 = 0.25 * (x12 - x34 + r * (x12 + x34))
+                J12 = 0.25 * (y12 - y34 + r * (y12 + y34))
+                J21 = 0.25 * (x23 - x41 + s * (x12 + x34))
+                J22 = 0.25 * (y23 - y41 + s * (y12 + y34))
+                detJ = 0.125 * (x13 * y24 - x24 * y13 + r * (x12 * y34 - x34 * y12) + s * (x41 * y23 - x23 * y41))
+
+                j11 = J22 / detJ
+                j12 = -J12 / detJ
+                j21 = -J21 / detJ
+                j22 = J11 / detJ
+
+                # B Matrix
+                B = np.asarray([j11 * pHxps + j12 * pHxps,
+                                j21 * pHyps + j22 * pHypr,
+                                j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
+
+                self.K += B.T * self.D * B * weight * detJ  # TODO: ??? 这里不会约分掉det_J??? 直接相乘可以？
 
 
 if __name__ == "__main__":
