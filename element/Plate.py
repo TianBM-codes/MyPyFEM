@@ -222,6 +222,7 @@ class DKT(ElementBaseClass, ABC):
        through Open Source Finite Software,Elmer.pdf
     4. Code_Aster Elements of plate: modelings DKT, DST, DKTG and Q4G
     TODO: 三角形积分, 面积坐标和r,s参数坐标的区别, 面积坐标见王勖成P366
+    TODO: 应力杂交单元
     """
 
     def __init__(self, eid=None):
@@ -258,6 +259,79 @@ class DKT(ElementBaseClass, ABC):
         """
         assert self.node_coords.shape == (3, 2)
 
+        x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
+        x23 = self.node_coords[1, 0] - self.node_coords[2, 0]
+        x31 = self.node_coords[1, 0] - self.node_coords[3, 0]
+
+        y12 = self.node_coords[0, 1] - self.node_coords[1, 1]
+        y23 = self.node_coords[1, 1] - self.node_coords[2, 1]
+        y31 = self.node_coords[1, 1] - self.node_coords[3, 1]
+
+        L4_square = x12 ** 2 + y12 ** 2
+        L5_square = x23 ** 2 + y23 ** 2
+        L6_square = x31 ** 2 + y31 ** 2
+
+        a4 = - x12 / L4_square
+        a5 = - x23 / L5_square
+        a6 = - x31 / L6_square
+
+        b4 = 0.75 * x12 * y12 / L4_square
+        b5 = 0.75 * x23 * y23 / L5_square
+        b6 = 0.75 * x31 * y31 / L6_square
+
+        c4 = (0.25 * x12 ** 2 - 0.5 * y12 ** 2) / L4_square
+        c5 = (0.25 * x23 ** 2 - 0.5 * y23 ** 2) / L5_square
+        c6 = (0.25 * x31 ** 2 - 0.5 * y31 ** 2) / L6_square
+
+        d4 = - y12 / L4_square
+        d5 = - y23 / L5_square
+        d6 = - y31 / L6_square
+
+        e4 = (0.25 * y12 ** 2 - 0.5 * x12 ** 2) / L4_square
+        e5 = (0.25 * y23 ** 2 - 0.5 * x23 ** 2) / L5_square
+        e6 = (0.25 * y31 ** 2 - 0.5 * x31 ** 2) / L6_square
+
+        sample_pt, weight = GaussIntegrationPoint.GetTrianglePointAndWeight(3)
+
+        # 在3个高斯点上积分
+        for ii in range(len(sample_pt)):
+            r, s = sample_pt[ii]
+
+            pN1pr, pN2pr, pN3pr = -3 + 4 * (r + s), -1 + 4 * r, 0
+            pN4pr, pN5pr, pN6pr = 4 * (1 - 2 * r - s), 4 * s, -4 * s
+            pN1ps, pN2ps, pN3ps = pN1pr, 0, -1 + 4 * s
+            pN4ps, pN5ps, pN6ps = -4 * r * (1 - r), 4 * s, r * (1 - r - 2 * s)
+
+            pHxpr = np.asarray([1.5 * (a4 * pN4pr - a6 * pN6pr), b4 * pN4pr + b6 * pN6pr, pN1pr - c4 * pN4pr - c6 * pN6pr,
+                                1.5 * (a5 * pN5pr - a4 * pN4pr), b5 * pN5pr + b4 * pN4pr, pN2pr - c5 * pN5pr - c4 * pN4pr,
+                                1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN3pr - c6 * pN6pr - c5 * pN5pr], dtype=float)
+
+            pHxps = np.asarray([1.5 * (a4 * pN4ps - a6 * pN6ps), b4 * pN4ps + b6 * pN6ps, pN1ps - c4 * pN4ps - c6 * pN6ps,
+                                1.5 * (a5 * pN5ps - a4 * pN4ps), b5 * pN5ps + b4 * pN4ps, pN2ps - c5 * pN5ps - c4 * pN4ps,
+                                1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN3ps - c6 * pN6ps - c5 * pN5ps], dtype=float)
+
+            pHypr = np.asarray([1.5 * (d4 * pN4pr - d6 * pN6pr), -pN1pr + e4 * pN4pr + e6 * pN6pr, -b4 * pN4pr - b6 * pN6pr,
+                                1.5 * (d5 * pN5pr - d4 * pN4pr), -pN2pr + e5 * pN5pr + e4 * pN4pr, -b5 * pN5pr - b4 * pN4pr,
+                                1.5 * (d6 * pN6pr - d5 * pN5pr), -pN3pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr], dtype=float)
+
+            pHyps = np.asarray([1.5 * (d4 * pN4ps - d6 * pN6ps), -pN1ps + e4 * pN4ps + e6 * pN6ps, -pHxps[0, 1],
+                                1.5 * (d5 * pN5ps - d4 * pN4ps), -pN2ps + e5 * pN5ps + e4 * pN4ps, -pHxps[1, 1],
+                                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN3ps + e6 * pN6ps + e5 * pN5ps, -pHxps[2, 1]], dtype=float)
+
+            # Jacobi 2*2
+            detJ = x31 * y12 - x12 * y31
+
+            j11 = y31 / detJ
+            j12 = y12 / detJ
+            j21 = -x31 / detJ
+            j22 = -x12 / detJ
+
+            # B Matrix
+            B = np.asarray([j11 * pHxps + j12 * pHxps,
+                            j21 * pHyps + j22 * pHypr,
+                            j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
+
+            self.K += B.T * self.D * B * weight[ii] * detJ
 
 
 class DKQ(ElementBaseClass, ABC):
@@ -383,10 +457,10 @@ class DKQ(ElementBaseClass, ABC):
                                     1.5 * (d7 * pN7pr - d6 * pN6pr), -pN3pr + e7 * pN7pr + e6 * pN6pr, -b7 * pN7pr - b6 * pN6pr,
                                     1.5 * (d8 * pN8pr - d7 * pN7pr), -pN4pr + e8 * pN8pr + e7 * pN7pr, -b8 * pN8pr - b7 * pN7pr], dtype=float)
 
-                pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -b5 * pN5ps - b8 * pN8ps,
-                                    1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -b6 * pN6ps - b5 * pN5ps,
-                                    1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -b7 * pN7ps - b6 * pN6ps,
-                                    1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -b8 * pN8ps - b7 * pN7ps], dtype=float)
+                pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -pHxps[0, 1],
+                                    1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -pHxps[1, 1],
+                                    1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -pHxps[2, 1],
+                                    1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -pHxps[3, 1]], dtype=float)
 
                 # Jacobi 2*2
                 J11 = 0.25 * (x12 - x34 + r * (x12 + x34))

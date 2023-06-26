@@ -13,6 +13,7 @@ class CPM6(ElementBaseClass, ABC):
     Reference:
     1. A COMPATIBLE TRIANGULAR ELEMENT INCLUDING VERTEX ROTATIONS FOR PLANE ELASTICITY ANALYSIS   D.J.ALLMAN
     2. TECHNICAL NOTE ON THE ALLMAN TRIANGLE AND A RELATED QUADRILATERAL ELEMENT  Robert D.Cook
+    3. 有限元理论、格式与求解方法 上 K.J Bathe P352
     """
 
     def __init__(self, eid=None):
