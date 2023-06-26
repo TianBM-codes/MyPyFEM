@@ -1,0 +1,5 @@
+A first course in finite elements (Jacob Fish, Ted Belytschko) (z-lib.org)
+The Finite Element Method for Solid and Structural Mechanics (O. C. Zienkiewicz etc.) (z-lib.org)
+The Finite Element Method its Basis and Fundamentals (O. C. Zienkiewicz etc.) (z-lib.org)
+The Finite Element Method Linear Static and Dynamic Finite Element Analysis (Thomas J. R. Hughes) (Z-Library)
+The Finite Element Method Using MATLAB, (Young W. Kwon, Hyochoong Bang) (Z-Library)
