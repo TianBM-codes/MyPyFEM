@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 
-from GlobalEnum import *
+from femdb.GlobalEnum import *
 
 
 class GaussIntegrationPoint:

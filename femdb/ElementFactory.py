@@ -47,14 +47,11 @@ class ElementFactory:
 
         # 3D Element
         elif e_type in ["S3"]:
-            return Shell3(e_id), 3
+            return DKTShell(e_id), 3
         elif e_type in ["S4", "S4R", "S4RT"]:
-            return Shell4(e_id), 4
+            return DKQShell(e_id), 4
         elif e_type in [181]:
-            if opt == 3:
-                return MITC3(e_id), 3
-            elif opt == 4:
-                return MITC4(e_id), 4
+            return DKQShell(e_id), 4
 
         elif e_type in ["C3D8", 45]:
             return C3D8(e_id), 8
@@ -103,6 +100,8 @@ class ElementFactory:
             return 3
         elif e_type in ["C3D20R"]:
             return 3
+        elif e_type in [181]:
+            return 6
 
         mlogger.fatal("No Such ElementType: {}".format(e_type))
         sys.exit(1)

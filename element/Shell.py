@@ -1,142 +1,158 @@
-import numpy as np
-from element.ElementBase import *
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-"""
-TODO:
-1. DKT、DKQ壳单元集成, 膜单元
-"""
+from element.Plate import *
+from element.Membrane import *
 
 
-class Shell3(ElementBaseClass):
-    """ Shell3 Element class """
+class DKTShell(ElementBaseClass, ABC):
+    """ DKTShell Element class """
 
     def __init__(self, eid=None):
         super().__init__(eid)
-        self._nodes_count = 3  # Each element has 2 nodes
+        self._nodes_count = 3  # Each element has 3 nodes
         self._nodes = [None for _ in range(self._nodes_count)]
         self._vtp_type = "triangle"
-        # self._ND = 6
-        # self._LocationMatrix = np.zeros(self._ND, dtype=np.int)
+        self.K = np.zeros((18, 18))
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        a = e / ((1 + niu) * (1 - 2 * niu))
+        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+                               [niu, 1 - niu, niu, 0, 0, 0],
+                               [niu, niu, 1 - niu, 0, 0, 0],
+                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+
+    def ElementStiffness(self):
+        """
+        TODO: 转轴要不要加小量
+        """
+        # 由膜单元和板单元构成
+        plate = DKTPlate(-1)
+        membrane = CPM6(-1)
+
+        # 先转换到局部坐标
+        T_matrix = GetGlobal2LocalTransMatrix(self.node_coords)
+        local_coord = np.matmul(self.node_coords, T_matrix)
+        m_coords = local_coord[:, :1]
+        mid_node = np.asarray([[(m_coords[0, :] + m_coords[1, :]) * 0.5,
+                                (m_coords[1, :] + m_coords[2, :]) * 0.5,
+                                (m_coords[2, :] + m_coords[0, :]) * 0.5]], dtype=float)
+
+        # 设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
+        membrane.node_coords = np.append(m_coords, mid_node)
+        membrane.T_matrix = T_matrix
+        plate.node_coords = m_coords
+        plate.T_matrix = T_matrix
+
+        # 设置膜单元和版单元的材料
+        membrane.cha_dict = self.cha_dict
+        plate.cha_dict = self.cha_dict
+
+        # Assembly Stiffness Matrix, membrane: u,v,theta_z, plate: omega, theta_x, theta_y
+        e = 10e-8
+        k_matrix_m = membrane.ElementStiffness()
+        k_matrix_p = plate.ElementStiffness()
+
+        self.K[:2, :2] = k_matrix_m[:2, :2]
+        self.K[5:8, 5:8] = k_matrix_m[2:5, 2:5]
+        self.K[11:14, 11:14] = k_matrix_m[11:14, 11:14]
+        self.K[17, 17] = k_matrix_m[8, 8]
+
+        self.K[2:5, 2:5] = k_matrix_p[2:5, 2:5]
+        self.K[8:11, 8:11] = k_matrix_p[8:11, 8:11]
+        self.K[14, 17, 14:17] = k_matrix_p[6:9, 6:9]
+
+    def ElementStress(self, displacement):
+        """
+        Calculate element stress
+        """
+
+
+class DKQShell(ElementBaseClass, ABC):
+    """ DKQShell Element class """
+
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        if self.is_degenerate_element:
+            self._nodes_count = 3  # Each element has 3 nodes
+            self._vtp_type = "triangle"
+            self.K = np.zeros((18, 18))
+        else:
+            self._nodes_count = 4  # Each element has 4 nodes
+            self._vtp_type = "quad"
+            self.K = np.zeros((24, 24))
+        self._nodes = [None for _ in range(self._nodes_count)]
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        a = e / ((1 + niu) * (1 - 2 * niu))
+        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+                               [niu, 1 - niu, niu, 0, 0, 0],
+                               [niu, niu, 1 - niu, 0, 0, 0],
+                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
 
     def ElementStiffness(self):
         """
         Calculate element stiffness matrix
-        Upper triangular matrix, stored as an array column by colum
-        starting from the diagonal element
         """
-        pass
+        # 由膜单元和板单元构成
+        if self.is_degenerate_element:
+            de_ele = DKTShell(self.id)
+            de_ele.node_coords = self.node_coords
+            self.K = de_ele.K
+        else:
+            plate = DKQPlate(-1)
+            membrane = CPM8(-1)
 
-    def ElementStress(self):
-        """
-        Calculate element stress
-        """
-        material = self.element_material
+            # 先转换到局部坐标
+            T_matrix = GetGlobal2LocalTransMatrix(self.node_coords)
+            local_coord = np.matmul(self.node_coords, T_matrix)
+            m_coords = local_coord[:, :2]
+            mid_node = np.asarray([(local_coord[0, :] + local_coord[1, :]) * 0.5,
+                                   (local_coord[1, :] + local_coord[2, :]) * 0.5,
+                                   (local_coord[2, :] + local_coord[3, :]) * 0.5,
+                                   (local_coord[3, :] + local_coord[0, :])], dtype=float)[:, :2]
 
+            # 设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
+            membrane.node_coords = np.append(m_coords, mid_node, axis=0)
+            membrane.T_matrix = T_matrix
+            plate.node_coords = m_coords
+            plate.T_matrix = T_matrix
 
-class Shell4(ElementBaseClass):
-    """ Shell4 Element class """
+            # 设置膜单元和版单元的材料
+            membrane.cha_dict = self.cha_dict
+            plate.cha_dict = self.cha_dict
 
-    def __init__(self, eid=None):
-        super().__init__(eid)
-        self._nodes_count = 4  # Each element has 2 nodes
-        self._nodes = [None for _ in range(self._nodes_count)]
-        self._vtp_type = "quad"
-        # self._ND = 6
-        # self._LocationMatrix = np.zeros(self._ND, dtype=np.int)
+            # Assembly Stiffness Matrix, membrane: u,v,theta_z, plate: omega, theta_x, theta_y
+            e = 10e-8
+            k_matrix_m = membrane.ElementStiffness()
+            k_matrix_p = plate.ElementStiffness()
 
-    def GenerateLocationMatrix(self):
-        """
-        Generate location matrix: the global equation number that
-        corresponding to each DOF of the element
-        """
-        i = 0
-        for N in range(self._nodes_count):
-            for D in range(3):
-                self._location_matrix[i] = self._nodes[N].bcode[D]
-                i += 1
+            self.K[:2, :2] = k_matrix_m[:2, :2]
+            self.K[5:8, 5:8] = k_matrix_m[2:5, 2:5]
+            self.K[11:14, 11:14] = k_matrix_m[5:8, 5:8]
+            self.K[17:20, 17:20] = k_matrix_m[8:11, 8:11]
+            self.K[24, 24] = k_matrix_m[24, 24]
 
-    def SizeOfStiffnessMatrix(self):
-        """
-        Return the size of the element stiffness matrix
-        (stored as an array column by column)
-        For 2 node bar element, element stiffness is a 6x6 matrix,
-        whose upper triangular part has 21 elements
-        """
-        return 21
+            self.K[2:5, 2:5] = k_matrix_p[2:5, 2:5]
+            self.K[8:11, 8:11] = k_matrix_p[5:8, 5:8]
+            self.K[14:17, 14:17] = k_matrix_p[8:11, 8:11]
+            self.K[20:23, 20:23] = k_matrix_p[11:13, 11:13]
 
-    def ElementStiffness(self, stiffness):
-        """
-        Calculate element stiffness matrix
-        Upper triangular matrix, stored as an array column by colum
-        starting from the diagonal element
-        """
-        for i in range(self.SizeOfStiffnessMatrix()):
-            stiffness[i] = 0.0
-
-        # Calculate bar length
-        # dx = x2-x1, dy = y2-y1, dz = z2-z1
-        DX = np.zeros(3)
-        for i in range(3):
-            DX[i] = self._nodes[1].XYZ[i] - self._nodes[0].XYZ[i]
-
-        # Quadratic polynomial (dx^2, dy^2, dz^2, dx*dy, dy*dz, dx*dz)
-        DX2 = np.zeros(6)
-        DX2[0] = DX[0] * DX[0]
-        DX2[1] = DX[1] * DX[1]
-        DX2[2] = DX[2] * DX[2]
-        DX2[3] = DX[0] * DX[1]
-        DX2[4] = DX[1] * DX[2]
-        DX2[5] = DX[0] * DX[2]
-
-        L2 = DX2[0] + DX2[1] + DX2[2]
-        L = np.sqrt(L2)
-
-        # Calculate element stiffness matrix
-        material = self._element_material
-
-        k = material.E * material.Area / L / L2
-
-        stiffness[0] = k * DX2[0]
-        stiffness[1] = k * DX2[1]
-        stiffness[2] = k * DX2[3]
-        stiffness[3] = k * DX2[2]
-        stiffness[4] = k * DX2[4]
-        stiffness[5] = k * DX2[5]
-        stiffness[6] = k * DX2[0]
-        stiffness[7] = -k * DX2[5]
-        stiffness[8] = -k * DX2[3]
-        stiffness[9] = -k * DX2[0]
-        stiffness[10] = k * DX2[1]
-        stiffness[11] = k * DX2[3]
-        stiffness[12] = -k * DX2[4]
-        stiffness[13] = -k * DX2[1]
-        stiffness[14] = -k * DX2[3]
-        stiffness[15] = k * DX2[2]
-        stiffness[16] = k * DX2[4]
-        stiffness[17] = k * DX2[5]
-        stiffness[18] = -k * DX2[2]
-        stiffness[19] = -k * DX2[4]
-        stiffness[20] = -k * DX2[5]
-
-    def ElementStress(self, stress, displacement):
+    def ElementStress(self, displacement):
         """
         Calculate element stress
         """
-        material = self._element_material
-
-        DX = np.zeros(3)
-        L2 = 0
-
-        for i in range(3):
-            DX[i] = self._nodes[1].XYZ[i] - self._nodes[0].XYZ[i]
-            L2 += (DX[i] * DX[i])
-
-        S = np.zeros(6)
-        for i in range(3):
-            S[i] = -DX[i] * material.E / L2
-            S[i + 3] = -S[i]
-
-        stress[0] = 0.0
-        for i in range(6):
-            if self._LocationMatrix[i]:
-                stress[0] += (S[i] * displacement[self._LocationMatrix[i] - 1])

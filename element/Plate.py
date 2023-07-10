@@ -2,16 +2,17 @@
 # -*- coding: utf-8 -*-
 
 from element.ElementBase import *
-import numpy as np
 from abc import ABC
 
+
+# TODO: 中厚板 MITC4和MITC3
 
 class MITC4(ElementBaseClass, ABC):
     """
     MITC4 Element class
     Reference:
     1.《有限元法、理论、格式与求解方法》上册Bathe P395
-    2. 王欢
+    2. 王欢Matlab程序
     """
 
     def __init__(self, eid=None):
@@ -124,7 +125,7 @@ class MITC4(ElementBaseClass, ABC):
         gama_sz[8, 0] = gama_sz[5, 0]
         gama_sz[11, 0] = gama_sz[2, 0]
 
-        # local coord to cartesian coord
+        # local global_coord to cartesian global_coord
         gama_xz = gama_rz * np.sin(beta) - gama_sz * np.sin(alpha)
         gama_yz = -gama_rz * np.cos(beta) + gama_sz * np.cos(alpha)
 
@@ -212,7 +213,7 @@ class MITC3(ElementBaseClass, ABC):
         """
 
 
-class DKT(ElementBaseClass, ABC):
+class DKTPlate(ElementBaseClass, ABC):
     """
     DKT plate 3node Element class
     Reference:
@@ -231,6 +232,7 @@ class DKT(ElementBaseClass, ABC):
         self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
         self.vtp_type = "triangle"
         self.thickness = None
+        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -256,16 +258,19 @@ class DKT(ElementBaseClass, ABC):
         """
         Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
         dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
+        单元的坐标是通过Shell单元给的, 不是在读取cdb文件时候给的
         """
         assert self.node_coords.shape == (3, 2)
+        self.thickness = self.cha_dict["RealConst"][0]  # TODO 暂时支持各个点的厚度是一样的情形
 
+        # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
         x23 = self.node_coords[1, 0] - self.node_coords[2, 0]
-        x31 = self.node_coords[1, 0] - self.node_coords[3, 0]
+        x31 = self.node_coords[2, 0] - self.node_coords[0, 0]
 
         y12 = self.node_coords[0, 1] - self.node_coords[1, 1]
         y23 = self.node_coords[1, 1] - self.node_coords[2, 1]
-        y31 = self.node_coords[1, 1] - self.node_coords[3, 1]
+        y31 = self.node_coords[2, 1] - self.node_coords[0, 1]
 
         L4_square = x12 ** 2 + y12 ** 2
         L5_square = x23 ** 2 + y23 ** 2
@@ -331,10 +336,12 @@ class DKT(ElementBaseClass, ABC):
                             j21 * pHyps + j22 * pHypr,
                             j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
 
-            self.K += B.T * self.D * B * weight[ii] * detJ
+            self.K += np.matmul(np.matmul(B.T, self.D), B) * weight[ii] * detJ
+
+        self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
 
 
-class DKQ(ElementBaseClass, ABC):
+class DKQPlate(ElementBaseClass, ABC):
     """
     DKQ plate 4node Element class
     Reference:
@@ -343,10 +350,11 @@ class DKQ(ElementBaseClass, ABC):
 
     def __init__(self, eid=None):
         super().__init__(eid)
-        self.nodes_count = 3  # Each element has 3 nodes
-        self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
-        self.vtp_type = "triangle"
+        self.nodes_count = 4  # Each element has 3 nodes
+        self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
+        self.vtp_type = "quad"
         self.thickness = None
+        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -373,7 +381,9 @@ class DKQ(ElementBaseClass, ABC):
         形函数与膜单元(CPM8)类似, 为8节点四边形单元
         """
         assert self.node_coords.shape == (4, 2)
+        self.thickness = self.cha_dict["RealConst"][0]
 
+        # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
         x23 = self.node_coords[1, 0] - self.node_coords[2, 0]
         x34 = self.node_coords[2, 0] - self.node_coords[3, 0]
@@ -479,7 +489,15 @@ class DKQ(ElementBaseClass, ABC):
                                 j21 * pHyps + j22 * pHypr,
                                 j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
 
-                self.K += B.T * self.D * B * weight * detJ  # TODO: ??? 这里不会约分掉det_J??? 直接相乘可以？
+                # 这里不会约分掉det_J
+                self.K += np.matmul(np.matmul(B.T, self.D), B) * weight[si] * detJ
+
+        self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
+
+    def ElementStress(self, displacement):
+        """
+        Calculate element stress
+        """
 
 
 if __name__ == "__main__":

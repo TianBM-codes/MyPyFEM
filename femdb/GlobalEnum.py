@@ -155,6 +155,7 @@ class FEMObject(Enum):
     EleSet = 2
     Material = 3
     Section = 4
+    RealConst = 5
 
 
 class MaterialMatrixType(Enum):

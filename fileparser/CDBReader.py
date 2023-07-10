@@ -19,11 +19,17 @@ class CDBReader(object):
         self.et_hash = {}
         self.ele_group_hash = {}
         self.ele_count = 0
+        self.real_constant_hash = {}
 
     def ParseFileAndInitFEMDB(self):
         """
-        解析ANSYS软件的CDB文件, 主要功能为将pyansys库读取的结果转化为自身程序适用的, 初始化数据库
+        解析ANSYS软件的CDB文件
         readline()不用strip(), 在具体的splits中再strip()
+        关于整体的格式：
+        1. 字母开头的定义为关键字
+        2. 括号开头是fortran格式符号, 注意可能会连续出现两行格式符号
+        3. *开头的是其他相关, 暂时不予解析
+        4. /开头的跟着的是注释
         Reference:
         1. D:\\software\\python\\setup394\\Lib\\site-packages\\ansys\\mapdl\\reader
         2. ANSYS Help - Mechanical APDL Element Reference
@@ -41,12 +47,28 @@ class CDBReader(object):
                         sys.exit(1)
                     self.iter_line = cdb_f.readline()
 
-                # 解析单元类型, TODO: 解析KeyOption
+                # 解析单元类型 TODO: 解析KeyOption
                 elif self.iter_line.startswith("ET,"):
                     splits = self.iter_line.split(",")
                     assert len(splits) == 3
                     self.et_hash[int(splits[1].strip())] = int(splits[2].strip())
                     self.iter_line = cdb_f.readline()
+
+
+                # 解析实常数, 本行暂时不解析内容, 直接解析下一行开始的实常数
+                elif self.iter_line.startswith("RLBLOCK,"):
+                    self.iter_line = cdb_f.readline()
+                    # 如果不是以字母开头的, 那么还没有跳出定义
+                    format_list = []
+                    while not self.iter_line[0].isalpha():
+                        if self.iter_line[0] == "(":
+                            format_list.append(ff.FortranRecordReader(self.iter_line.strip()))
+                            self.iter_line = cdb_f.readline()
+                        elif self.iter_line[0] == " ":  # RLBLOCK
+                            rl_data = format_list.pop(0).read(self.iter_line)
+                            self.real_constant_hash[rl_data[0]] = rl_data[2:]
+                            self.iter_line = cdb_f.readline()
+
 
                 # 解析节点信息, TODO:平面应变平面应力这种只有二维坐标的
                 elif self.iter_line.startswith("NBLOCK,"):
@@ -114,6 +136,7 @@ class CDBReader(object):
 
         self.fem_data.et_hash = self.et_hash
         self.fem_data.SetGrpHash(self.ele_group_hash, self.ele_count)
+        self.fem_data.real_const_hash = self.real_constant_hash
         mlogger.debug("Finish Parse CDB File")
 
     def ReadEBlock(self, f_handle):
@@ -165,6 +188,7 @@ class CDBReader(object):
                 iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=parsed_nodes_count)
 
                 # 节点编号是无符号32位的, 也就是节点最大4294967295
+                # TODO 壳单元四个几点，如果有两个，通常是最后一个和倒数第二个相等，那么就是三角形单元
                 node_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)
                 search_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)
                 for idx in range(parsed_nodes_count):

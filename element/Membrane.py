@@ -22,6 +22,7 @@ class CPM6(ElementBaseClass, ABC):
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtp_type = "triangle"
         self.thickness = None
+        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -47,7 +48,7 @@ class CPM6(ElementBaseClass, ABC):
         """
         p代表偏导: partial, ph1pr 代表偏h1偏r
         """
-        assert self.node_coords.shape == (6, 3)  # 6节点, 2个坐标分量
+        assert self.node_coords.shape == (6, 2)  # 6节点, 2个坐标分量
         points, weights = GaussIntegrationPoint.GetTrianglePointAndWeight(3)
         for ii in range(len(points)):
             r, s = points[ii]
@@ -83,7 +84,6 @@ class CPM6(ElementBaseClass, ABC):
             self.K += B.T * self.D * B * w * det_J  # TODO: ??? 这里不会约分掉det_J???
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
-        e = 10e-8
         a1 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
         a2 = (self.node_coords[0, 0] - self.node_coords[2, 0]) * 0.125
         a3 = (self.node_coords[1, 0] - self.node_coords[0, 0]) * 0.125
@@ -92,13 +92,10 @@ class CPM6(ElementBaseClass, ABC):
         b3 = (self.node_coords[0, 1] - self.node_coords[0, 1]) * 0.125
         T = np.asarray([[1, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 1, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, e, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 1, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 1, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, e, 0, 0, 0],
                         [0, 0, 0, 0, 0, 0, 1, 0, 0],
                         [0, 0, 0, 0, 0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, e],
                         [0.5, 0, b3, 0.5, 0, -b3, 0, 0, 0],
                         [0, 0.5, a3, 0, 0.5, -a3, 0, 0, 0],
                         [0, 0, 0, 0.5, 0, b1, 0.5, 0, -b1],
@@ -107,7 +104,7 @@ class CPM6(ElementBaseClass, ABC):
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
         self.K *= self.cha_dict[PropertyKey.ThicknessOrArea]
-        return np.matmul(np.matmul(T.T, self.K), T)
+        return np.matmul(self.T_matrix, np.matmul(np.matmul(np.matmul(T.T, self.K), T), self.T_matrix.T))
 
     def ElementStress(self, displacement):
         """
@@ -128,10 +125,11 @@ class CPM8(ElementBaseClass, ABC):
 
     def __init__(self, eid=None):
         super().__init__(eid)
-        self.nodes_count = 6  # Each element has 6 nodes
-        self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
+        self.nodes_count = 8  # Each element has 6 nodes
+        self.K = np.zeros([16, 16], dtype=float)  # 刚度矩阵
         self.vtp_type = "triangle"
         self.thickness = None
+        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -165,7 +163,7 @@ class CPM8(ElementBaseClass, ABC):
             ph1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
             ph2pr = -ph1pr
             ph3pr = -0.25 * (1 - s) + 0.25 * (1 - s ** 2) + 0.5 * r * (1 - s)
-            ph4pr = 0.25 * (s ** 2 - s) + 0.5 * r(1 - s)
+            ph4pr = 0.25 * (s ** 2 - s) + 0.5 * r*(1 - s)
             ph5pr = -r * (1 + s)
             ph6pr = 0.5 * (s ** 2 - 1)
             ph7pr = r * (s - 1)
@@ -216,16 +214,12 @@ class CPM8(ElementBaseClass, ABC):
         b41 = (self.node_coords[0, 3] - self.node_coords[0, 0]) * 0.125
         T = np.asarray([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, e, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, e, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, e, 0, 0, 0],
                         [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
                         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-                        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, e],
                         [0.5, 0, b12, 0.5, 0, -b12, 0, 0, 0, 0, 0, 0],
                         [0, 0.5, a12, 0, 0.5, -a12, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 0.5, 0, b23, 0.5, 0, -b23, 0, 0, 0],
@@ -235,7 +229,8 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        return np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict[PropertyKey.ThicknessOrArea]
+        local_k = np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict[PropertyKey.ThicknessOrArea]
+        return np.matmul(np.matmul(self.T_matrix, local_k), self.T_matrix.T)
 
     def ElementStress(self, displacement):
         """

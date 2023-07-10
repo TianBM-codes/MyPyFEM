@@ -42,6 +42,7 @@ class FEMDataBase(object):
         self.materials = []
         self.total_stiff_matrix = None
         self.load_case = LoadCase()
+        self.real_const_hash = {}
 
     """ 
     以下的函数为解析文件的相关函数, 添加节点、单元、节点集、单元集、属性、材料、边界条件、LoadCase等 
@@ -89,6 +90,7 @@ class FEMDataBase(object):
             for sec in self.sections:
                 if sec.GetName() == obj_name:
                     return sec
+
         else:
             print("Fatal Error: Can't find object: {} with type: {}".format(obj_name, obj_type))
             sys.exit(1)
@@ -171,10 +173,19 @@ class FEMDataBase(object):
         for e_type, grp in self.ele_grp_hash.items():
             for iter_ele in grp.Elements():
                 mat_dict = self.GetSpecificFEMObject(FEMObject.Material, iter_ele.mat_id).GetValueDict()
-                sec_characters = self.GetSpecificFEMObject(FEMObject.Section, iter_ele.sec_id).GetSectionCharacter()
+
+                # 并不是所有单元都有截面属性, 首先要判断是否为空
+                sec_characters = self.GetSpecificFEMObject(FEMObject.Section, iter_ele.sec_id)
+                if sec_characters is not None:
+                    sec_characters = sec_characters.GetSectionCharacter()
+                else:
+                    sec_characters = {}
+
+                # 同样, 也并不是所有单元都有实常数, 首先判断是否为空
+                real_const = {"RealConst": self.real_const_hash[iter_ele.real_const_id]}
 
                 # 所有计算单刚的参数均已设置完毕, 可以计算单刚
-                iter_ele.SetAllCharacterAndCalD({**mat_dict, **sec_characters})
+                iter_ele.SetAllCharacterAndCalD({**mat_dict, **sec_characters, **real_const})
 
     def AssignElementPropertyAbaqus(self):
         """

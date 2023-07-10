@@ -97,4 +97,4 @@ class MyPyFEM:
 
 
 if __name__ == "__main__":
-    cal = MyPyFEM("testcases/static/linear/truss/Job-1.inp")
+    cal = MyPyFEM(pathlib.Path("./numerical example/ANSYS/shell/FanShaped.cdb"))
