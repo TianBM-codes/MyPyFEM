@@ -157,11 +157,11 @@ class CPS3(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    ele = CPS3(-1)
-    ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
-    ele.node_coords = np.array([[0, 0],
+    t_ele = CPS3(-1)
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
+    t_ele.node_coords = np.array([[0, 0],
                                 [4, 0],
                                 [1, 3]], dtype=float)
-    ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
-    ele.ElementStiffness()
+    t_ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
+    t_ele.ElementStiffness()
     mlogger.debug("finish")

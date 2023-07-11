@@ -68,9 +68,9 @@ class T3D2(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    ele = T3D2(-1)
-    ele.ele_mat_dict = {MaterialKey.E: 1, PropertyKey.ThicknessOrArea: np.sqrt(3)}
-    ele.node_coords = np.array([[0, 0, 0],
+    t_ele = T3D2(-1)
+    t_ele.ele_mat_dict = {MaterialKey.E: 1, PropertyKey.ThicknessOrArea: np.sqrt(3)}
+    t_ele.node_coords = np.array([[0, 0, 0],
                                 [1, 1, 1]], dtype=float)
-    print(ele.ElementStiffness())
+    print(t_ele.ElementStiffness())
     mlogger.debug("finish")

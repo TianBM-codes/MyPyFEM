@@ -319,9 +319,9 @@ class DKTPlate(ElementBaseClass, ABC):
                                 1.5 * (d5 * pN5pr - d4 * pN4pr), -pN2pr + e5 * pN5pr + e4 * pN4pr, -b5 * pN5pr - b4 * pN4pr,
                                 1.5 * (d6 * pN6pr - d5 * pN5pr), -pN3pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr], dtype=float)
 
-            pHyps = np.asarray([1.5 * (d4 * pN4ps - d6 * pN6ps), -pN1ps + e4 * pN4ps + e6 * pN6ps, -pHxps[0, 1],
-                                1.5 * (d5 * pN5ps - d4 * pN4ps), -pN2ps + e5 * pN5ps + e4 * pN4ps, -pHxps[1, 1],
-                                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN3ps + e6 * pN6ps + e5 * pN5ps, -pHxps[2, 1]], dtype=float)
+            pHyps = np.asarray([1.5 * (d4 * pN4ps - d6 * pN6ps), -pN1ps + e4 * pN4ps + e6 * pN6ps, -pHxps[1],
+                                1.5 * (d5 * pN5ps - d4 * pN4ps), -pN2ps + e5 * pN5ps + e4 * pN4ps, -pHxps[4],
+                                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN3ps + e6 * pN6ps + e5 * pN5ps, -pHxps[7]], dtype=float)
 
             # Jacobi 2*2
             detJ = x31 * y12 - x12 * y31
@@ -338,7 +338,8 @@ class DKTPlate(ElementBaseClass, ABC):
 
             self.K += np.matmul(np.matmul(B.T, self.D), B) * weight[ii] * detJ
 
-        self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
+        # self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
+        return self.K * self.thickness
 
 
 class DKQPlate(ElementBaseClass, ABC):
@@ -351,7 +352,7 @@ class DKQPlate(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 3 nodes
-        self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
+        self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtp_type = "quad"
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
@@ -437,7 +438,7 @@ class DKQPlate(ElementBaseClass, ABC):
                 pN1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
                 pN2pr = -pN1pr
                 pN3pr = -0.25 * (1 - s) + 0.25 * (1 - s ** 2) + 0.5 * r * (1 - s)
-                pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r(1 - s)
+                pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r*(1 - s)
                 pN5pr = -r * (1 + s)
                 pN6pr = 0.5 * (s ** 2 - 1)
                 pN7pr = r * (s - 1)
@@ -467,10 +468,10 @@ class DKQPlate(ElementBaseClass, ABC):
                                     1.5 * (d7 * pN7pr - d6 * pN6pr), -pN3pr + e7 * pN7pr + e6 * pN6pr, -b7 * pN7pr - b6 * pN6pr,
                                     1.5 * (d8 * pN8pr - d7 * pN7pr), -pN4pr + e8 * pN8pr + e7 * pN7pr, -b8 * pN8pr - b7 * pN7pr], dtype=float)
 
-                pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -pHxps[0, 1],
-                                    1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -pHxps[1, 1],
-                                    1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -pHxps[2, 1],
-                                    1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -pHxps[3, 1]], dtype=float)
+                pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -pHxps[1],
+                                    1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -pHxps[4],
+                                    1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -pHxps[7],
+                                    1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -pHxps[10]], dtype=float)
 
                 # Jacobi 2*2
                 J11 = 0.25 * (x12 - x34 + r * (x12 + x34))
@@ -492,7 +493,8 @@ class DKQPlate(ElementBaseClass, ABC):
                 # 这里不会约分掉det_J
                 self.K += np.matmul(np.matmul(B.T, self.D), B) * weight[si] * detJ
 
-        self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
+        # self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
+        return self.K * self.thickness
 
     def ElementStress(self, displacement):
         """
@@ -501,11 +503,11 @@ class DKQPlate(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    ele = MITC3(-1)
-    ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
-    ele.node_coords = np.array([[0, 0],
+    t_ele = MITC3(-1)
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
+    t_ele.node_coords = np.array([[0, 0],
                                 [4, 0],
                                 [1, 3]], dtype=float)
-    ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
-    ele.ElementStiffness()
+    t_ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
+    t_ele.ElementStiffness()
     mlogger.debug("finish")

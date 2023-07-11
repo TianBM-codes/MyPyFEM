@@ -5,9 +5,10 @@ import pathlib
 import time
 import sys
 from femdb.GlobalEnum import *
-from fileparser.INPReader import InpReader
-from fileparser.CDBReader import CDBReader
-from fileparser.BDFReader import BDFReader
+from ioclass.INPParser import InpReader
+from ioclass.CDBParser import CDBReader
+from ioclass.BDFParser import BDFReader
+from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
 
 
@@ -26,13 +27,13 @@ class MyPyFEM:
 
         self._fem_data = None
         self.input_file_path = file_path
-        output_file = file_path.with_suffix(".vtu")
+        output_files = [file_path.with_suffix(".vtu"), file_path.with_suffix(".unv")]
 
-        self.RunAnalyseFlow(output_file)
+        self.RunAnalyseFlow(output_files)
 
         # 结果查看, Paraview显示, 注意要将paraview的路径加入至环境变量
         if open_paraview:
-            os.popen("paraview " + str(output_file.absolute()))
+            os.popen("paraview " + str(output_files[0].absolute()))
 
     def InitReader(self):
         """
@@ -52,7 +53,7 @@ class MyPyFEM:
             mlogger.fatal("UnSupport File Suffix:{}".format(suffix))
             sys.exit(1)
 
-    def RunAnalyseFlow(self, output_path):
+    def RunAnalyseFlow(self, output_paths):
         """
         TODO: 标准流程, 完成注释
         求解文件, 步骤如下所示, 该函数中不应包含对不同文件类型的分类, 即判断文件类型的bdf cdb等应在其他函数中完成
@@ -84,17 +85,19 @@ class MyPyFEM:
             mlogger.fatal("UnSupport Analyse Type")
             sys.exit(1)
 
-        domain.WriteVTPFile(output_path)
+        writer = ResultsWriter()
+        writer.WriteVTPFile(output_paths[0])
+        writer.WriteUNVFile(output_paths[1])
 
         # Output Each Step Time Elapsed
         w_time = time.time()
-        time_format = r"{:>20s} --> {:<.3f}seconds"
+        time_format = r"{:>20s} --> {:<.3f} seconds"
         mlogger.debug("Elapsed Time Summary:")
         mlogger.debug(time_format.format("Parse File", p_end - p_begin))
         mlogger.debug(time_format.format("Solved Displacement", d_time - p_end))
-        last_line_format = "{:>20s} --> {:<.3f}seconds\n"
+        last_line_format = "{:>20s} --> {:<.3f} seconds\n"
         mlogger.debug(last_line_format.format("Write Output File", w_time - d_time))
 
 
 if __name__ == "__main__":
-    cal = MyPyFEM(pathlib.Path("./numerical example/ANSYS/shell/FanShaped.cdb"))
+    cal = MyPyFEM(pathlib.Path("./numerical example/ANSYS/shell/FourShell.cdb"))

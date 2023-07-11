@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import numpy as np
 
 from element.Plate import *
 from element.Membrane import *
@@ -10,8 +11,8 @@ class DKTShell(ElementBaseClass, ABC):
 
     def __init__(self, eid=None):
         super().__init__(eid)
-        self._nodes_count = 3  # Each element has 3 nodes
-        self._nodes = [None for _ in range(self._nodes_count)]
+        self.nodes_count = 3  # Each element has 3 nodes
+        self._nodes = [None for _ in range(self.nodes_count)]
         self._vtp_type = "triangle"
         self.K = np.zeros((18, 18))
 
@@ -81,14 +82,14 @@ class DKQShell(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         if self.is_degenerate_element:
-            self._nodes_count = 3  # Each element has 3 nodes
+            self.nodes_count = 3  # Each element has 3 nodes
             self._vtp_type = "triangle"
             self.K = np.zeros((18, 18))
         else:
-            self._nodes_count = 4  # Each element has 4 nodes
+            self.nodes_count = 4  # Each element has 4 nodes
             self._vtp_type = "quad"
             self.K = np.zeros((24, 24))
-        self._nodes = [None for _ in range(self._nodes_count)]
+        self._nodes = [None for _ in range(self.nodes_count)]
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -147,12 +148,26 @@ class DKQShell(ElementBaseClass, ABC):
             self.K[5:8, 5:8] = k_matrix_m[2:5, 2:5]
             self.K[11:14, 11:14] = k_matrix_m[5:8, 5:8]
             self.K[17:20, 17:20] = k_matrix_m[8:11, 8:11]
-            self.K[24, 24] = k_matrix_m[24, 24]
+            self.K[23, 23] = k_matrix_m[11, 11]
 
-            self.K[2:5, 2:5] = k_matrix_p[2:5, 2:5]
-            self.K[8:11, 8:11] = k_matrix_p[5:8, 5:8]
-            self.K[14:17, 14:17] = k_matrix_p[8:11, 8:11]
-            self.K[20:23, 20:23] = k_matrix_p[11:13, 11:13]
+            self.K[2:5, 2:5] = k_matrix_p[:3, :3]
+            self.K[8:11, 8:11] = k_matrix_p[3:6, 3:6]
+            self.K[14:17, 14:17] = k_matrix_p[6:9, 6:9]
+            self.K[20:23, 20:23] = k_matrix_p[9:12, 9:12]
+
+            global_t_matrix = np.zeros((24,24))
+            global_t_matrix[0:3,0:3] = T_matrix
+            global_t_matrix[3:6,3:6] = T_matrix
+            global_t_matrix[6:9, 6:9] = T_matrix
+            global_t_matrix[9:12, 9:12] = T_matrix
+            global_t_matrix[12:15, 12:15] = T_matrix
+            global_t_matrix[15:18, 15:18] = T_matrix
+            global_t_matrix[18:21, 18:21] = T_matrix
+            global_t_matrix[21:24, 21:24] = T_matrix
+
+            self.K = np.matmul(np.matmul(global_t_matrix.T, self.K), global_t_matrix)
+
+        return self.K
 
     def ElementStress(self, displacement):
         """
