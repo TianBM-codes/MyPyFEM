@@ -232,7 +232,6 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        # local_k = np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict[PropertyKey.ThicknessOrArea]
         local_k = np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳
         return np.matmul(np.matmul(self.T_matrix, local_k), self.T_matrix.T)
 
