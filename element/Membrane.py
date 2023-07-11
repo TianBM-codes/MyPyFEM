@@ -79,17 +79,17 @@ class CPM6(ElementBaseClass, ABC):
             B2 = np.matmul(J_inv, pvpxy)
 
             # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
-            B = np.insert(B1, 1, B2[1, :])
+            B = np.insert(B1, 1, B2[1, :], axis=0)
             B[2, :] += B2[0, :]
-            self.K += B.T * self.D * B * w * det_J  # TODO: ??? 这里不会约分掉det_J???
+            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J # TODO: ??? 这里不会约分掉det_J???
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
         a1 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
         a2 = (self.node_coords[0, 0] - self.node_coords[2, 0]) * 0.125
         a3 = (self.node_coords[1, 0] - self.node_coords[0, 0]) * 0.125
-        b1 = (self.node_coords[1, 2] - self.node_coords[0, 2]) * 0.125
-        b2 = (self.node_coords[2, 0] - self.node_coords[0, 0]) * 0.125
-        b3 = (self.node_coords[0, 1] - self.node_coords[0, 1]) * 0.125
+        b1 = (self.node_coords[1, 1] - self.node_coords[2, 1]) * 0.125
+        b2 = (self.node_coords[2, 1] - self.node_coords[0, 1]) * 0.125
+        b3 = (self.node_coords[0, 1] - self.node_coords[1, 1]) * 0.125
         T = np.asarray([[1, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 1, 0, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 1, 0, 0, 0, 0, 0],
@@ -103,7 +103,8 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
-        self.K *= self.cha_dict[PropertyKey.ThicknessOrArea]
+        # self.K *= self.cha_dict[PropertyKey.ThicknessOrArea]
+        self.K *= self.cha_dict["RealConst"][0] # 只适用于等厚度的壳,
         return np.matmul(self.T_matrix, np.matmul(np.matmul(np.matmul(T.T, self.K), T), self.T_matrix.T))
 
     def ElementStress(self, displacement):
@@ -198,9 +199,9 @@ class CPM8(ElementBaseClass, ABC):
             B2 = np.matmul(J_inv, pvpxy)
 
             # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
-            B = np.insert(B1, 1, B2[1, :])
+            B = np.insert(B1, 1, B2[1, :], axis=0)
             B[2, :] += B2[0, :]
-            self.K += B.T * self.D * B * w * det_J  # TODO: ??? 这里不会约分掉det_J???
+            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J # TODO: ??? 这里不会约分掉det_J???
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
         e = 10e-8
@@ -208,10 +209,12 @@ class CPM8(ElementBaseClass, ABC):
         a23 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
         a34 = (self.node_coords[3, 0] - self.node_coords[2, 0]) * 0.125
         a41 = (self.node_coords[0, 0] - self.node_coords[3, 0]) * 0.125
-        b12 = (self.node_coords[0, 0] - self.node_coords[0, 1]) * 0.125
-        b23 = (self.node_coords[0, 1] - self.node_coords[0, 2]) * 0.125
-        b34 = (self.node_coords[0, 2] - self.node_coords[0, 3]) * 0.125
-        b41 = (self.node_coords[0, 3] - self.node_coords[0, 0]) * 0.125
+
+        b12 = (self.node_coords[1, 1] - self.node_coords[0, 1]) * 0.125
+        b23 = (self.node_coords[2, 1] - self.node_coords[1, 1]) * 0.125
+        b34 = (self.node_coords[3, 1] - self.node_coords[2, 1]) * 0.125
+        b41 = (self.node_coords[0, 1] - self.node_coords[3, 1]) * 0.125
+
         T = np.asarray([[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                         [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -229,7 +232,8 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        local_k = np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict[PropertyKey.ThicknessOrArea]
+        # local_k = np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict[PropertyKey.ThicknessOrArea]
+        local_k = np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳
         return np.matmul(np.matmul(self.T_matrix, local_k), self.T_matrix.T)
 
     def ElementStress(self, displacement):
