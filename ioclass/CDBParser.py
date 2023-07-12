@@ -4,6 +4,7 @@
 from femdb.FEMDataBase import *
 import fortranformat as ff
 import copy
+from collections import OrderedDict
 
 
 class CDBParser(object):
@@ -35,6 +36,7 @@ class CDBParser(object):
         2. ANSYS Help - Mechanical APDL Element Reference
         """
         mlogger.debug("Parsing CDB file: {}".format(self.cdb_path))
+        GlobalInfor[GlobalVariant.AnaType] = AnalyseType.LinearStatic  # 默认静力分析
         with open(self.cdb_path, 'r') as cdb_f:
             self.iter_line = cdb_f.readline()
             while True:
@@ -184,7 +186,6 @@ class CDBParser(object):
                 保存至数据库, ANSYS单元的每一行都指定了材料等信息, 与ABAQUS不同. 在最后文件解析完成后再
                 PrepareCalculateAnsys中分配各个单元信息
                 """
-                iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=parsed_nodes_count)
 
                 # 节点编号是无符号32位的, 也就是节点最大4294967295
                 # TODO 壳单元四个几点，如果有两个，通常是最后一个和倒数第二个相等，那么就是三角形单元
@@ -193,25 +194,27 @@ class CDBParser(object):
                 for idx in range(parsed_nodes_count):
                     node_ids[idx] = e_data[idx + 11]
                     search_ids[idx] = self.fem_data.node_hash[node_ids[idx]]
-                iter_ele.SetNodeSearchIndex(search_ids)
+
+                ele_node_list = list(OrderedDict.fromkeys(search_ids))
+                iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
+                iter_ele.SetNodeSearchIndex(np.asarray(ele_node_list))
 
                 # 除了组成单元所需的节点以外都是辅助节点, 默认e_node_count至parsed_nodes_count外的都是辅助节点
                 for idx in range(e_node_count, parsed_nodes_count):
                     self.fem_data.node_list[self.fem_data.node_hash[node_ids[idx]]].is_assist_node = True
 
                 iter_ele.SetId(ele_num)
-                iter_ele.SetNodes(node_ids)
+                iter_ele.SetNodes(np.asarray(list(OrderedDict.fromkeys(node_ids))))
                 iter_ele.mat_id = mat_num
                 iter_ele.sec_id = sec_id
                 iter_ele.real_const_id = real_constant_num
 
                 # 计算单元包括的节点的坐标矩阵
                 coords = []
-                for nid in search_ids:
+                for nid in ele_node_list:
                     n_coord = self.fem_data.node_list[nid].GetNodeCoord()
                     coords.append(n_coord)
-                coords = np.asarray(coords)
-                iter_ele.SetNodeCoords(coords)
+                iter_ele.SetNodeCoords(np.asarray(coords))
 
                 # 保存对应关系
                 if self.ele_group_hash.__contains__(e_type):
@@ -319,14 +322,5 @@ class CDBParser(object):
 
 
 if __name__ == "__main__":
-    # filename = "./mixed_missing_midside.cdb"
-    # filename = "../testcases/ANSYS/multi/mixed_ele_mat.cdb"
-    filename = "../testcases/ANSYS/bridge/bridge.cdb"
-    # filename = "../testcases/ANSYS/Structualt.cdb"
-    rd = CDBParser(filename)
-    # rd.ParseFileAndInitFEMDB()
-    f_format = "(19i10)"
-    reader = ff.FortranRecordReader(f_format)
-    aa = reader.read(
-        "         1         1         1         0         0         0         0         0         8         0         1       979       980       987       987      1376      1372      1375      1375")
-    print("finish")
+    list1 = [109, 169, 143, 143, 130, 130, 130, 130]
+    print(np.asarray(list(OrderedDict.fromkeys(list1))))

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import sys
 
 # 1D Elements
 from element.Truss import *
@@ -56,14 +57,25 @@ class ElementFactory:
         elif e_type in ["C3D8", 45]:
             return C3D8(e_id), 8
         elif e_type in ["C3D8R"]:
-            # return C3D8R(e_id), 8
             mlogger.fatal("No impl such element")
+            sys.exit(1)
         elif e_type in ["C3D6"]:
-            return Wedge(e_id), 6
+            return C3D6(e_id), 6
         elif e_type in ["C3D4"]:
-            return TetraElement(e_id), 4
+            return C3D4(e_id), 4
         elif e_type in ["C3D20R"]:
             mlogger.fatal("No impl such element")
+            sys.exit(1)
+        elif e_type == 185:
+            if opt==8:
+                return C3D8(e_id), 8
+            elif opt==6:
+                return C3D6(e_id), 6
+            elif opt==4:
+                return C3D4(e_id), 4
+            else:
+                mlogger.fatal("Wrong opt parameter: {}".format(opt))
+                sys.exit(1)
 
         mlogger.fatal("Fatal Error: No Such ElementType: {}".format(e_type))
         sys.exit(1)
@@ -90,13 +102,9 @@ class ElementFactory:
             return 2
 
         # 3D Element
-        elif e_type in ["C3D8"]:
+        elif e_type in ["C3D8", 185, "C3D6", "C3D4"]:
             return 3
         elif e_type in ["C3D8R"]:
-            return 3
-        elif e_type in ["C3D6"]:
-            return 3
-        elif e_type in ["C3D4"]:
             return 3
         elif e_type in ["C3D20R"]:
             return 3
@@ -105,3 +113,5 @@ class ElementFactory:
 
         mlogger.fatal("No Such ElementType: {}".format(e_type))
         sys.exit(1)
+
+

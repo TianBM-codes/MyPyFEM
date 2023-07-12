@@ -4,9 +4,9 @@ import numpy as np
 from element.ElementBase import *
 
 
-class Wedge(ElementBaseClass, ABC):
+class C3D6(ElementBaseClass, ABC):
     """
-    Wedge Element class, also knowns as "Pentahedral"
+    Wedge Element class, also known as "Pentahedral"
     TODO: 调研https://github.com/febiosoftware
     """
 
@@ -28,7 +28,7 @@ class Wedge(ElementBaseClass, ABC):
                                [niu, niu, 1 - niu, 0, 0, 0],
                                [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
                                [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]], dtype=float)
 
     def ElementStiffness(self):
         """
@@ -63,29 +63,26 @@ class Wedge(ElementBaseClass, ABC):
         # 在6个高斯点上积分
         for ii in range(6):
             r, s, t = sample_r[ii], sample_s[ii], sample_t[ii]
-            dNdr = np.array([0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)],
-                            [0.5 * (1 - t), 0, -0.5 * r],
-                            [0, 0.5 * (1 - t), -0.5 * s],
-                            [-0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)],
-                            [0.5 * (1 + t), 0, 0.5 * r],
-                            [0, 0.5 * (1 + t), 0.5 * s]).T
+            dNdr = np.array([[0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)],
+                             [0.5 * (1 - t), 0, -0.5 * r],
+                             [0, 0.5 * (1 - t), -0.5 * s],
+                             [-0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)],
+                             [0.5 * (1 + t), 0, 0.5 * r],
+                             [0, 0.5 * (1 + t), 0.5 * s]], dtype=float).T
 
             # Jacobi 3*3 & B Matrix 8*24
             J = np.matmul(dNdr, self.node_coords)
             det_J = np.linalg.det(J)
             J_inv = np.linalg.inv(J)
             B_pre = np.matmul(J_inv, dNdr)
-            B = np.array([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
-                          [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
-                          [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
-                          [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5],
-                           B_pre[0, 5], 0, B_pre[1, 6], B_pre[0, 6], 0, B_pre[1, 7], B_pre[0, 7], 0],
-                          [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
-                           B_pre[1, 5], 0, B_pre[2, 6], B_pre[1, 6], 0, B_pre[2, 7], B_pre[1, 7]],
-                          [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
-                           B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]])
+            B = np.array([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0],
+                          [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0],
+                          [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5]],
+                          [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5], B_pre[0, 5], 0],
+                          [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5], B_pre[1, 5]],
+                          [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0, B_pre[0, 5]]], dtype=float)
 
-            self.K = self.K + weight * B.T * self.D * B * det_J
+            self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weight
 
         return self.K
 

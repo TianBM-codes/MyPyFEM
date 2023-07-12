@@ -2,14 +2,15 @@ import numpy as np
 from element.ElementBase import *
 
 
-class TetraElement(ElementBaseClass):
+class C3D4(ElementBaseClass):
     """ Tetra Element class """
 
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 6 nodes
-        self.K = np.zeros([12, 13], dtype=float)  # 刚度矩阵
+        self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtp_type = "tetra"
+        self.unv_code = 40800
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -47,27 +48,24 @@ class TetraElement(ElementBaseClass):
         # Gaussian Weight
         weight = 0.166666667
         r, s, t = 0.25, 0.25, 0.25
-        dNdr = np.array([-1, -1, -1],
-                        [1, 0, 0],
-                        [0, 1, 0],
-                        [0, 0, 1]).T
+        dNdr = np.array([[-1, -1, -1],
+                         [1, 0, 0],
+                         [0, 1, 0],
+                         [0, 0, 1]], dtype=float).T
 
         # Jacobi 3*3 & B Matrix 8*24
         J = np.matmul(dNdr, self.node_coords)
         det_J = np.linalg.det(J)
         J_inv = np.linalg.inv(J)
         B_pre = np.matmul(J_inv, dNdr)
-        B = np.array([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
-                      [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
-                      [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
-                      [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5],
-                       B_pre[0, 5], 0, B_pre[1, 6], B_pre[0, 6], 0, B_pre[1, 7], B_pre[0, 7], 0],
-                      [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
-                       B_pre[1, 5], 0, B_pre[2, 6], B_pre[1, 6], 0, B_pre[2, 7], B_pre[1, 7]],
-                      [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
-                       B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]])
+        B = np.array([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0],
+                      [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0],
+                      [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3]],
+                      [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0],
+                      [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3]],
+                      [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3]]], dtype=float)
 
-        self.K = self.K + weight * B.T * self.D * B * det_J
+        self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weight
 
         return self.K
 

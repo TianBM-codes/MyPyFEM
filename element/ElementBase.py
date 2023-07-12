@@ -43,7 +43,6 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.unv_code = None  # SiPESC平台显示的UNV结果, 单元代号
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
-        self.is_degenerate_element = False
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
@@ -109,9 +108,6 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         :param nds: 必须是列表, 内容为节点id, int型
         """
         self.node_ids = nds
-        # 判断单元是否为退化单元, 专门对于ANSYS来说的
-        if len(list(set(nds))) != len(self.node_ids):
-            self.is_degenerate_element = True
 
     def SetNodeSearchIndex(self, idx: np.ndarray):
         """

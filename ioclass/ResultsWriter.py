@@ -47,6 +47,7 @@
     TYPE=150600,   15点高阶三棱柱单元;
     TYPE=200600,   20点高阶六面体单元;
 """
+
 import meshio
 from femdb.FEMDataBase import *
 
@@ -106,7 +107,7 @@ class ResultsWriter(object):
             写入标题开头
             """
             uf.write('{ Header;\n'
-                     '( "Model datebase", 2.0,1;)\n'
+                     '( "Model database", 2.0,1;)\n'
                      '}\n'
                      '{ Node;\n')
 
@@ -142,9 +143,9 @@ class ResultsWriter(object):
 
             # 节点只保存位移幅值, 所以这里都保存在x方向的位移上
             for ii in range(len(self.femdb.node_list)):
-                # displacement = self.femdb.node_list[ii].displacement
-                # uf.write("( {}, {}, 0, 0)\n".format(nd, displacement))
-                node_id = self.femdb.node_list[ii].id
-                uf.write("( {}, 0, 0, 0)\n".format(node_id))
+                node = self.femdb.node_list[ii]
+                node_id = node.id
+                displacement = node.dof_disp
+                uf.write("( {}, {}, {}, {})\n".format(node_id, displacement[0], displacement[1], displacement[2]))
 
             uf.write('}\n')

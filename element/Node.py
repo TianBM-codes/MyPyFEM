@@ -120,6 +120,9 @@ class Node(object):
         elif direct_str.startswith("ROTZ"):
             self.dof_disp[5] = value
             self.b_code[5] = True
+        elif direct_str.startswith("ALL"):
+            self.dof_disp = np.asarray([value]*len(self.dof_disp), dtype=float)
+            self.b_code = [True] * len(self.b_code)
         else:
             mlogger.fatal("UnSupport boundary type:{}".format(str))
             sys.exit(1)
