@@ -1,5 +1,5 @@
 ## MyPyFEM
-My FEM Python Scripts
+用Python写的有限元程序,供大家学习交流
 
 ## Support Input File Type:
 * Nastran *.bdf
