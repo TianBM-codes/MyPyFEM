@@ -6,7 +6,7 @@ import fortranformat as ff
 import copy
 
 
-class CDBReader(object):
+class CDBParser(object):
     """
     功能为解析CDB文件, 初始化数据库单元节点及相关信息, 只负责解析和传递, 其他功能均在其他类中,
     同样的, 其他类也不会包含任何解析输入文件的功能或者函数
@@ -324,7 +324,7 @@ if __name__ == "__main__":
     # filename = "../testcases/ANSYS/multi/mixed_ele_mat.cdb"
     filename = "../testcases/ANSYS/bridge/bridge.cdb"
     # filename = "../testcases/ANSYS/Structualt.cdb"
-    rd = CDBReader(filename)
+    rd = CDBParser(filename)
     # rd.ParseFileAndInitFEMDB()
     f_format = "(19i10)"
     reader = ff.FortranRecordReader(f_format)

@@ -26,7 +26,7 @@ def ReadSectionLine(line):
     return ret_diction
 
 
-class InpReader(object):
+class InpParser(object):
     """
     功能为解析Inp文件, 初始化数据库单元节点及相关信息, 只负责解析和传递, 其他功能均在其他类中,
     同样的, 其他类也不会包含任何解析输入文件的功能或者函数

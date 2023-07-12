@@ -5,9 +5,9 @@ import pathlib
 import time
 import sys
 from femdb.GlobalEnum import *
-from ioclass.INPParser import InpReader
-from ioclass.CDBParser import CDBReader
-from ioclass.BDFParser import BDFReader
+from ioclass.INPParser import InpParser
+from ioclass.CDBParser import CDBParser
+from ioclass.BDFParser import BDFParser
 from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
 
@@ -42,13 +42,13 @@ class MyPyFEM:
         suffix = self.input_file_path.suffix
         if suffix == ".inp":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.INP
-            return InpReader(self.input_file_path)
+            return InpParser(self.input_file_path)
         elif suffix == ".cdb":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.CDB
-            return CDBReader(self.input_file_path)
+            return CDBParser(self.input_file_path)
         elif suffix == ".bdf":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.BDF
-            return BDFReader(self.input_file_path)
+            return BDFParser(self.input_file_path)
         else:
             mlogger.fatal("UnSupport File Suffix:{}".format(suffix))
             sys.exit(1)
