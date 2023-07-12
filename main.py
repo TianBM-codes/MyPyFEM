@@ -100,4 +100,5 @@ class MyPyFEM:
 
 
 if __name__ == "__main__":
-    cal = MyPyFEM(pathlib.Path("./numerical example/ANSYS/shell/FourShell.cdb"))
+    input_file = sys.argv[1]
+    cal = MyPyFEM(pathlib.Path(input_file))
