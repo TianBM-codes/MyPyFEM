@@ -87,7 +87,7 @@ class MyPyFEM:
 
         writer = ResultsWriter()
         writer.WriteVTPFile(output_paths[0])
-        writer.WriteUNVFile(output_paths[1])
+        # writer.WriteUNVFile(output_paths[1])
 
         # Output Each Step Time Elapsed
         w_time = time.time()

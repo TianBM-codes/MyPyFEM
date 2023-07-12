@@ -1,111 +1,95 @@
+from abc import ABC
+
 import numpy as np
 from element.ElementBase import *
 
 
-class Wedge(ElementBaseClass):
-    """ Wedge Element class """
+class Wedge(ElementBaseClass, ABC):
+    """
+    Wedge Element class, also knowns as "Pentahedral"
+    TODO: 调研https://github.com/febiosoftware
+    """
 
     def __init__(self, eid=None):
         super().__init__(eid)
-        self._nodes_count = 6  # Each element has 6 nodes
-        self._nodes = [None for _ in range(self._nodes_count)]
-        self._vtp_type = "wedge"
-        # self._ND = 6
-        # self._LocationMatrix = np.zeros(self._ND, dtype=np.int)
+        self.nodes_count = 6  # Each element has 6 nodes
+        self.K = np.zeros([18, 18], dtype=float)  # 刚度矩阵
+        self.vtp_type = "wedge"
 
-    def GenerateLocationMatrix(self):
+    def CalElementDMatrix(self, an_type=None):
         """
-        Generate location matrix: the global equation number that
-        corresponding to each DOF of the element
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        i = 0
-        for N in range(self._nodes_count):
-            for D in range(3):
-                self._location_matrix[i] = self._nodes[N].bcode[D]
-                i += 1
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        a = e / ((1 + niu) * (1 - 2 * niu))
+        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+                               [niu, 1 - niu, niu, 0, 0, 0],
+                               [niu, niu, 1 - niu, 0, 0, 0],
+                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
 
-    def SizeOfStiffnessMatrix(self):
+    def ElementStiffness(self):
         """
-        Return the size of the element stiffness matrix
-        (stored as an array column by column)
-        For 2 node bar element, element stiffness is a 6x6 matrix,
-        whose upper triangular part has 21 elements
+        Reference:
+        1. https://www.help.febio.org/FEBio/FEBio_tm_2_7/FEBio_tm_2-7-Subsection-4.1.2.html#:~:text=Pentahedral%20elements%20%28also%20knows%20as%20%E2%80%9Cwedge%E2%80%9D%20elements%29%20consist,s%20and%20t%20and%20are%20given%20as%20follows.
+        2. https://github.com/febiosoftware
+
+        # Shape Function:
+        N1 = 0.5 * (1 - r - s) * (1 - t)
+        N2 = 0.5 * r * (1 - t)
+        N3 = 0.5 * s * (1 - t)
+        N4 = 0.5 * (1 - r - s) * (1 + t)
+        N5 = 0.5 * r * (1 + t)
+        N6 = 0.5 * s * (1 + t)
+
+        # Partial
+        pN1pr, pN1ps, pN1pt = 0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)
+        pN2pr, pN2ps, pN2pt = 0.5 * (1 - t), 0, -0.5 * r
+        pN3pr, pN3ps, pN3pt = 0, 0.5 * (1 - t), -0.5 * s
+        pN4pr, pN4ps, pN4pt = -0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)
+        pN5pr, pN5ps, pN5pt = 0.5 * (1 + t), 0, 0.5 * r
+        pN6pr, pN6ps, pN6pt = 0, 0.5 * (1 + t), 0.5 * s
         """
-        return 21
+        assert len(self.node_coords) == 8
 
-    def ElementStiffness(self, stiffness):
-        """
-        Calculate element stiffness matrix
-        Upper triangular matrix, stored as an array column by colum
-        starting from the diagonal element
-        """
-        for i in range(self.SizeOfStiffnessMatrix()):
-            stiffness[i] = 0.0
+        # Gaussian Weight
+        sample_r = [0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667, 0.166666667]
+        sample_s = [0.166666667, 0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667]
+        sample_t = [-0.577350269, -0.577350269, -0.577350269, 0.577350269, 0.577350269, 0.577350269]
+        weight = 0.166666667
 
-        # Calculate bar length
-        # dx = x2-x1, dy = y2-y1, dz = z2-z1
-        DX = np.zeros(3)
-        for i in range(3):
-            DX[i] = self._nodes[1].XYZ[i] - self._nodes[0].XYZ[i]
+        # 在6个高斯点上积分
+        for ii in range(6):
+            r, s, t = sample_r[ii], sample_s[ii], sample_t[ii]
+            dNdr = np.array([0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)],
+                            [0.5 * (1 - t), 0, -0.5 * r],
+                            [0, 0.5 * (1 - t), -0.5 * s],
+                            [-0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)],
+                            [0.5 * (1 + t), 0, 0.5 * r],
+                            [0, 0.5 * (1 + t), 0.5 * s]).T
 
-        # Quadratic polynomial (dx^2, dy^2, dz^2, dx*dy, dy*dz, dx*dz)
-        DX2 = np.zeros(6)
-        DX2[0] = DX[0] * DX[0]
-        DX2[1] = DX[1] * DX[1]
-        DX2[2] = DX[2] * DX[2]
-        DX2[3] = DX[0] * DX[1]
-        DX2[4] = DX[1] * DX[2]
-        DX2[5] = DX[0] * DX[2]
+            # Jacobi 3*3 & B Matrix 8*24
+            J = np.matmul(dNdr, self.node_coords)
+            det_J = np.linalg.det(J)
+            J_inv = np.linalg.inv(J)
+            B_pre = np.matmul(J_inv, dNdr)
+            B = np.array([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
+                          [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
+                          [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
+                          [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5],
+                           B_pre[0, 5], 0, B_pre[1, 6], B_pre[0, 6], 0, B_pre[1, 7], B_pre[0, 7], 0],
+                          [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
+                           B_pre[1, 5], 0, B_pre[2, 6], B_pre[1, 6], 0, B_pre[2, 7], B_pre[1, 7]],
+                          [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
+                           B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]])
 
-        L2 = DX2[0] + DX2[1] + DX2[2]
-        L = np.sqrt(L2)
+            self.K = self.K + weight * B.T * self.D * B * det_J
 
-        # Calculate element stiffness matrix
-        material = self._element_material
+        return self.K
 
-        k = material.E * material.Area / L / L2
-
-        stiffness[0] = k * DX2[0]
-        stiffness[1] = k * DX2[1]
-        stiffness[2] = k * DX2[3]
-        stiffness[3] = k * DX2[2]
-        stiffness[4] = k * DX2[4]
-        stiffness[5] = k * DX2[5]
-        stiffness[6] = k * DX2[0]
-        stiffness[7] = -k * DX2[5]
-        stiffness[8] = -k * DX2[3]
-        stiffness[9] = -k * DX2[0]
-        stiffness[10] = k * DX2[1]
-        stiffness[11] = k * DX2[3]
-        stiffness[12] = -k * DX2[4]
-        stiffness[13] = -k * DX2[1]
-        stiffness[14] = -k * DX2[3]
-        stiffness[15] = k * DX2[2]
-        stiffness[16] = k * DX2[4]
-        stiffness[17] = k * DX2[5]
-        stiffness[18] = -k * DX2[2]
-        stiffness[19] = -k * DX2[4]
-        stiffness[20] = -k * DX2[5]
-
-    def ElementStress(self, stress, displacement):
+    def ElementStress(self, displacement):
         """
         Calculate element stress
         """
-        material = self._element_material
-
-        DX = np.zeros(3)
-        L2 = 0
-
-        for i in range(3):
-            DX[i] = self._nodes[1].XYZ[i] - self._nodes[0].XYZ[i]
-            L2 += (DX[i] * DX[i])
-
-        S = np.zeros(6)
-        for i in range(3):
-            S[i] = -DX[i] * material.E / L2
-            S[i + 3] = -S[i]
-
-        stress[0] = 0.0
-        for i in range(6):
-            if self._LocationMatrix[i]:
-                stress[0] += (S[i] * displacement[self._LocationMatrix[i] - 1])
