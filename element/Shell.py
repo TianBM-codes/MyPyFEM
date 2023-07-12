@@ -15,6 +15,7 @@ class DKTShell(ElementBaseClass, ABC):
         self._nodes = [None for _ in range(self.nodes_count)]
         self._vtp_type = "triangle"
         self.K = np.zeros((18, 18))
+        self.unv_code = 30500
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -90,6 +91,7 @@ class DKQShell(ElementBaseClass, ABC):
             self._vtp_type = "quad"
             self.K = np.zeros((24, 24))
         self._nodes = [None for _ in range(self.nodes_count)]
+        self.unv_code = 40500
 
     def CalElementDMatrix(self, an_type=None):
         """

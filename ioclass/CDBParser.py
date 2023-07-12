@@ -69,7 +69,6 @@ class CDBParser(object):
                             self.real_constant_hash[rl_data[0]] = rl_data[2:]
                             self.iter_line = cdb_f.readline()
 
-
                 # 解析节点信息, TODO:平面应变平面应力这种只有二维坐标的
                 elif self.iter_line.startswith("NBLOCK,"):
                     node_index = 0  # 相当于节点个数, 也是对应数据库中node_list中的index
@@ -83,7 +82,7 @@ class CDBParser(object):
                         x, y, z = float(nd_data[3]), 0.0, 0.0
                         if nd_data[4] is not None:
                             y = float(nd_data[4])
-                        elif nd_data[5] is not None:
+                        if nd_data[5] is not None:
                             z = float(nd_data[5])
 
                         self.fem_data.AddNode(Node(n_id, x, y, z))
@@ -328,5 +327,6 @@ if __name__ == "__main__":
     # rd.ParseFileAndInitFEMDB()
     f_format = "(19i10)"
     reader = ff.FortranRecordReader(f_format)
-    aa = reader.read("         1         1         1         0         0         0         0         0         8         0         1       979       980       987       987      1376      1372      1375      1375")
+    aa = reader.read(
+        "         1         1         1         0         0         0         0         0         8         0         1       979       980       987       987      1376      1372      1375      1375")
     print("finish")

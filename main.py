@@ -86,8 +86,8 @@ class MyPyFEM:
             sys.exit(1)
 
         writer = ResultsWriter()
-        writer.WriteVTPFile(output_paths[0])
-        # writer.WriteUNVFile(output_paths[1])
+        # writer.WriteVTPFile(output_paths[0])
+        writer.WriteUNVFile(output_paths[1])
 
         # Output Each Step Time Elapsed
         w_time = time.time()
@@ -100,5 +100,8 @@ class MyPyFEM:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) == 1:
+        mlogger.fatal(" No Input File Assign")
+        sys.exit(1)
     input_file = sys.argv[1]
-    cal = MyPyFEM(pathlib.Path(input_file))
+    MyPyFEM(pathlib.Path(input_file))

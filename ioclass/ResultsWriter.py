@@ -1,6 +1,52 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+"""
+    SiPESC平台单元类型对应的code
+    xx-yy-zz
+    xx：拓扑类型，节点数
+    yy：单元分类，1梁，2杆，3膜，4板，5壳，6体，7轴对称壳，8轴对称四边形，9夹层板壳，10层合板壳，11柳钉，12连接
+    zz：单元子类。
+    TYPE=10000,    1点三向拉压弹簧单元;
+    TYPE=11100,    1点铆钉单元;
+    TYPE=20100,    2点偏心梁单元;
+    TYPE=20200,    2点轴力杆单元;
+    TYPE=20210,    2点弹塑性轴力杆单元;
+    TYPE=21200，   2点平面接触单元;
+    TYPE=21201，   2点空间接触单元;
+    TYPE=30100,    3点弯管单元;
+    TYPE=30300,    3点平面应力膜单元;
+    TYPE=30310,    3点三角形弹塑性平面应力膜单元 ;
+    TYPE=30400,    3点三角形薄板单元;
+    TYPE=30500,    3点三角形薄壳单元;
+    TYPE=30501,    3点三角形各向异性薄壳单元;
+    TYPE=30900,    3点三角形复合材料夹层板壳单元;
+    TYPE=31000,    3点三角形复合材料层合板壳单元
+    TYPE=40300,    4点平面应力膜单元;
+    TYPE=40301,    4点平面应变膜单元;
+    TYPE=40302,    4点非协调平面应力膜单元;
+    TYPE=40303,    4点非协调平面应变膜单元;
+    TYPE=40304,    4点矩形膜单元;
+    TYPE=40310,    4点弹塑性平面应力膜单元;
+    TYPE=40500,    4点任意四边形壳单元;
+    TYPE=40501,    4点任意四边形各向异性壳单元;
+    TYPE=40700,    4点轴对称旋转壳单元;
+    TYPE=40800,    4点任意四边形4节点轴对称环体单元;
+    TYPE=40900,    4点任意四边形复合材料夹层板壳单元;
+    TYPE=41000,    4点任意四边形复合材料层合板壳单元;
+    TYPE=50300,    5点等参平面膜单元;
+    TYPE=50600,    5点金字塔单元;
+    TYPE=60300,    6点高阶三角形单元;
+    TYPE=60600,    6点三棱柱单元;
+    TYPE=80300,    8点高阶四边形单元;
+    TYPE=80600,    8点块体单元;
+    TYPE=80601,    8点非协调块体单元;
+    TYPE=80610,    8点弹塑性块体单元;
+    TYPE=100600,   10点高阶四面体单元;
+    TYPE=130600,   13点高阶金字塔单元;
+    TYPE=150600,   15点高阶三棱柱单元;
+    TYPE=200600,   20点高阶六面体单元;
+"""
 import meshio
 from femdb.FEMDataBase import *
 
@@ -59,30 +105,31 @@ class ResultsWriter(object):
             """
             写入标题开头
             """
-            uf.write('{ Header\n'
-                     '( " ", 3.0, 1)\n'
+            uf.write('{ Header;\n'
+                     '( "Model datebase", 2.0,1;)\n'
                      '}\n'
-                     '{ Node\n')
+                     '{ Node;\n')
 
             """
             写入节点信息
             """
-            uf.write(f' ({len(self.femdb.node_list)})\n')
+            uf.write(f'(   {len(self.femdb.node_list)};)\n')
             for nd in self.femdb.node_list:
-                uf.write("( {}, {}, {}, {}, 0)\n".format(nd.id, nd.coord[0], nd.coord[1], nd.coord[2]))
+                uf.write("( {}, {}, {}, {},   3;)\n".format(nd.id, nd.coord[0], nd.coord[1], nd.coord[2]))
 
             """
             写入单元信息
             """
             uf.write('}\n'
-                     '{ Element\n')
-            uf.write(f'( {len(self.femdb.ele_count)})\n')
-            for _, group in self.femdb.ele_grp_hash.items:
-                for ele in group:
+                     '{ Element;\n')
+            uf.write(f'(  {self.femdb.ele_count};)\n')
+            for _, group in self.femdb.ele_grp_hash.items():
+                eles = group.Elements()
+                for ele in eles:
                     node_str = ""
                     for nd in ele.node_ids:
-                        node_str = node_str + str(nd.id) + ", "
-                    node_str = node_str[:-1]
+                        node_str = node_str + str(nd) + ", "
+                    node_str = node_str[:-2] + ";"
                     ele_line = "({},{}, 1, 0, 0, {})\n".format(ele.id, ele.unv_code, node_str)
                     uf.write(ele_line)
 
@@ -95,7 +142,9 @@ class ResultsWriter(object):
 
             # 节点只保存位移幅值, 所以这里都保存在x方向的位移上
             for ii in range(len(self.femdb.node_list)):
-                displacement = self.femdb.node_list[ii].displacement
-                uf.write("( {}, {}, 0, 0)\n".format(nd.id, displacement))
+                # displacement = self.femdb.node_list[ii].displacement
+                # uf.write("( {}, {}, 0, 0)\n".format(nd, displacement))
+                node_id = self.femdb.node_list[ii].id
+                uf.write("( {}, 0, 0, 0)\n".format(node_id))
 
             uf.write('}\n')
