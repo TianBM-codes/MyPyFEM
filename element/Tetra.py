@@ -53,7 +53,7 @@ class C3D4(ElementBaseClass):
                          [0, 1, 0],
                          [0, 0, 1]], dtype=float).T
 
-        # Jacobi 3*3 & B Matrix 8*24
+        # Jacobi 3*3 & B Matrix 6*12
         J = np.matmul(dNdr, self.node_coords)
         det_J = np.linalg.det(J)
         J_inv = np.linalg.inv(J)

@@ -52,7 +52,13 @@ class ElementFactory:
         elif e_type in ["S4", "S4R", "S4RT"]:
             return DKQShell(e_id), 4
         elif e_type in [181]:
-            return DKQShell(e_id), 4
+            if opt == 4:
+                return DKQShell(e_id), 4
+            elif opt == 3:
+                return DKTShell(e_id), 3
+            else:
+                mlogger.fatal("Shell 181 don't support opt {}".format(opt))
+                sys.exit(1)
 
         elif e_type in ["C3D8", 45]:
             return C3D8(e_id), 8
@@ -67,11 +73,11 @@ class ElementFactory:
             mlogger.fatal("No impl such element")
             sys.exit(1)
         elif e_type == 185:
-            if opt==8:
+            if opt == 8:
                 return C3D8(e_id), 8
-            elif opt==6:
+            elif opt == 6:
                 return C3D6(e_id), 6
-            elif opt==4:
+            elif opt == 4:
                 return C3D4(e_id), 4
             else:
                 mlogger.fatal("Wrong opt parameter: {}".format(opt))
@@ -113,5 +119,3 @@ class ElementFactory:
 
         mlogger.fatal("No Such ElementType: {}".format(e_type))
         sys.exit(1)
-
-
