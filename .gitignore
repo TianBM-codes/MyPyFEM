@@ -10,3 +10,5 @@ analyse_output.log
 *.md
 *.docx
 *.vsdx
+*.unv
+*.vtp
