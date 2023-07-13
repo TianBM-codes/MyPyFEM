@@ -16,17 +16,18 @@ import abc
 
 
 class CSolver(metaclass=abc.ABCMeta):
-	"""
-	Interface class for all the solver. New solver based on LDLT factorization
-	should be derived from this base class.
-	This class defines the common methods in these solvers.
-	"""
-	@abc.abstractmethod
-	def LDLT(self):
-		""" Perform L*D*L(T) factorization of the stiffness matrix """
-		pass
+    """
+    Interface class for all the solver. New solver based on LDLT factorization
+    should be derived from this base class.
+    This class defines the common methods in these solvers.
+    """
 
-	@abc.abstractmethod
-	def BackSubstitution(self, Force):
-		""" Reduce right-hand-side load vector and back substitute """
-		pass
+    @abc.abstractmethod
+    def LDLT(self):
+        """ Perform L*D*L(T) factorization of the stiffness matrix """
+        pass
+
+    @abc.abstractmethod
+    def BackSubstitution(self, Force):
+        """ Reduce right-hand-side load vector and back substitute """
+        pass
