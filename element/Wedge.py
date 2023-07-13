@@ -1,6 +1,5 @@
 from abc import ABC
 
-import numpy as np
 from element.ElementBase import *
 
 
@@ -15,6 +14,7 @@ class C3D6(ElementBaseClass, ABC):
         self.nodes_count = 6  # Each element has 6 nodes
         self.K = np.zeros([18, 18], dtype=float)  # 刚度矩阵
         self.vtp_type = "wedge"
+        self.unv_code = 60600
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -52,7 +52,7 @@ class C3D6(ElementBaseClass, ABC):
         pN5pr, pN5ps, pN5pt = 0.5 * (1 + t), 0, 0.5 * r
         pN6pr, pN6ps, pN6pt = 0, 0.5 * (1 + t), 0.5 * s
         """
-        assert len(self.node_coords) == 8
+        assert self.node_coords.shape == (6, 3)
 
         # Gaussian Weight
         sample_r = [0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667, 0.166666667]
@@ -78,9 +78,12 @@ class C3D6(ElementBaseClass, ABC):
             B = np.array([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0],
                           [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0],
                           [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5]],
-                          [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5], B_pre[0, 5], 0],
-                          [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5], B_pre[1, 5]],
-                          [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0, B_pre[0, 5]]], dtype=float)
+                          [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5], B_pre[0, 5],
+                           0],
+                          [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
+                           B_pre[1, 5]],
+                          [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
+                           B_pre[0, 5]]], dtype=float)
 
             self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weight
 
