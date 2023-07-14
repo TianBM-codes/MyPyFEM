@@ -59,8 +59,8 @@ class CPM6(ElementBaseClass, ABC):
             ph1ps, ph2ps, ph3ps = ph1pr, 0, -1 + 4 * s
             ph4ps, ph5ps, ph6ps = -4 * r * (1 - r), 4 * s, r * (1 - r - 2 * s)
 
-            phpr = np.array([ph1pr, ph2pr, ph3pr, ph4pr], dtype=float)
-            phps = np.array([ph1ps, ph2ps, ph3ps, ph4ps], dtype=float)
+            phpr = np.array([ph1pr, ph2pr, ph3pr, ph4pr, ph5pr, ph6pr], dtype=float)
+            phps = np.array([ph1ps, ph2ps, ph3ps, ph4ps, ph5ps, ph6ps], dtype=float)
 
             # Jacobi 3 * 3, J_ij代表当前积分点的雅可比矩阵, 描述了几何变形
             J_ij = np.asarray([[np.matmul(phpr, self.node_coords[:, 0]), np.matmul(phpr, self.node_coords[:, 1])],

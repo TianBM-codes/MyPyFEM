@@ -229,7 +229,7 @@ class DKTPlate(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
-        self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
+        self.K = np.zeros([9, 9], dtype=float)  # 刚度矩阵
         self.vtp_type = "triangle"
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
@@ -340,6 +340,11 @@ class DKTPlate(ElementBaseClass, ABC):
 
         # self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
         return self.K * self.thickness
+
+    def ElementStress(self, displacement):
+        """
+        Calculate element stress
+        """
 
 
 class DKQPlate(ElementBaseClass, ABC):
