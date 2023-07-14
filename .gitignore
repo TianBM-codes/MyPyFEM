@@ -12,4 +12,5 @@ analyse_output.log
 *.vsdx
 *.unv
 *.vtp
+*.full
 /.VSCodeCounter
