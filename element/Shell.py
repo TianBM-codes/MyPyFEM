@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import numpy as np
 
 from element.Plate import *
 from element.Membrane import *
@@ -14,7 +13,7 @@ class DKTShell(ElementBaseClass, ABC):
         self.nodes_count = 3  # Each element has 3 nodes
         self._nodes = [None for _ in range(self.nodes_count)]
         self._vtp_type = "triangle"
-        self.K = np.zeros((18, 18))
+        self.K = None
         self.unv_code = 30500
 
     def CalElementDMatrix(self, an_type=None):
@@ -59,19 +58,30 @@ class DKTShell(ElementBaseClass, ABC):
         membrane.CalElementDMatrix()
         plate.CalElementDMatrix()
 
-        # Assembly Stiffness Matrix, membrane: u,v,theta_z, plate: omega, theta_x, theta_y
-        e = 10e-8
-        k_matrix_m = membrane.ElementStiffness()
-        k_matrix_p = plate.ElementStiffness()
+        # Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
+        # e = 10e-8
+        k_mtx_m = membrane.ElementStiffness()
+        k_mtx_p = plate.ElementStiffness()
 
-        self.K[:2, :2] = k_matrix_m[:2, :2]
-        self.K[5:8, 5:8] = k_matrix_m[2:5, 2:5]
-        self.K[11:14, 11:14] = k_matrix_m[5:8, 5:8]
-        self.K[17, 17] = k_matrix_m[8, 8]
+        k_mtx_m_g = np.insert(k_mtx_m, 2, [[0] * 9] * 3, axis=0)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 9] * 3, axis=0)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 9] * 3, axis=0)
 
-        self.K[2:5, 2:5] = k_matrix_p[:3, :3]
-        self.K[8:11, 8:11] = k_matrix_p[3:6, 3:6]
-        self.K[14:17, 14:17] = k_matrix_p[6:9, 6:9]
+        k_mtx_m_g = np.insert(k_mtx_m_g, 2, [[0] * 18] * 3, axis=1)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 18] * 3, axis=1)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 18] * 3, axis=1)
+
+        k_mtx_p_g = np.insert(k_mtx_p, 0, [[0] * 9] * 2, axis=0)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 9] * 3, axis=0)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 9] * 3, axis=0)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [0] * 9, axis=0)
+
+        k_mtx_p_g = np.insert(k_mtx_p_g, 0, [[0] * 18] * 2, axis=1)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 18] * 3, axis=1)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 18] * 3, axis=1)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [0] * 18, axis=1)
+
+        self.K = k_mtx_m_g + k_mtx_p_g
 
         global_t_matrix = np.zeros((18, 18))
         global_t_matrix[0:3, 0:3] = T_matrix
@@ -118,9 +128,8 @@ class DKQShell(ElementBaseClass, ABC):
 
     def ElementStiffness(self):
         """
-        Calculate element stiffness matrix
+        壳的刚度阵由膜单元和板单元构成
         """
-        # 由膜单元和板单元构成
         plate = DKQPlate(-1)
         membrane = CPM8(-1)
 
@@ -146,20 +155,33 @@ class DKQShell(ElementBaseClass, ABC):
         plate.CalElementDMatrix()
 
         # Assembly Stiffness Matrix, membrane: u,v,theta_z, plate: omega, theta_x, theta_y
-        e = 10e-8
-        k_matrix_m = membrane.ElementStiffness()
-        k_matrix_p = plate.ElementStiffness()
+        # e = 10e-8
+        k_mtx_m = membrane.ElementStiffness()
+        k_mtx_p = plate.ElementStiffness()
 
-        self.K[:2, :2] = k_matrix_m[:2, :2]
-        self.K[5:8, 5:8] = k_matrix_m[2:5, 2:5]
-        self.K[11:14, 11:14] = k_matrix_m[5:8, 5:8]
-        self.K[17:20, 17:20] = k_matrix_m[8:11, 8:11]
-        self.K[23, 23] = k_matrix_m[11, 11]
+        k_mtx_m_g = np.insert(k_mtx_m, 2, [[0] * 12] * 3, axis=0)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 12] * 3, axis=0)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 12] * 3, axis=0)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 20, [[0] * 12] * 3, axis=0)
 
-        self.K[2:5, 2:5] = k_matrix_p[:3, :3]
-        self.K[8:11, 8:11] = k_matrix_p[3:6, 3:6]
-        self.K[14:17, 14:17] = k_matrix_p[6:9, 6:9]
-        self.K[20:23, 20:23] = k_matrix_p[9:12, 9:12]
+        k_mtx_m_g = np.insert(k_mtx_m_g, 2, [[0] * 24] * 3, axis=1)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 24] * 3, axis=1)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 24] * 3, axis=1)
+        k_mtx_m_g = np.insert(k_mtx_m_g, 20, [[0] * 24] * 3, axis=1)
+
+        k_mtx_p_g = np.insert(k_mtx_p, 0, [[0] * 12] * 2, axis=0)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 12] * 3, axis=0)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 12] * 3, axis=0)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [[0] * 12] * 3, axis=0)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 23, [0] * 12, axis=0)
+
+        k_mtx_p_g = np.insert(k_mtx_p_g, 0, [[0] * 24] * 2, axis=1)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 24] * 3, axis=1)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 24] * 3, axis=1)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [[0] * 24] * 3, axis=1)
+        k_mtx_p_g = np.insert(k_mtx_p_g, 23, [0] * 24, axis=1)
+
+        self.K = k_mtx_m_g + k_mtx_p_g
 
         global_t_matrix = np.zeros((24, 24))
         global_t_matrix[0:3, 0:3] = T_matrix

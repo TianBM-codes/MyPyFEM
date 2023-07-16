@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from HarwellBoeingParser import HarwellBoeingMatrix
+from ioclass.HarwellBoeingParser import HarwellBoeingMatrix
 import numpy as np
 
 
@@ -35,22 +35,33 @@ def ReadANSYSStiffness(f_name, print_log=False):
     """
     K_hb = HarwellBoeingMatrix(f_name, patternOnly=False, readRhs=True)
     (val, row, col) = K_hb.find()
-    K = np.zeros((K_hb.nrow, K_hb.ncol), dtype=float)
+    K_ANSYS = np.zeros((K_hb.nrow, K_hb.ncol), dtype=float)
     for ii in range(len(val)):
-        K[row[ii], col[ii]] = val[ii]
+        K_ANSYS[row[ii], col[ii]] = val[ii]
 
     # 现在读取的矩阵是下三角矩阵, 需要使其对称化
-    K = K + K.T
+    K_ANSYS = K_ANSYS + K_ANSYS.T
     for ii in range(K_hb.nrow):
-        K[ii, ii] = K[ii][ii] * 0.5
+        K_ANSYS[ii, ii] = K_ANSYS[ii][ii] * 0.5
 
-    # 右端项q
-    q = K_hb.rhs
+    # 右端项RightHandSide: rhs
+    Q = K_hb.rhs
     if print_log:
         print("ANSYS Stiffness.shape is:({},{})".format(K_hb.nrow, K_hb.ncol))
-        print("ANSYS Displacement is :\n{}".format(np.matmul(np.linalg.inv(K), q).flatten()))
+        print("ANSYS Displacement is :\n{}".format(np.matmul(np.linalg.inv(K_ANSYS), Q).flatten()))
+
+    # 查看刚度矩阵的正负号性质
+    kkk = np.zeros((K_hb.nrow, K_hb.ncol), dtype=int)
+    for ii in range(K_hb.nrow):
+        for jj in range(K_hb.ncol):
+            if K_ANSYS[ii, jj] > 0:
+                kkk[ii, jj] = 1
+            elif K_ANSYS[ii, jj] < 0:
+                kkk[ii, jj] = -1
+
+    return K_ANSYS, Q
 
 
 if __name__ == "__main__":
-    f_path = "../../testcases/ANSYS/shell/shell/stiffness_mat.dat"
+    f_path = "../../testcases/ANSYS/tempdirectory/Stiffness_mat.dat"
     ReadANSYSStiffness(f_path, True)

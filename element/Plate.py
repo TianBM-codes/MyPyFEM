@@ -441,8 +441,8 @@ class DKQPlate(ElementBaseClass, ABC):
             for si in range(2):
                 r, s = sample_pt[ri], sample_pt[si]
                 pN1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
-                pN2pr = -pN1pr
-                pN3pr = -0.25 * (1 - s) + 0.25 * (1 - s ** 2) + 0.5 * r * (1 - s)
+                pN2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
+                pN3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
                 pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r*(1 - s)
                 pN5pr = -r * (1 + s)
                 pN6pr = 0.5 * (s ** 2 - 1)
@@ -454,7 +454,7 @@ class DKQPlate(ElementBaseClass, ABC):
                 pN3ps = 0.25 * (r - r ** 2) + 0.5 * s * (1 - r)
                 pN4ps = -0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
                 pN5ps = 0.5 * (1 - r ** 2)
-                pN6ps = s * (1 - r)
+                pN6ps = s * (r - 1)
                 pN7ps = 0.5 * (r ** 2 - 1)
                 pN8ps = -s * (1 + r)
 
@@ -483,7 +483,7 @@ class DKQPlate(ElementBaseClass, ABC):
                 J12 = 0.25 * (y12 - y34 + r * (y12 + y34))
                 J21 = 0.25 * (x23 - x41 + s * (x12 + x34))
                 J22 = 0.25 * (y23 - y41 + s * (y12 + y34))
-                detJ = 0.125 * (x13 * y24 - x24 * y13 + r * (x12 * y34 - x34 * y12) + s * (x41 * y23 - x23 * y41))
+                detJ = 0.125 * (x13 * y24 - x24 * y13 - r * (x12 * y34 + x34 * y12) + s * (x41 * y23 - x23 * y41))
 
                 j11 = J22 / detJ
                 j12 = -J12 / detJ
@@ -491,9 +491,9 @@ class DKQPlate(ElementBaseClass, ABC):
                 j22 = J11 / detJ
 
                 # B Matrix
-                B = np.asarray([j11 * pHxps + j12 * pHxps,
-                                j21 * pHyps + j22 * pHypr,
-                                j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
+                B = np.asarray([j11 * pHxpr + j12 * pHxps,
+                                j21 * pHypr + j22 * pHyps,
+                                j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
 
                 # 这里不会约分掉det_J
                 self.K += np.matmul(np.matmul(B.T, self.D), B) * weight[si] * detJ

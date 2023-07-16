@@ -55,11 +55,11 @@ class MyPyFEM:
 
     def RunAnalyseFlow(self, output_paths):
         """
-        TODO: 标准流程, 完成注释
+        TODO: 标准流程, 完成注释, 重写mlogger的debug信息, 将有限元模型的信息输出, 比如单元类型及相应个数, 自由度个数
         求解文件, 步骤如下所示, 该函数中不应包含对不同文件类型的分类, 即判断文件类型的bdf cdb等应在其他函数中完成
         """
         mlogger.debug("{} Analysis Calculate Begin {}".format("#" * 6, "#" * 6))
-        logging.debug("Step 0: Parse File And Define the Problem FEMDB")
+        # logging.debug("Step 0: Parse File And Define the Problem FEMDB")
         p_begin = time.time()
         reader = self.InitReader()
         reader.ParseFileAndInitFEMDB()
@@ -89,14 +89,18 @@ class MyPyFEM:
         # writer.WriteVTPFile(output_paths[0])
         writer.WriteUNVFile(output_paths[1])
 
-        # Output Each Step Time Elapsed
+        # Print FEMDB Information
+
+
+        # Print Each Step Time Elapsed
         w_time = time.time()
         time_format = r"{:>20s} --> {:<.3f} seconds"
         mlogger.debug("Elapsed Time Summary:")
         mlogger.debug(time_format.format("Parse File", p_end - p_begin))
         mlogger.debug(time_format.format("Solved Displacement", d_time - p_end))
+        mlogger.debug(time_format.format("Write Output File", w_time - d_time))
         last_line_format = "{:>20s} --> {:<.3f} seconds\n"
-        mlogger.debug(last_line_format.format("Write Output File", w_time - d_time))
+        mlogger.debug(last_line_format.format("Total Elapsed Time", w_time - p_begin))
 
 
 if __name__ == "__main__":

@@ -81,7 +81,7 @@ class CPM6(ElementBaseClass, ABC):
             # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
             B = np.insert(B1, 1, B2[1, :], axis=0)
             B[2, :] += B2[0, :]
-            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J # TODO: ??? 这里不会约分掉det_J???
+            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J  # TODO: ??? 这里不会约分掉det_J???
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
         a1 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
@@ -103,7 +103,7 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
-        return  np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳,
+        return np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳,
 
     def ElementStress(self, displacement):
         """
@@ -160,9 +160,9 @@ class CPM8(ElementBaseClass, ABC):
             r, s = points[ii]
             w = weights[ii]
             ph1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
-            ph2pr = -ph1pr
-            ph3pr = -0.25 * (1 - s) + 0.25 * (1 - s ** 2) + 0.5 * r * (1 - s)
-            ph4pr = 0.25 * (s ** 2 - s) + 0.5 * r*(1 - s)
+            ph2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
+            ph3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
+            ph4pr = 0.25 * (s ** 2 - s) + 0.5 * r * (1 - s)
             ph5pr = -r * (1 + s)
             ph6pr = 0.5 * (s ** 2 - 1)
             ph7pr = r * (s - 1)
@@ -173,16 +173,16 @@ class CPM8(ElementBaseClass, ABC):
             ph3ps = 0.25 * (r - r ** 2) + 0.5 * s * (1 - r)
             ph4ps = -0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
             ph5ps = 0.5 * (1 - r ** 2)
-            ph6ps = s * (1 - r)
+            ph6ps = s * (r - 1)
             ph7ps = 0.5 * (r ** 2 - 1)
             ph8ps = -s * (1 + r)
 
             phpr = np.array([ph1pr, ph2pr, ph3pr, ph4pr, ph5pr, ph6pr, ph7pr, ph8pr], dtype=float)
             phps = np.array([ph1ps, ph2ps, ph3ps, ph4ps, ph5ps, ph6ps, ph7ps, ph8ps], dtype=float)
 
-            # Jacobi 3 * 3, J_ij代表当前积分点的雅可比矩阵, 描述了几何变形
-            J_ij = np.asarray([[np.matmul(phpr, self.node_coords[:, 0]), np.matmul(phpr, self.node_coords[:, 1])],
-                               [np.matmul(phps, self.node_coords[:, 0]), np.matmul(phps, self.node_coords[:, 1])]], dtype=float)
+            # Jacobi 3 * 3, J_ij代表当前积分点的雅可比矩阵(因为在积分过程中Jacobi矩阵是变化的), 描述了几何变形, 只需要四个角点计算
+            J_ij = np.asarray([[np.matmul(phpr[:4], self.node_coords[:4, 0]), np.matmul(phpr[:4], self.node_coords[:4, 1])],
+                               [np.matmul(phps[:4], self.node_coords[:4, 0]), np.matmul(phps[:4], self.node_coords[:4, 1])]], dtype=float)
 
             det_J = np.linalg.det(J_ij)
             J_inv = np.asarray([[J_ij[1, 1], -J_ij[0, 1]],
@@ -199,10 +199,10 @@ class CPM8(ElementBaseClass, ABC):
             # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
             B = np.insert(B1, 1, B2[1, :], axis=0)
             B[2, :] += B2[0, :]
-            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J # TODO: ??? 这里不会约分掉det_J???
+            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J  # TODO: ??? 这里不会约分掉det_J???
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
-        e = 10e-8
+        # e = 10e-8
         a12 = (self.node_coords[1, 0] - self.node_coords[0, 0]) * 0.125
         a23 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
         a34 = (self.node_coords[3, 0] - self.node_coords[2, 0]) * 0.125
