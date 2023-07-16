@@ -155,51 +155,54 @@ class CPM8(ElementBaseClass, ABC):
         p代表偏导: partial, phpr 代表偏hi偏r求和
         """
         assert self.node_coords.shape == (8, 2)  # 8节点, 2个坐标分量
-        points, weights = GaussIntegrationPoint.GetTrianglePointAndWeight(3)
-        for ii in range(len(points)):
-            r, s = points[ii]
-            w = weights[ii]
-            ph1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
-            ph2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
-            ph3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
-            ph4pr = 0.25 * (s ** 2 - s) + 0.5 * r * (1 - s)
-            ph5pr = -r * (1 + s)
-            ph6pr = 0.5 * (s ** 2 - 1)
-            ph7pr = r * (s - 1)
-            ph8pr = 0.5 * (1 - s ** 2)
 
-            ph1ps = 0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
-            ph2ps = 0.25 * (r ** 2 - r) + 0.5 * s * (1 - r)
-            ph3ps = 0.25 * (r - r ** 2) + 0.5 * s * (1 - r)
-            ph4ps = -0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
-            ph5ps = 0.5 * (1 - r ** 2)
-            ph6ps = s * (r - 1)
-            ph7ps = 0.5 * (r ** 2 - 1)
-            ph8ps = -s * (1 + r)
+        # 八节点四边形单元用3阶高斯积分公式
+        points, weights = GaussIntegrationPoint.GetSamplePointAndWeight(3)
+        for ri in range(3):
+            for si in range(3):
+                r, s = points[ri], points[si]
+                w_r, w_s = weights[ri], weights[si]
+                ph1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
+                ph2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
+                ph3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
+                ph4pr = 0.25 * (s ** 2 - s) + 0.5 * r * (1 - s)
+                ph5pr = -r * (1 + s)
+                ph6pr = 0.5 * (s ** 2 - 1)
+                ph7pr = r * (s - 1)
+                ph8pr = 0.5 * (1 - s ** 2)
 
-            phpr = np.array([ph1pr, ph2pr, ph3pr, ph4pr, ph5pr, ph6pr, ph7pr, ph8pr], dtype=float)
-            phps = np.array([ph1ps, ph2ps, ph3ps, ph4ps, ph5ps, ph6ps, ph7ps, ph8ps], dtype=float)
+                ph1ps = 0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
+                ph2ps = 0.25 * (r ** 2 - r) + 0.5 * s * (1 - r)
+                ph3ps = 0.25 * (r - r ** 2) + 0.5 * s * (1 - r)
+                ph4ps = -0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
+                ph5ps = 0.5 * (1 - r ** 2)
+                ph6ps = s * (r - 1)
+                ph7ps = 0.5 * (r ** 2 - 1)
+                ph8ps = -s * (1 + r)
 
-            # Jacobi 3 * 3, J_ij代表当前积分点的雅可比矩阵(因为在积分过程中Jacobi矩阵是变化的), 描述了几何变形, 只需要四个角点计算
-            J_ij = np.asarray([[np.matmul(phpr[:4], self.node_coords[:4, 0]), np.matmul(phpr[:4], self.node_coords[:4, 1])],
-                               [np.matmul(phps[:4], self.node_coords[:4, 0]), np.matmul(phps[:4], self.node_coords[:4, 1])]], dtype=float)
+                phpr = np.array([ph1pr, ph2pr, ph3pr, ph4pr, ph5pr, ph6pr, ph7pr, ph8pr], dtype=float)
+                phps = np.array([ph1ps, ph2ps, ph3ps, ph4ps, ph5ps, ph6ps, ph7ps, ph8ps], dtype=float)
 
-            det_J = np.linalg.det(J_ij)
-            J_inv = np.asarray([[J_ij[1, 1], -J_ij[0, 1]],
-                                [-J_ij[1, 0], J_ij[0, 0]]], dtype=float) / det_J
+                # Jacobi 3 * 3, J_ij代表当前积分点的雅可比矩阵(因为在积分过程中Jacobi矩阵是变化的), 描述了几何变形
+                J_ij = np.asarray([[np.matmul(phpr[:], self.node_coords[:, 0]), np.matmul(phpr[:], self.node_coords[:, 1])],
+                                   [np.matmul(phps[:], self.node_coords[:, 0]), np.matmul(phps[:], self.node_coords[:, 1])]], dtype=float)
 
-            # pupxy = [pupx, pupy].T,  pvpxy = [pvpx, pvpy].T
-            pupxy = np.asarray([[ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr, 0, ph7pr, 0, ph8pr, 0],
-                                [ph1ps, 0, ph2ps, 0, ph3ps, 0, ph4ps, 0, ph5ps, 0, ph6ps, 0, ph7ps, 0, ph8ps, 0]], dtype=float)
-            pvpxy = np.asarray([[0, ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr, 0, ph7pr, 0, ph8pr],
-                                [0, ph1ps, 0, ph2ps, 0, ph3ps, 0, ph4ps, 0, ph5ps, 0, ph6ps, 0, ph7ps, 0, ph8ps]], dtype=float)
-            B1 = np.matmul(J_inv, pupxy)
-            B2 = np.matmul(J_inv, pvpxy)
+                det_J = np.linalg.det(J_ij)
+                J_inv = np.asarray([[J_ij[1, 1], -J_ij[0, 1]],
+                                    [-J_ij[1, 0], J_ij[0, 0]]], dtype=float) / det_J
 
-            # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
-            B = np.insert(B1, 1, B2[1, :], axis=0)
-            B[2, :] += B2[0, :]
-            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J  # TODO: ??? 这里不会约分掉det_J???
+                # pupxy = [pupx, pupy].T,  pvpxy = [pvpx, pvpy].T
+                pupxy = np.asarray([[ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr, 0, ph7pr, 0, ph8pr, 0],
+                                    [ph1ps, 0, ph2ps, 0, ph3ps, 0, ph4ps, 0, ph5ps, 0, ph6ps, 0, ph7ps, 0, ph8ps, 0]], dtype=float)
+                pvpxy = np.asarray([[0, ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr, 0, ph7pr, 0, ph8pr],
+                                    [0, ph1ps, 0, ph2ps, 0, ph3ps, 0, ph4ps, 0, ph5ps, 0, ph6ps, 0, ph7ps, 0, ph8ps]], dtype=float)
+                B1 = np.matmul(J_inv, pupxy)
+                B2 = np.matmul(J_inv, pvpxy)
+
+                # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
+                B = np.insert(B1, 1, B2[1, :], axis=0)
+                B[2, :] += B2[0, :]
+                self.K += np.matmul(np.matmul(B.T, self.D), B) * w_r * w_s * det_J  # TODO: ??? 这里不会约分掉det_J???
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
         # e = 10e-8
@@ -229,6 +232,15 @@ class CPM8(ElementBaseClass, ABC):
                         [0, 0, 0, 0, 0, 0, 0, 0.5, a34, 0, 0.5, -a34],
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
+
+        K =  np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳
+        try:
+            np.linalg.inv(K)
+        except np.linalg.LinAlgError:
+            K = K * 5
+            k1 = np.linalg.inv(K)
+            k2  = np.linalg.inv(K*10)
+            print(self.id)
 
         return np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳
 

@@ -130,8 +130,8 @@ class DKQShell(ElementBaseClass, ABC):
         """
         壳的刚度阵由膜单元和板单元构成
         """
-        plate = DKQPlate(-1)
-        membrane = CPM8(-1)
+        plate = DKQPlate(self.id)
+        membrane = CPM8(self.id)
 
         # 先转换到局部坐标
         T_matrix = GetGlobal2LocalTransMatrix(self.node_coords)
@@ -140,7 +140,7 @@ class DKQShell(ElementBaseClass, ABC):
         mid_node = np.asarray([(local_coord[0, :] + local_coord[1, :]) * 0.5,
                                (local_coord[1, :] + local_coord[2, :]) * 0.5,
                                (local_coord[2, :] + local_coord[3, :]) * 0.5,
-                               (local_coord[3, :] + local_coord[0, :])], dtype=float)[:, :2]
+                               (local_coord[3, :] + local_coord[0, :]) * 0.5], dtype=float)[:, :2]
 
         # 设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
         membrane.node_coords = np.append(m_coords, mid_node, axis=0)
@@ -182,7 +182,16 @@ class DKQShell(ElementBaseClass, ABC):
         k_mtx_p_g = np.insert(k_mtx_p_g, 23, [0] * 24, axis=1)
 
         self.K = k_mtx_m_g + k_mtx_p_g
-
+        # try:
+        #     np.linalg.inv(k_mtx_p_g)
+        # except np.linalg.LinAlgError:
+        #     print(self.id)
+        #
+        # try:
+        #     np.linalg.inv(k_mtx_m_g)
+        # except np.linalg.LinAlgError:
+        #     print("mem ", self.id)
+        #
         global_t_matrix = np.zeros((24, 24))
         global_t_matrix[0:3, 0:3] = T_matrix
         global_t_matrix[3:6, 3:6] = T_matrix

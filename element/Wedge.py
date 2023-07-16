@@ -82,7 +82,7 @@ class C3D6(ElementBaseClass, ABC):
                           [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5], B_pre[1, 5]],
                           [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0, B_pre[0, 5]]], dtype=float)
 
-            self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weight
+            self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weight ** 3
 
         return self.K
 

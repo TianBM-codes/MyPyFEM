@@ -443,7 +443,7 @@ class DKQPlate(ElementBaseClass, ABC):
                 pN1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
                 pN2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
                 pN3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
-                pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r*(1 - s)
+                pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r * (1 - s)
                 pN5pr = -r * (1 + s)
                 pN6pr = 0.5 * (s ** 2 - 1)
                 pN7pr = r * (s - 1)
@@ -511,8 +511,8 @@ if __name__ == "__main__":
     t_ele = MITC3(-1)
     t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
     t_ele.node_coords = np.array([[0, 0],
-                                [4, 0],
-                                [1, 3]], dtype=float)
+                                  [4, 0],
+                                  [1, 3]], dtype=float)
     t_ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
     t_ele.ElementStiffness()
     mlogger.debug("finish")
