@@ -48,7 +48,7 @@ def ReadANSYSStiffness(f_name, print_log=False):
     Q = K_hb.rhs
     if print_log:
         print("ANSYS Stiffness.shape is:({},{})".format(K_hb.nrow, K_hb.ncol))
-        print("ANSYS Displacement is :\n{}".format(np.matmul(np.linalg.inv(K_ANSYS), Q).flatten()))
+        print("请对比ANSYS计算结果(下列结果为读取文件计算出来的) :\n{}".format(np.matmul(np.linalg.inv(K_ANSYS), Q).flatten()))
 
     # 查看刚度矩阵的正负号性质
     kkk = np.zeros((K_hb.nrow, K_hb.ncol), dtype=int)
