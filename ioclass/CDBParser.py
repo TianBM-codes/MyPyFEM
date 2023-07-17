@@ -35,7 +35,7 @@ class CDBParser(object):
         1. D:\\software\\python\\setup394\\Lib\\site-packages\\ansys\\mapdl\\reader
         2. ANSYS Help - Mechanical APDL Element Reference
         """
-        mlogger.debug("Parsing CDB file: {}".format(self.cdb_path))
+        self.fem_data.file_path = self.cdb_path
         GlobalInfor[GlobalVariant.AnaType] = AnalyseType.LinearStatic  # 默认静力分析
         with open(self.cdb_path, 'r') as cdb_f:
             self.iter_line = cdb_f.readline()
@@ -138,7 +138,6 @@ class CDBParser(object):
         self.fem_data.et_hash = self.et_hash
         self.fem_data.SetGrpHash(self.ele_group_hash, self.ele_count)
         self.fem_data.real_const_hash = self.real_constant_hash
-        mlogger.debug("Finish Parse CDB File")
 
     def ReadEBlock(self, f_handle):
         """

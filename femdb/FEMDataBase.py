@@ -9,6 +9,7 @@ from femdb.Sets import *
 from femdb.Property import *
 from femdb.Section import *
 from femdb.ElementGroup import *
+from collections import OrderedDict
 
 
 @Singleton
@@ -18,6 +19,7 @@ class FEMDataBase(object):
     """
 
     def __init__(self):
+        self.file_path = None
         # nodes
         self.node_list = []  # List of all nodes in the domain, 实例化数据
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
@@ -127,6 +129,19 @@ class FEMDataBase(object):
         # Print LoadCases Summary
         parse_summary += "  {}\n".format(self.load_case)
         mlogger.info(parse_summary)
+
+    def GetModelSummary(self):
+        """
+        获取解析模型的信息, 包括文件位置、分析类型、单元个数、节点个数、EquationNumber(总自由度个数减去约束)
+        :return:
+        """
+        summary_dict = OrderedDict()
+        summary_dict["File Path"] = str(self.file_path)
+        summary_dict["Number Of Node"] = len(self.node_list)  # TODO: 并不是标准的节点个数, 标准节点个数应该是由单元计算出来
+        summary_dict["Number Of Element"] = self.ele_count
+
+        return summary_dict
+
 
     def GetNodeCoordBySearchId(self, idxes):
         """

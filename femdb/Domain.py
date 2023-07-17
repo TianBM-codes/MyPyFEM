@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from femdb.FEMDataBase import *
+import scipy
+from scipy import linalg
 
 
 class Domain(object):
@@ -21,7 +23,6 @@ class Domain(object):
         本构阵的时候需要对ele_sets进行循环.
         """
         self.femdb = FEMDataBase()
-        # mlogger.debug("In Domain, femdb id is:{}".format(id(self.femdb)))
         self.eq_count = None  # 总刚维度
         self.free_dof_count = None  # 自由度的个数, 将总刚矩阵分为Kaa, Kab, Kba, Kbb
         self.bound_dof_count = None  # 自由度被约束的个数
@@ -141,6 +142,7 @@ class Domain(object):
         自由度放上面, 将包含外界强制位移的放在后面
         """
         # 第一遍排序, 将未约束的自由度排在前面
+        # TODO: 当cdb文件中包含未被引用的节点, 那么整体刚度矩阵会奇异, 所以流程应该是将单元集合然后去重复得到唯一的节点, 但是对于RBE3这种自定义的节点也要注意
         self.eq_count = 0
         for node in self.femdb.node_list:
             # 如果是辅助节点, 那么他的自由度不予考虑, 开始计算下一个节点
@@ -197,7 +199,6 @@ class Domain(object):
         Assemble the banded global stiffness matrix, STAPPy中的del Matrix是否会减少内存分配, 或提高运算速度
         """
         # Loop over for all element groups
-        mlogger.debug("Begin Assemble Stiffness Matrix")
         for key, ele_group in self.femdb.ele_grp_hash.items():
             for iter_ele in ele_group.eles:
                 eq_nums = iter_ele.GetElementEquationNumber()
@@ -219,8 +220,6 @@ class Domain(object):
         1. 《有限元分析的概念与应用》-第四版 (Robert D.Cook) P36 P421
         2. 《有限元法 理论、格式与求解方法》 (Bathe) P138 P178
         """
-        mlogger.debug("Solve Displacement")
-
         # 组装Ra, 自然边界条件都是在右端项的Ua上, 不可以施加在Ub上, 现在只能处理集中载荷
         self.Ra = np.asarray([0] * self.free_dof_count).T
 
@@ -270,4 +269,3 @@ class Domain(object):
 
     def GetDisplacementBySearchId(self, nd_id):
         return self.femdb.node_list[nd_id].displacement
-

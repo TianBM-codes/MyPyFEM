@@ -7,6 +7,7 @@ __pycache__
 __init__.py
 
 analyse_output.log
+RunExample.py
 *.md
 *.docx
 *.vsdx

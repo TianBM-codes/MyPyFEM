@@ -67,20 +67,18 @@ class MyPyFEM:
         domain = Domain()
         # domain.PrintFEMDBSummary()
         if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
-            mlogger.debug("Analyse Type: Linear Analyse")
             domain.AssignElementCharacter()
             domain.CalBoundaryEffect()
             domain.CalculateEquationNumber()
             p_end = time.time()
 
-            mlogger.debug("Step 1: Calculate Element StiffnessMatrix & Force Vector")
+            # "Step 1: Calculate Element StiffnessMatrix & Force Vector"
             domain.AssembleStiffnessMatrix()
 
-            mlogger.debug("Step 2: Solve the Equation")
+            # "Step 2: Solve the Equation"
             domain.SolveDisplacement()
             d_time = time.time()
             # Step 4: BackSubstitution
-            logging.debug("Step 5: Calculate & Output of All Element")
         else:
             mlogger.fatal("UnSupport Analyse Type")
             sys.exit(1)
@@ -90,17 +88,25 @@ class MyPyFEM:
         writer.WriteUNVFile(output_paths[1])
 
         # Print FEMDB Information
-
+        summary = domain.femdb.GetModelSummary()
+        mlogger.debug(" "+"-"*40)
+        summary_format = r"{:>25s} --> {:<}"
+        mlogger.debug(" Model Summary:")
+        for key, value in summary.items():
+            mlogger.debug(summary_format.format(key, value))
+        mlogger.debug(" "+"-"*40)
 
         # Print Each Step Time Elapsed
         w_time = time.time()
-        time_format = r"{:>20s} --> {:<.3f} seconds"
-        mlogger.debug("Elapsed Time Summary:")
+        time_format = r"{:>25s} --> {:<.3f} seconds"
+        mlogger.debug(" Elapsed Time Summary:")
         mlogger.debug(time_format.format("Parse File", p_end - p_begin))
-        mlogger.debug(time_format.format("Solved Displacement", d_time - p_end))
+        mlogger.debug(time_format.format("Solve Displacement", d_time - p_end))
         mlogger.debug(time_format.format("Write Output File", w_time - d_time))
-        last_line_format = "{:>20s} --> {:<.3f} seconds\n"
+        last_line_format = "{:>25s} --> {:<.3f} seconds"
         mlogger.debug(last_line_format.format("Total Elapsed Time", w_time - p_begin))
+        mlogger.debug(" "+"-"*40)
+        mlogger.debug(" Finish All\n")
 
 
 if __name__ == "__main__":

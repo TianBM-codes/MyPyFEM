@@ -233,14 +233,6 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        K =  np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳
-        try:
-            np.linalg.inv(K)
-        except np.linalg.LinAlgError:
-            K = K * 5
-            k1 = np.linalg.inv(K)
-            k2  = np.linalg.inv(K*10)
-            print(self.id)
 
         return np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳
 
