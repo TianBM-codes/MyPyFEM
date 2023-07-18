@@ -17,7 +17,7 @@ class MyPyFEM:
     TODO: 可以将单元的面编号，对面做一个可识别的ID，用于区分，ID = str(sorted(nodeIds)), 参考MySTAP C++
     """
 
-    def __init__(self, file_path, open_paraview=False):
+    def __init__(self, file_path, open_paraview=False, check_model=False):
         if isinstance(file_path, str):
             file_path = pathlib.Path(file_path)
 
@@ -29,10 +29,10 @@ class MyPyFEM:
         self.input_file_path = file_path
         output_files = [file_path.with_suffix(".vtu"), file_path.with_suffix(".unv")]
 
-        self.RunAnalyseFlow(output_files)
+        self.RunAnalyseFlow(output_files, check_model)
 
         # 结果查看, Paraview显示, 注意要将paraview的路径加入至环境变量
-        if open_paraview:
+        if open_paraview and not check_model:
             os.popen("paraview " + str(output_files[0].absolute()))
 
     def InitReader(self):
@@ -53,7 +53,7 @@ class MyPyFEM:
             mlogger.fatal("UnSupport File Suffix:{}".format(suffix))
             sys.exit(1)
 
-    def RunAnalyseFlow(self, output_paths):
+    def RunAnalyseFlow(self, output_paths, check_model):
         """
         TODO: 标准流程, 完成注释, 重写mlogger的debug信息, 将有限元模型的信息输出, 比如单元类型及相应个数, 自由度个数
         求解文件, 步骤如下所示, 该函数中不应包含对不同文件类型的分类, 即判断文件类型的bdf cdb等应在其他函数中完成
@@ -63,6 +63,9 @@ class MyPyFEM:
         p_begin = time.time()
         reader = self.InitReader()
         reader.ParseFileAndInitFEMDB()
+        if check_model:
+            reader.CheckModel()
+            return
 
         domain = Domain()
         # domain.PrintFEMDBSummary()

@@ -14,7 +14,7 @@ class CDBParser(object):
     """
 
     def __init__(self, input_path):
-        self.fem_data = FEMDataBase()
+        self.femdb = FEMDataBase()
         self.cdb_path = input_path
         self.iter_line = None
         self.et_hash = {}
@@ -35,7 +35,7 @@ class CDBParser(object):
         1. D:\\software\\python\\setup394\\Lib\\site-packages\\ansys\\mapdl\\reader
         2. ANSYS Help - Mechanical APDL Element Reference
         """
-        self.fem_data.file_path = self.cdb_path
+        self.femdb.file_path = self.cdb_path
         GlobalInfor[GlobalVariant.AnaType] = AnalyseType.LinearStatic  # 默认静力分析
         with open(self.cdb_path, 'r') as cdb_f:
             self.iter_line = cdb_f.readline()
@@ -87,8 +87,8 @@ class CDBParser(object):
                         if nd_data[5] is not None:
                             z = float(nd_data[5])
 
-                        self.fem_data.AddNode(Node(n_id, x, y, z))
-                        self.fem_data.node_hash[n_id] = node_index
+                        self.femdb.AddNode(Node(n_id, x, y, z))
+                        self.femdb.node_hash[n_id] = node_index
                         node_index += 1
                         self.iter_line = cdb_f.readline()
 
@@ -117,13 +117,13 @@ class CDBParser(object):
                         self.iter_line = cdb_f.readline()
 
                     bd.SetConstraintInfor(nodes, directs, values)
-                    self.fem_data.load_case.AddBoundary(bd)
+                    self.femdb.load_case.AddBoundary(bd)
 
                 elif self.iter_line.startswith("F,"):
                     # 一般F也不止施加在一个自由度上, 所以用while暂不跳出分支
                     while self.iter_line.startswith("F,"):
                         splits = self.iter_line.split(",")
-                        self.fem_data.load_case.AddAnsysCLoad(
+                        self.femdb.load_case.AddAnsysCLoad(
                             int(splits[1]), splits[2].strip(), float(splits[3].strip())
                         )
                         self.iter_line = cdb_f.readline()
@@ -135,9 +135,9 @@ class CDBParser(object):
                     # 不支持的关键字或注释直接读取下一行, 不可以strip(), 否则空行会被认作程序结束
                     self.iter_line = cdb_f.readline()
 
-        self.fem_data.et_hash = self.et_hash
-        self.fem_data.SetGrpHash(self.ele_group_hash, self.ele_count)
-        self.fem_data.real_const_hash = self.real_constant_hash
+        self.femdb.et_hash = self.et_hash
+        self.femdb.SetGrpHash(self.ele_group_hash, self.ele_count)
+        self.femdb.real_const_hash = self.real_constant_hash
 
     def ReadEBlock(self, f_handle):
         """
@@ -187,12 +187,11 @@ class CDBParser(object):
                 """
 
                 # 节点编号是无符号32位的, 也就是节点最大4294967295
-                # TODO 壳单元四个几点，如果有两个，通常是最后一个和倒数第二个相等，那么就是三角形单元
                 node_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)
                 search_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)
                 for idx in range(parsed_nodes_count):
                     node_ids[idx] = e_data[idx + 11]
-                    search_ids[idx] = self.fem_data.node_hash[node_ids[idx]]
+                    search_ids[idx] = self.femdb.node_hash[node_ids[idx]]
 
                 ele_node_list = list(OrderedDict.fromkeys(search_ids))
                 iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
@@ -200,7 +199,7 @@ class CDBParser(object):
 
                 # 除了组成单元所需的节点以外都是辅助节点, 默认e_node_count至parsed_nodes_count外的都是辅助节点
                 for idx in range(e_node_count, parsed_nodes_count):
-                    self.fem_data.node_list[self.fem_data.node_hash[node_ids[idx]]].is_assist_node = True
+                    self.femdb.node_list[self.femdb.node_hash[node_ids[idx]]].is_assist_node = True
 
                 iter_ele.SetId(ele_num)
                 iter_ele.SetNodes(np.asarray(list(OrderedDict.fromkeys(node_ids))))
@@ -211,19 +210,19 @@ class CDBParser(object):
                 # 计算单元包括的节点的坐标矩阵
                 coords = []
                 for nid in ele_node_list:
-                    n_coord = self.fem_data.node_list[nid].GetNodeCoord()
+                    n_coord = self.femdb.node_list[nid].GetNodeCoord()
                     coords.append(n_coord)
                 iter_ele.SetNodeCoords(np.asarray(coords))
 
                 # 保存对应关系
                 if self.ele_group_hash.__contains__(e_type):
                     ele_group = self.ele_group_hash[e_type]
-                    self.fem_data.ele_idx_hash[ele_num] = ele_group.GetElementsCurrentCount()
+                    self.femdb.ele_idx_hash[ele_num] = ele_group.GetElementsCurrentCount()
                     ele_group.AppendElement(copy.deepcopy(iter_ele))
                 else:
                     new_ele_group = ElementGroup(e_type)
                     new_ele_group.AppendElement(copy.deepcopy(iter_ele))
-                    self.fem_data.ele_idx_hash[ele_num] = 0  # 第一个元素, 所以index为0
+                    self.femdb.ele_idx_hash[ele_num] = 0  # 第一个元素, 所以index为0
                     self.ele_group_hash[e_type] = new_ele_group
 
                 # 更新并读取下一行
@@ -266,7 +265,7 @@ class CDBParser(object):
                     iter_mat_id = int(splits[4])
                     if iter_mat_id != cur_mat_id:
                         # 读取同一种材料结束, 读取下一种材料或者读取材料结束, 程序跳出材料分支
-                        self.fem_data.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         self.iter_line = f_handle.readline()
                         break
                     if splits[3].startswith("EX"):
@@ -280,7 +279,7 @@ class CDBParser(object):
                     # 当前行为其他信息, 跳出读材料分支, 读取其他
                     jump_out = not (self.iter_line.startswith("MPDATA,") or self.iter_line.startswith("MPTEMP"))
                     if jump_out:
-                        self.fem_data.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         break
 
     def ReadSection(self, f_handle):
@@ -297,7 +296,7 @@ class CDBParser(object):
                 f_handle.readline()  # section offset
                 f_handle.readline()  # section control
                 if beam_type == "RECT":
-                    self.fem_data.sections.append(BeamSection(sec_id, BeamSectionType.Rectangle, sec_data))
+                    self.femdb.sections.append(BeamSection(sec_id, BeamSectionType.Rectangle, sec_data))
                 else:
                     mlogger.fatal("UnSupport Beam Type:{}".format(beam_type))
                     sys.exit(1)
@@ -318,6 +317,26 @@ class CDBParser(object):
             self.iter_line = f_handle.readline()
             if not self.iter_line.startswith("SECTYPE,"):
                 break
+
+    def CheckModel(self):
+        """
+        检查模型是否有问题
+        """
+        node_ids = set(nd.id for nd in self.femdb.node_list)
+        ele_nodes = []
+        for _, group in self.femdb.ele_grp_hash.items():
+            eles = group.Elements()
+            for ele in eles:
+                ele_nodes.extend(ele.node_ids)
+        ele_nodes_set = set(ele_nodes)
+
+        unnessary_nds = node_ids - ele_nodes_set
+        if len(unnessary_nds) != 0:
+            mlogger.debug("Unnecessary Node Ids:{}".format(unnessary_nds))
+        else:
+            mlogger.debug("No Unnecessary Node")
+
+        mlogger.debug("Finish Check Model")
 
 
 if __name__ == "__main__":
