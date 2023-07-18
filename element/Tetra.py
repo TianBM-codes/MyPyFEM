@@ -1,4 +1,3 @@
-import numpy as np
 from element.ElementBase import *
 
 
@@ -7,7 +6,7 @@ class C3D4(ElementBaseClass):
 
     def __init__(self, eid=None):
         super().__init__(eid)
-        self.nodes_count = 4  # Each element has 6 nodes
+        self.nodes_count = 4  # Each element has 4 nodes
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtp_type = "tetra"
         self.unv_code = 40800
@@ -65,7 +64,7 @@ class C3D4(ElementBaseClass):
                       [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3]],
                       [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3]]], dtype=float)
 
-        self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weight
+        self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weight  # 常数还需要乘以weight？
 
         return self.K
 

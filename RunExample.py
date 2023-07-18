@@ -1,6 +1,6 @@
 from main import *
 
-if __name__ ==  "__main__":
+if __name__ == "__main__":
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\tempdirectory\DanWeiQuaShell\DanWeiQuaShell.cdb"
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\singleQuaShell.cdb"
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\catibeam.cdb"
