@@ -10,6 +10,9 @@ from femdb.Property import *
 from femdb.Section import *
 from femdb.ElementGroup import *
 from collections import OrderedDict
+from scipy import sparse
+from scipy.sparse.linalg import inv as sparse_inv
+from scipy.sparse.linalg import norm
 
 
 @Singleton
@@ -142,7 +145,6 @@ class FEMDataBase(object):
 
         return summary_dict
 
-
     def GetNodeCoordBySearchId(self, idxes):
         """
         获取节点的坐标, 用于计算单元刚度阵
@@ -254,4 +256,4 @@ class FEMDataBase(object):
         初始化总刚
         :param eq_count:
         """
-        self.total_stiff_matrix = np.zeros((eq_count, eq_count))
+        self.total_stiff_matrix = sparse.lil_matrix((eq_count, eq_count), dtype=float)

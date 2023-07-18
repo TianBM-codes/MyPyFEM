@@ -2,16 +2,24 @@
 # -*- coding: utf-8 -*-
 
 from femdb.FEMDataBase import *
-import scipy
-from scipy import linalg
+
+"""
+**关于稀疏矩阵:**
+   1. 要有效地构造矩阵, 请使用dok_matrix或lil_matrix, lil_matrix类支持基本切片和花式索引, 其语法与NumPy Array类似; lil_matrix形式是基于row的
+因此能够很高效的转为csr, 但是转为csc效率相对较低.
+   2. 强烈建议不要直接使用NumPy函数运算稀疏矩阵如果你想将NumPy函数应用于这些矩阵，首先要检查SciPy是否有自己的给定稀疏矩阵类的实现, 或者首先将稀疏矩
+阵转换为NumPy数组(使用类的toarray()方法).
+   3. 要执行乘法或转置等操作，首先将矩阵转换为CSC或CSR格式，效率高CSR格式特别适用于快速矩阵矢量产品
+   4. CSR，CSC和COO格式之间的所有转换都是线性复杂度.
+   5. 对于已知是正定对称矩阵的情况下, 如何用scipy快速求解逆矩阵:
+   https://stackoverflow.com/questions/40703042/more-efficient-way-to-invert-a-matrix-knowing-it-is-symmetric-and-positive-semi#:~:text=%3E%3E%3E%3E%20M%20%3D%20np.random.rand%20%2810%2C10%29%20%3E%3E%3E%3E%20M%20%3D,inv_M%20%3D%20np.triu%20%28inv_M%29%20%2B%20np.triu%20%28inv_M%2C%20k%3D1%29.T
+"""
 
 
 class Domain(object):
     """
     Domain class : Define the problem domain
     Only a single instance of Domain class can be created
-    Reference:
-    1. https://github.com/nschloe/meshio  # write vtp
     TODO 去掉一些没用过的函数
     TODO 提高程序效率, 各个类的组织以及函数应该属于哪个类, 在哪里计算
     TODO 优化import
@@ -169,7 +177,7 @@ class Domain(object):
                 for ii in range(node.GetDofCount()):
                     if node.b_code[ii]:
                         node.SetEquationNumber(ii, self.eq_count)
-                        self.Ub.append(node.dof_disp[ii])
+                        self.Ub.append([node.dof_disp[ii]])
                         self.eq_count += 1
 
         # 自由度号已经计算完成, 对自由度相关变量进行初始化
@@ -205,7 +213,7 @@ class Domain(object):
                 stiff_mat = iter_ele.ElementStiffness()
                 for row in range(len(eq_nums)):
                     for column in range(len(eq_nums)):
-                        self.femdb.total_stiff_matrix[eq_nums[row]][eq_nums[column]] += stiff_mat[row, column]
+                        self.femdb.total_stiff_matrix[eq_nums[row], eq_nums[column]] += stiff_mat[row, column]
 
     def SolveDisplacement(self):
         """
@@ -221,7 +229,7 @@ class Domain(object):
         2. 《有限元法 理论、格式与求解方法》 (Bathe) P138 P178
         """
         # 组装Ra, 自然边界条件都是在右端项的Ua上, 不可以施加在Ub上, 现在只能处理集中载荷
-        self.Ra = np.asarray([0] * self.free_dof_count).T
+        self.Ra = sparse.lil_matrix((self.free_dof_count, 1), dtype=float)
 
         suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
         # Abaqus格式的集中力是一个集合一个集合添加的
@@ -244,23 +252,24 @@ class Domain(object):
                 self.Ra[f_eq_num] = c_load.value
 
         else:
-            mlogger.fatal("UnSupport In SolveDisplacement")
+            mlogger.fatal("UnSupport File Type In SolveDisplacement")
             sys.exit(1)
 
         # 施加位移约束, 见visio文档, 求解Boundary矩阵和V矩阵, 暂未实现隐式约束, 对于显示不用求解Boundary矩阵,
         # 因为这种情况罚函数影响的只是Kbb的对角元素, 与未知位移求解没关系. 求解支反力也不需要加入罚函数的值
 
         # 求解
-        Kaa = self.femdb.total_stiff_matrix[:self.free_dof_count, :self.free_dof_count]
-        Kab = self.femdb.total_stiff_matrix[:self.free_dof_count, self.free_dof_count:]
-        self.Ub = np.asarray(self.Ub).T
-        self.Ua = np.matmul(np.linalg.inv(Kaa), self.Ra - np.matmul(Kab, self.Ub))
-        U = np.append(self.Ua, self.Ub)
+        Kaa = self.femdb.total_stiff_matrix[:self.free_dof_count, :self.free_dof_count].tocsc()
+        Kab = self.femdb.total_stiff_matrix[:self.free_dof_count, self.free_dof_count:].tocsc()
+        self.Ra = self.Ra.tocsc()
+        self.Ub = sparse.csc_matrix(self.Ub)
+        self.Ua = sparse_inv(Kaa) * (self.Ra - Kab * self.Ub)
+        U = sparse.vstack([self.Ua, self.Ub])
 
         # 按自由度分配给所有节点
         for nd in self.femdb.node_list:
             for ii in range(nd.GetDofCount()):
-                nd.dof_disp[ii] = U[nd.eq_num[ii]]
+                nd.dof_disp[ii] = U[nd.eq_num[ii], 0]
             nd.CalNodeMagnitudeDisplacement()
 
     """ 
