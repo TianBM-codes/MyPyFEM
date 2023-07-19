@@ -18,6 +18,8 @@ from femdb.FEMDataBase import *
    5. 对于已知是正定对称矩阵的情况下, 如何用scipy快速求解逆矩阵:
    https://stackoverflow.com/questions/40703042/more-efficient-way-to-invert-a-matrix-knowing-it-is-symmetric-and-positive-semi#:~:text=%3E%3E%3E%3E%20M%20%3D%20np.random.rand%20%2810%2C10%29%20%3E%3E%3E%3E%20M%20%3D,inv_M%20%3D%20np.triu%20%28inv_M%29%20%2B%20np.triu%20%28inv_M%2C%20k%3D1%29.T
 """
+# TODO: 试试https://github.com/scikit-sparse/scikit-sparse
+# TODO: https://scikit-sparse.readthedocs.io/en/latest/overview.html#introduction
 
 
 class Domain(object):
