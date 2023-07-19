@@ -17,7 +17,7 @@ import pypardiso
 """
 
 
-# TODO: 试试 https://github.com/scikit-sparse/scikit-sparse
+# TODO: 试试 https://github.com/scikit-sparse/scikit-sparse, 其是官方指定的python接口
 # TODO: https://scikit-sparse.readthedocs.io/en/latest/overview.html#introduction
 # https://www.zhihu.com/question/40769339
 # https://github.com/BeanLiu1994/solver_speed_test
@@ -33,7 +33,6 @@ class Domain(object):
     Domain class : Define the problem domain
     Only a single instance of Domain class can be created
     TODO 去掉一些没用过的函数
-    TODO 提高程序效率, 各个类的组织以及函数应该属于哪个类, 在哪里计算
     TODO 优化import
     """
 
@@ -243,6 +242,12 @@ class Domain(object):
         Maa * D2Ua/Dt2 + Kaa * Ua = Ra - Kab * Ub - Mab * D2Ub/Dt2,
         对于静力问题, 方程简化为下式:
         Kaa * Ua = Ra - Kab * Ub
+        历史解法(都因为过慢而淘汰):
+        # method 1
+        # self.Ua = spsolve(Kaa, self.Ra - Kab * self.Ub)
+        # method 2
+        # B = splu(Kaa)
+        # self.Ua = Kaa.dot(B.solve(self.Ra - Kab*self.Ub))
 
         Reference:
         1. 《有限元分析的概念与应用》-第四版 (Robert D.Cook) P36 P421
@@ -283,13 +288,7 @@ class Domain(object):
         Kab = self.femdb.global_stiff_matrix[:self.free_dof_count, self.free_dof_count:]
         self.Ub = np.asarray(self.Ub, dtype=float)
 
-        # 求解self.Ua的两种方法
-        # method 1
-        # self.Ua = spsolve(Kaa, self.Ra - Kab * self.Ub)
-        # method 2
-        # B = splu(Kaa)
-        # self.Ua = Kaa.dot(B.solve(self.Ra - Kab*self.Ub))
-        # method 3
+        # 求解self.Ua
         self.Ua = pypardiso.spsolve(Kaa, self.Ra - Kab * self.Ub)
 
         U = np.append(self.Ua, self.Ub)
