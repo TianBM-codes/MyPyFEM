@@ -288,7 +288,7 @@ class Domain(object):
         Kab = self.femdb.global_stiff_matrix[:self.free_dof_count, self.free_dof_count:]
         self.Ub = np.asarray(self.Ub, dtype=float)
 
-        # 求解self.Ua
+        # 求解self.Ua TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
         self.Ua = pypardiso.spsolve(Kaa, self.Ra - Kab * self.Ub)
 
         U = np.append(self.Ua, self.Ub)
