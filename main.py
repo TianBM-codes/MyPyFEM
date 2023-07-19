@@ -107,7 +107,7 @@ class MyPyFEM:
             mlogger.debug(summary_format.format(key, value))
         mlogger.debug(" " + "-" * 40)
 
-        # Print Each Step Time Elapsed
+        # Define Output Format And Print Each Step Time Elapsed
         time_format = r"{:>25s} --> {:<.3f} seconds"
         last_line_format = "{:>25s} --> {:<.3f} seconds"
 
