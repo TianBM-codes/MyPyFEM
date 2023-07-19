@@ -20,6 +20,10 @@ from femdb.FEMDataBase import *
 """
 # TODO: 试试https://github.com/scikit-sparse/scikit-sparse
 # TODO: https://scikit-sparse.readthedocs.io/en/latest/overview.html#introduction
+# https://www.zhihu.com/question/40769339
+# https://github.com/BeanLiu1994/solver_speed_test
+# https://pypi.org/project/pypardiso/
+# https://github.com/haasad/PyPardisoProject
 
 
 class Domain(object):
