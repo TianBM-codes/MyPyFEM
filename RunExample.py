@@ -7,8 +7,9 @@ if __name__ ==  "__main__":
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\banshou.cdb"
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\BiaoZhunSuanli.cdb"
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\solid\bridge.cdb"
-    input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\BiaoZhunSuanli.cdb"
+    # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\TestSparse.cdb"
+    # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\BiaoZhunSuanli.cdb"
 
     #  Unable to allocate 3.67 TiB for an array with shape (710604, 710604) and data type float64
-    # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\Circle12w.cdb"
-    MyPyFEM(pathlib.Path(input_file))
+    input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\Circle12w.cdb"
+    MyPyFEM(pathlib.Path(input_file), check_model=False)

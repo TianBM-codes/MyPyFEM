@@ -65,10 +65,11 @@ class MyPyFEM:
         reader.ParseFileAndInitFEMDB()
         if check_model:
             reader.CheckModel()
+            c_end = time.time()
+            mlogger.debug("Elapsed time: {:.3f} seconds\n".format(c_end - p_begin))
             return
 
         domain = Domain()
-        # domain.PrintFEMDBSummary()
         if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
             domain.AssignElementCharacter()
             domain.CalBoundaryEffect()
@@ -92,12 +93,12 @@ class MyPyFEM:
 
         # Print FEMDB Information
         summary = domain.femdb.GetModelSummary()
-        mlogger.debug(" "+"-"*40)
+        mlogger.debug(" " + "-" * 40)
         summary_format = r"{:>25s} --> {:<}"
         mlogger.debug(" Model Summary:")
         for key, value in summary.items():
             mlogger.debug(summary_format.format(key, value))
-        mlogger.debug(" "+"-"*40)
+        mlogger.debug(" " + "-" * 40)
 
         # Print Each Step Time Elapsed
         w_time = time.time()
@@ -108,8 +109,8 @@ class MyPyFEM:
         mlogger.debug(time_format.format("Write Output File", w_time - d_time))
         last_line_format = "{:>25s} --> {:<.3f} seconds"
         mlogger.debug(last_line_format.format("Total Elapsed Time", w_time - p_begin))
-        mlogger.debug(" "+"-"*40)
-        mlogger.debug(" Finish All\n")
+        mlogger.debug(" " + "-" * 40)
+        mlogger.debug(" Finish Calculate\n")
 
 
 if __name__ == "__main__":

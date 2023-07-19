@@ -11,8 +11,9 @@ from femdb.Section import *
 from femdb.ElementGroup import *
 from collections import OrderedDict
 from scipy import sparse
-from scipy.sparse.linalg import inv as sparse_inv
 from scipy.sparse.linalg import norm
+from scipy.sparse.linalg import spsolve
+from scipy.sparse.linalg import splu
 
 
 @Singleton

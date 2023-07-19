@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import time
+from datetime import datetime
+
+import numpy as np
 
 from femdb.FEMDataBase import *
 
@@ -177,7 +181,7 @@ class Domain(object):
                 for ii in range(node.GetDofCount()):
                     if node.b_code[ii]:
                         node.SetEquationNumber(ii, self.eq_count)
-                        self.Ub.append([node.dof_disp[ii]])
+                        self.Ub.append(node.dof_disp[ii])
                         self.eq_count += 1
 
         # 自由度号已经计算完成, 对自由度相关变量进行初始化
@@ -229,8 +233,8 @@ class Domain(object):
         2. 《有限元法 理论、格式与求解方法》 (Bathe) P138 P178
         """
         # 组装Ra, 自然边界条件都是在右端项的Ua上, 不可以施加在Ub上, 现在只能处理集中载荷
-        self.Ra = sparse.lil_matrix((self.free_dof_count, 1), dtype=float)
-
+        # self.Ra = sparse.lil_matrix((self.free_dof_count, 1), dtype=float)
+        self.Ra = np.zeros((self.free_dof_count,), dtype=float)
         suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
         # Abaqus格式的集中力是一个集合一个集合添加的
         if suffix == InputFileType.INP:
@@ -261,15 +265,18 @@ class Domain(object):
         # 求解
         Kaa = self.femdb.total_stiff_matrix[:self.free_dof_count, :self.free_dof_count].tocsc()
         Kab = self.femdb.total_stiff_matrix[:self.free_dof_count, self.free_dof_count:].tocsc()
-        self.Ra = self.Ra.tocsc()
-        self.Ub = sparse.csc_matrix(self.Ub)
-        self.Ua = sparse_inv(Kaa) * (self.Ra - Kab * self.Ub)
-        U = sparse.vstack([self.Ua, self.Ub])
+        self.Ub = np.asarray(self.Ub, dtype=float)
 
+        # 求解self.Ua的两种方法
+        # self.Ua = spsolve(Kaa, self.Ra - Kab * self.Ub)
+        B = splu(Kaa)
+        self.Ua = Kaa.dot(B.solve(self.Ra - Kab*self.Ub))
+
+        U = np.append(self.Ua, self.Ub)
         # 按自由度分配给所有节点
         for nd in self.femdb.node_list:
             for ii in range(nd.GetDofCount()):
-                nd.dof_disp[ii] = U[nd.eq_num[ii], 0]
+                nd.dof_disp[ii] = U[nd.eq_num[ii]]
             nd.CalNodeMagnitudeDisplacement()
 
     """ 
