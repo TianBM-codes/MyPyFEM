@@ -217,7 +217,8 @@ class Domain(object):
                 stiff_mat = iter_ele.ElementStiffness()
                 for row in range(len(eq_nums)):
                     for column in range(len(eq_nums)):
-                        self.femdb.total_stiff_matrix[eq_nums[row], eq_nums[column]] += stiff_mat[row, column]
+                        if stiff_mat[row, column] != 0:
+                            self.femdb.global_stiff_matrix[eq_nums[row], eq_nums[column]] += stiff_mat[row, column]
 
     def SolveDisplacement(self):
         """
@@ -263,14 +264,14 @@ class Domain(object):
         # 因为这种情况罚函数影响的只是Kbb的对角元素, 与未知位移求解没关系. 求解支反力也不需要加入罚函数的值
 
         # 求解
-        Kaa = self.femdb.total_stiff_matrix[:self.free_dof_count, :self.free_dof_count].tocsc()
-        Kab = self.femdb.total_stiff_matrix[:self.free_dof_count, self.free_dof_count:].tocsc()
+        Kaa = self.femdb.global_stiff_matrix[:self.free_dof_count, :self.free_dof_count].tocsc()
+        Kab = self.femdb.global_stiff_matrix[:self.free_dof_count, self.free_dof_count:].tocsc()
         self.Ub = np.asarray(self.Ub, dtype=float)
 
         # 求解self.Ua的两种方法
-        # self.Ua = spsolve(Kaa, self.Ra - Kab * self.Ub)
-        B = splu(Kaa)
-        self.Ua = Kaa.dot(B.solve(self.Ra - Kab*self.Ub))
+        self.Ua = spsolve(Kaa, self.Ra - Kab * self.Ub)
+        # B = splu(Kaa)
+        # self.Ua = Kaa.dot(B.solve(self.Ra - Kab*self.Ub))
 
         U = np.append(self.Ua, self.Ub)
         # 按自由度分配给所有节点

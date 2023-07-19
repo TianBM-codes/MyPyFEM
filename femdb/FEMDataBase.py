@@ -46,7 +46,7 @@ class FEMDataBase(object):
         self.properties = []
         self.sections = []
         self.materials = []
-        self.total_stiff_matrix = None
+        self.global_stiff_matrix = None
         self.load_case = LoadCase()
         self.real_const_hash = {}
 
@@ -257,4 +257,4 @@ class FEMDataBase(object):
         初始化总刚
         :param eq_count:
         """
-        self.total_stiff_matrix = sparse.lil_matrix((eq_count, eq_count), dtype=float)
+        self.global_stiff_matrix = sparse.lil_matrix((eq_count, eq_count), dtype=float)
