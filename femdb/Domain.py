@@ -18,12 +18,15 @@ from femdb.FEMDataBase import *
    5. 对于已知是正定对称矩阵的情况下, 如何用scipy快速求解逆矩阵:
    https://stackoverflow.com/questions/40703042/more-efficient-way-to-invert-a-matrix-knowing-it-is-symmetric-and-positive-semi#:~:text=%3E%3E%3E%3E%20M%20%3D%20np.random.rand%20%2810%2C10%29%20%3E%3E%3E%3E%20M%20%3D,inv_M%20%3D%20np.triu%20%28inv_M%29%20%2B%20np.triu%20%28inv_M%2C%20k%3D1%29.T
 """
-# TODO: 试试https://github.com/scikit-sparse/scikit-sparse
+# TODO: 试试 https://github.com/scikit-sparse/scikit-sparse
 # TODO: https://scikit-sparse.readthedocs.io/en/latest/overview.html#introduction
 # https://www.zhihu.com/question/40769339
 # https://github.com/BeanLiu1994/solver_speed_test
 # https://pypi.org/project/pypardiso/
 # https://github.com/haasad/PyPardisoProject
+# https://blog.csdn.net/hu_yuhang/article/details/126674357
+# https://blog.csdn.net/wzj_sxpi/article/details/116232656
+# https://github.com/xmlyqing00/Cholmod-Scikit-Sparse-Windows
 
 
 class Domain(object):
