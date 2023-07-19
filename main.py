@@ -63,6 +63,8 @@ class MyPyFEM:
         p_begin = time.time()
         reader = self.InitReader()
         reader.ParseFileAndInitFEMDB()
+        time_1 = time.time()
+
         if check_model:
             reader.CheckModel()
             c_end = time.time()
@@ -72,17 +74,20 @@ class MyPyFEM:
         domain = Domain()
         if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
             domain.AssignElementCharacter()
+            time_2 = time.time()
+
             domain.CalBoundaryEffect()
             domain.CalculateEquationNumber()
-            p_end = time.time()
+            time_3 = time.time()
 
-            # "Step 1: Calculate Element StiffnessMatrix & Force Vector"
+            domain.CalAllElementStiffness()
+            time_4 = time.time()
+
             domain.AssembleStiffnessMatrix()
+            time_5 = time.time()
 
-            # "Step 2: Solve the Equation"
             domain.SolveDisplacement()
-            d_time = time.time()
-            # Step 4: BackSubstitution
+            time_6 = time.time()
         else:
             mlogger.fatal("UnSupport Analyse Type")
             sys.exit(1)
@@ -90,6 +95,7 @@ class MyPyFEM:
         writer = ResultsWriter()
         # writer.WriteVTPFile(output_paths[0])
         writer.WriteUNVFile(output_paths[1])
+        p_end = time.time()
 
         # Print FEMDB Information
         summary = domain.femdb.GetModelSummary()
@@ -101,16 +107,20 @@ class MyPyFEM:
         mlogger.debug(" " + "-" * 40)
 
         # Print Each Step Time Elapsed
-        w_time = time.time()
         time_format = r"{:>25s} --> {:<.3f} seconds"
-        mlogger.debug(" Elapsed Time Summary:")
-        mlogger.debug(time_format.format("Parse File", p_end - p_begin))
-        mlogger.debug(time_format.format("Solve Displacement", d_time - p_end))
-        mlogger.debug(time_format.format("Write Output File", w_time - d_time))
         last_line_format = "{:>25s} --> {:<.3f} seconds"
-        mlogger.debug(last_line_format.format("Total Elapsed Time", w_time - p_begin))
+
+        mlogger.debug(" Elapsed Time Summary:")
+        mlogger.debug(time_format.format("Parse File", time_1 - p_begin))
+        mlogger.debug(time_format.format("Calculate D", time_2 - time_1))
+        mlogger.debug(time_format.format("Cal Equation Num", time_3 - time_2))
+        mlogger.debug(time_format.format("Cal All Stiffness", time_4 - time_3))
+        mlogger.debug(time_format.format("Assemble Stiffness", time_5 - time_4))
+        mlogger.debug(time_format.format("Solve Displacement", time_6 - time_5))
+        mlogger.debug(time_format.format("Write Output File", p_end - time_6))
+        mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - p_begin))
         mlogger.debug(" " + "-" * 40)
-        mlogger.debug(" Finish Calculate\n")
+        mlogger.debug(" Finish Analysis\n")
 
 
 if __name__ == "__main__":

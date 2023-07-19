@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import time
-from datetime import datetime
-
-import numpy as np
 
 from femdb.FEMDataBase import *
+import pypardiso
 
 """
 **关于稀疏矩阵:**
@@ -18,6 +15,8 @@ from femdb.FEMDataBase import *
    5. 对于已知是正定对称矩阵的情况下, 如何用scipy快速求解逆矩阵:
    https://stackoverflow.com/questions/40703042/more-efficient-way-to-invert-a-matrix-knowing-it-is-symmetric-and-positive-semi#:~:text=%3E%3E%3E%3E%20M%20%3D%20np.random.rand%20%2810%2C10%29%20%3E%3E%3E%3E%20M%20%3D,inv_M%20%3D%20np.triu%20%28inv_M%29%20%2B%20np.triu%20%28inv_M%2C%20k%3D1%29.T
 """
+
+
 # TODO: 试试 https://github.com/scikit-sparse/scikit-sparse
 # TODO: https://scikit-sparse.readthedocs.io/en/latest/overview.html#introduction
 # https://www.zhihu.com/question/40769339
@@ -50,38 +49,25 @@ class Domain(object):
         self.Ub = []  # 约束指定位移
         self.Ua = None  # 未被约束的自由度
         self.Ra = None  # 未被约束的自由度上的力或力矩
-
-    def PrintFEMDBSummary(self):
-        """
-        计算前可以首先打印出数据库信息
-        """
-        self.femdb.PrintParseSummary()
+        # 以下为刚度阵相关
+        self.stiff_list = []
+        self.eq_nums = []
 
     def AssignElementCharacter(self):
         """
         不同类型的输入文件会调用不同的函数
-        """
-        input_type = GlobalInfor[GlobalVariant.InputFileSuffix]
-        if input_type == InputFileType.CDB:
-            self.AssignElementCharacterAnsys()
-        elif input_type == InputFileType.INP:
-            self.AssignElementCharacterAbaqus()
-        elif input_type == InputFileType.BDF:
-            self.AssignElementCharacterNastran()
-
-    def AssignElementCharacterAnsys(self):
-        """
         对于cdb文件的准备计算函数
         1. 计算各个截面属性, 赋值给对应单元
         2. 计算单元刚度阵
         3. 计算总刚矩阵维度, 初始化总刚(type: np.ndarray)
         """
-        self.femdb.AssignElementProperty()
-
-    def AssignElementCharacterNastran(self):
-        """
-        对于bdf文件的准备计算函数
-        """
+        input_type = GlobalInfor[GlobalVariant.InputFileSuffix]
+        if input_type == InputFileType.CDB:
+            self.femdb.AssignElementProperty()
+        elif input_type == InputFileType.INP:
+            self.AssignElementCharacterAbaqus()
+        elif input_type == InputFileType.BDF:
+            pass
 
     def AssignElementCharacterAbaqus(self):
         """
@@ -183,6 +169,7 @@ class Domain(object):
                         self.eq_count += 1
 
         self.free_dof_count = self.eq_count
+        self.femdb.equation_number = self.eq_count
 
         # 第二遍排序, 排序约束自由度的方程号, 顺便初始化Ub
         for node in self.femdb.node_list:
@@ -215,19 +202,38 @@ class Domain(object):
         # 初始化总刚
         self.femdb.InitAssemblyMatrix(self.eq_count)
 
+    def CalAllElementStiffness(self):
+        """
+        计算所有单元的刚度阵, 对所有的单元组进行循环
+        方便的查看各步骤运行时间: '%Y-%m-%d %H:%M:%S.%f')[:-3]
+        """
+        for key, ele_group in self.femdb.ele_grp_hash.items():
+            for iter_ele in ele_group.eles:
+                self.eq_nums.append(iter_ele.GetElementEquationNumber())
+                self.stiff_list.append(iter_ele.ElementStiffness())
+
     def AssembleStiffnessMatrix(self):
         """
         Assemble the banded global stiffness matrix, STAPPy中的del Matrix是否会减少内存分配, 或提高运算速度
+        之前是lil_matrix, 但是速度很慢, 大概是现在方法的4倍左右, 原因是如下行程序所示, 需要__getitem__然后__setitem__
+        self.femdb.global_stiff_matrix[eq_nums[row], eq_nums[column]] += stiff_mat[row, column]
+        Reference:
+        1. https://stackoverflow.com/questions/59460230/instantiate-large-sparse-matrices-for-assignment-operation
+        2. https://stackoverflow.com/questions/27770906/why-are-lil-matrix-and-dok-matrix-so-slow-compared-to-common-dict-of-dicts
         """
-        # Loop over for all element groups
-        for key, ele_group in self.femdb.ele_grp_hash.items():
-            for iter_ele in ele_group.eles:
-                eq_nums = iter_ele.GetElementEquationNumber()
-                stiff_mat = iter_ele.ElementStiffness()
-                for row in range(len(eq_nums)):
-                    for column in range(len(eq_nums)):
-                        if stiff_mat[row, column] != 0:
-                            self.femdb.global_stiff_matrix[eq_nums[row], eq_nums[column]] += stiff_mat[row, column]
+        rows = []
+        cols = []
+        datas = []
+        for ii in range(len(self.eq_nums)):
+            eq_nums = self.eq_nums[ii]
+            stiff_mat = self.stiff_list[ii]
+            for row in range(len(eq_nums)):
+                for column in range(len(eq_nums)):
+                    if stiff_mat[row, column] != 0:
+                        rows.append(eq_nums[row])
+                        cols.append(eq_nums[column])
+                        datas.append(stiff_mat[row, column])
+        self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)), shape=(self.eq_count, self.eq_count))
 
     def SolveDisplacement(self):
         """
@@ -243,7 +249,6 @@ class Domain(object):
         2. 《有限元法 理论、格式与求解方法》 (Bathe) P138 P178
         """
         # 组装Ra, 自然边界条件都是在右端项的Ua上, 不可以施加在Ub上, 现在只能处理集中载荷
-        # self.Ra = sparse.lil_matrix((self.free_dof_count, 1), dtype=float)
         self.Ra = np.zeros((self.free_dof_count,), dtype=float)
         suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
         # Abaqus格式的集中力是一个集合一个集合添加的
@@ -273,14 +278,19 @@ class Domain(object):
         # 因为这种情况罚函数影响的只是Kbb的对角元素, 与未知位移求解没关系. 求解支反力也不需要加入罚函数的值
 
         # 求解
-        Kaa = self.femdb.global_stiff_matrix[:self.free_dof_count, :self.free_dof_count].tocsc()
-        Kab = self.femdb.global_stiff_matrix[:self.free_dof_count, self.free_dof_count:].tocsc()
+        self.femdb.global_stiff_matrix = self.femdb.global_stiff_matrix.tocsc()
+        Kaa = self.femdb.global_stiff_matrix[:self.free_dof_count, :self.free_dof_count]
+        Kab = self.femdb.global_stiff_matrix[:self.free_dof_count, self.free_dof_count:]
         self.Ub = np.asarray(self.Ub, dtype=float)
 
         # 求解self.Ua的两种方法
-        self.Ua = spsolve(Kaa, self.Ra - Kab * self.Ub)
+        # method 1
+        # self.Ua = spsolve(Kaa, self.Ra - Kab * self.Ub)
+        # method 2
         # B = splu(Kaa)
         # self.Ua = Kaa.dot(B.solve(self.Ra - Kab*self.Ub))
+        # method 3
+        self.Ua = pypardiso.spsolve(Kaa, self.Ra - Kab * self.Ub)
 
         U = np.append(self.Ua, self.Ub)
         # 按自由度分配给所有节点
