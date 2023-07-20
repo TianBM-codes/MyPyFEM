@@ -206,6 +206,7 @@ class Domain(object):
 
     def CalAllElementStiffness(self):
         """
+        调用多线程同时计算刚度矩阵
         计算所有单元的刚度阵, 对所有的单元组进行循环
         方便的查看各步骤运行时间: '%Y-%m-%d %H:%M:%S.%f')[:-3]
         """
@@ -240,9 +241,7 @@ class Domain(object):
         if GlobalInfor[GlobalVariant.PlotGlobalStiffness]:
             plt.spy(self.femdb.global_stiff_matrix, markersize=1)
             plt.title("GlobalStiffnessMatrix")
-            plt.savefig("globalstiffness.jpg")
-        else:
-            print("sdlkfj")
+            plt.savefig("GlobalStiffness.jpg")
 
     def SolveDisplacement(self):
         """
