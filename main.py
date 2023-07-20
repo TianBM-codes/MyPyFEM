@@ -18,13 +18,17 @@ class MyPyFEM:
     TODO: 可以将单元的面编号，对面做一个可识别的ID，用于区分，ID = str(sorted(nodeIds)), 参考MySTAP C++
     """
 
-    def __init__(self, file_path, open_paraview=False, check_model=False):
+    def __init__(self, file_path, open_paraview=False, check_model=False, plot_stiff=False):
         if isinstance(file_path, str):
             file_path = pathlib.Path(file_path)
 
         if not os.path.isfile(file_path):
             logging.fatal("Input File is doesn't exist! {}".format(file_path))
             sys.exit(1)
+
+        # 是否绘制总刚度阵
+        if plot_stiff:
+            GlobalInfor[GlobalVariant.PlotGlobalStiffness] = True
 
         self._fem_data = None
         self.input_file_path = file_path

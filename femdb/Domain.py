@@ -234,10 +234,12 @@ class Domain(object):
                         datas.append(stiff_mat[row, column])
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)), shape=(self.eq_count, self.eq_count))
 
-        if True:
+        if GlobalInfor[GlobalVariant.PlotGlobalStiffness]:
             plt.spy(self.femdb.global_stiff_matrix, markersize=1)
             plt.title("GlobalStiffnessMatrix")
             plt.savefig("globalstiffness.jpg")
+        else:
+            print("sdlkfj")
 
     def SolveDisplacement(self):
         """

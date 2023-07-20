@@ -207,9 +207,12 @@ class GlobalVariant(Enum):
     InputFileSuffix = 1
     AnaType = 2
     Dimension = 3
+    PlotGlobalStiffness = 4
 
 
-GlobalInfor = {GlobalVariant.InputFileSuffix: -1,
-               GlobalVariant.AnaType: -1,
-               GlobalVariant.Dimension: AnalyseDimension.ThreeDimension
-               }
+GlobalInfor = {
+    GlobalVariant.InputFileSuffix: -1,
+    GlobalVariant.AnaType: -1,
+    GlobalVariant.Dimension: AnalyseDimension.ThreeDimension,
+    GlobalVariant.PlotGlobalStiffness: False
+}

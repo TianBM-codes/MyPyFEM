@@ -22,6 +22,7 @@ class FEMDataBase(object):
     def __init__(self):
         # 输入文件
         self.file_path = None
+
         # nodes
         self.node_list = []  # List of all nodes in the domain, 实例化数据
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
