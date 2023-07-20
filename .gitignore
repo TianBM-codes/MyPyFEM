@@ -14,4 +14,5 @@ RunExample.py
 *.unv
 *.vtp
 *.full
+*.jpg
 /.VSCodeCounter

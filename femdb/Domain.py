@@ -234,6 +234,11 @@ class Domain(object):
                         datas.append(stiff_mat[row, column])
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)), shape=(self.eq_count, self.eq_count))
 
+        if True:
+            plt.spy(self.femdb.global_stiff_matrix, markersize=1)
+            plt.title("GlobalStiffnessMatrix")
+            plt.savefig("globalstiffness.jpg")
+
     def SolveDisplacement(self):
         """
         将边界条件添加至节点, 有很多方法施加, 各自对不同的情况有利, 见Reference 1
