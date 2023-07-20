@@ -26,6 +26,9 @@ import pypardiso
 # https://blog.csdn.net/hu_yuhang/article/details/126674357
 # https://blog.csdn.net/wzj_sxpi/article/details/116232656
 # https://github.com/xmlyqing00/Cholmod-Scikit-Sparse-Windows
+# Numpy-intel: https://pypi.org/project/intel-numpy/
+# Numpy+Mkl
+# Chosky分解求解对称正定问题
 
 
 class Domain(object):
