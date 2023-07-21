@@ -63,7 +63,7 @@ class MyPyFEM:
         TODO: 标准流程, 完成注释, 重写mlogger的debug信息, 将有限元模型的信息输出, 比如单元类型及相应个数, 自由度个数
         求解文件, 步骤如下所示, 该函数中不应包含对不同文件类型的分类, 即判断文件类型的bdf cdb等应在其他函数中完成
         """
-        mlogger.debug("{} Analysis Calculate Begin {}".format("#" * 6, "#" * 6))
+        mlogger.debug(" {} Analysis Calculate Begin {}".format("#" * 5, "#" * 6))
         # logging.debug("Step 0: Parse File And Define the Problem FEMDB")
         p_begin = time.time()
         reader = self.InitReader()
