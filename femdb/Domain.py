@@ -29,6 +29,11 @@ import pypardiso
 # Numpy-intel: https://pypi.org/project/intel-numpy/
 # Numpy+Mkl
 # Chosky分解求解对称正定问题
+# https://blog.csdn.net/weixin_38285131/article/details/81288338
+# https://stackoverflow.com/questions/15573557/call-c-using-eigen-library-function-in-python
+# https://pybind11.readthedocs.io/en/stable/advanced/cast/eigen.html
+# https://kun-liu.com/2012/07/27/linear-sparse-solvers/
+# https://petsc.org/release/
 
 
 class Domain(object):

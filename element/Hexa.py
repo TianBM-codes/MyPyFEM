@@ -15,6 +15,7 @@ class C3D8(ElementBaseClass, ABC):
         self.K = np.zeros([24, 24], dtype=float)  # 刚度矩阵
         self.vtp_type = "hexahedron"
         self.unv_code = 80600
+        self.B = np.zeros([6, 24], dtype=float)  # 高斯积分点处的应变矩阵
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -30,11 +31,18 @@ class C3D8(ElementBaseClass, ABC):
                                [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
                                [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
 
+        # data = [1 - niu, niu, niu, niu, 1 - niu, niu, niu, niu, 1 - niu, 0.5 * (1 - 2 * niu), 0.5 * (1 - 2 * niu), 0.5 * (1 - 2 * niu)]
+        # rows = [0, 0, 0, 1, 1, 1, 2, 2, 2, 3, 4, 5]
+        # cols = [0, 1, 2, 0, 1, 2, 0, 1, 2, 3, 4, 5]
+        # self.D = a * sparse.csc_matrix((data, (rows, cols)), shape=(6, 6))
+
     def ElementStiffness(self):
         """
         TODO: https://www.bilibili.com/video/BV19y4y1z76E/?vd_source=f964a6ab226be6b0cd5d082ed4135949 C3D20 还有二维单元的
         Bathe 上册 P323
         dimension: 8*3, [[x1,y1,z1],[x2,y2,z2],...[x8,y8,z8]], type:np.ndarray, dtype:float
+        Reference:
+        1. B Bar method: <<The Finite Element Method Linear Static and Dynamic Finite Element Analysis(Thomas J.R.Hughes)>> P232
 
         # Shape Function:
         N1 = (1 - r) * (1 - s) * (1 + t) / 8
@@ -91,11 +99,69 @@ class C3D8(ElementBaseClass, ABC):
                                     [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
                                      B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]], dtype=float)
 
+                    self.B = self.B + B
                     self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * g_weight
 
         return self.K
 
     def ElementStress(self, displacement):
         """
-        Calculate element stress
+        计算节点应力(已知高斯点处的应变矩阵, 以及节点位移)
+        1. 计算积分点位移
+        2. 计算积分点应力
+        3. 外推至节点
+        4. 节点平均
+
+        Reference:
+        1. <<有限单元法>> 王勖成 P168-176
         """
+        sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        for r in sample_pt:
+            for s in sample_pt:
+                for t in sample_pt:
+                    N1 = (1 - r) * (1 - s) * (1 + t) / 8
+                    N2 = (1 - r) * (1 - s) * (1 - t) / 8
+                    N3 = (1 - r) * (1 + s) * (1 - t) / 8
+                    N4 = (1 - r) * (1 + s) * (1 + t) / 8
+                    N5 = (1 + r) * (1 - s) * (1 + t) / 8
+                    N6 = (1 + r) * (1 - s) * (1 - t) / 8
+                    N7 = (1 + r) * (1 + s) * (1 - t) / 8
+                    N8 = (1 + r) * (1 + s) * (1 + t) / 8
+
+        self.D * np.matmul(self.B, displacement)
+        a = 0.25 * (5 + 3 * np.sqrt(3))
+        b = -0.25 * (np.sqrt(3) + 1)
+        c = 0.25 * (np.sqrt(3) - 1)
+        d = 0.25 * (5 - 3 * np.sqrt(3))
+
+        # m: 节点应力转至积分点应力
+        m = np.asarray([[a, b, c, b, b, c, d, c],
+                        [b, a, b, c, c, b, c, d],
+                        [c, b, a, b, d, c, b, c],
+                        [b, c, b, a, c, d, c, b],
+                        [b, c, d, c, a, b, c, b],
+                        [c, b, c, d, b, a, b, c],
+                        [d, c, b, c, c, b, a, b],
+                        [c, d, c, b, b, c, b, a]], dtype=float)
+
+
+"""
+    稀疏矩阵存储应变阵, 发现还没全矩阵计算快
+        rows = [0, 0, 0, 0, 0, 0, 0, 0,
+                1, 1, 1, 1, 1, 1, 1, 1,
+                2, 2, 2, 2, 2, 2, 2, 2,
+                3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+                4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+                5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5]
+        cols = [0, 3, 6, 9, 12, 15, 18, 21,
+                1, 4, 7, 10, 13, 16, 19, 22,
+                2, 5, 8, 11, 14, 17, 20, 23,
+                0, 1, 3, 4, 6, 7, 9, 10, 12, 13, 15, 16, 18, 19, 21, 22,
+                1, 2, 4, 5, 7, 8, 10, 11, 13, 14, 16, 17, 19, 20, 22, 23,
+                0, 2, 3, 5, 6, 8, 9, 11, 12, 14, 15, 17, 18, 20, 21, 23]
+        data = list(B_pre.flatten())
+        data.extend([B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2], B_pre[1, 3], B_pre[0, 3], B_pre[1, 4], B_pre[0, 4], B_pre[1, 5], B_pre[0, 5], B_pre[1, 6], B_pre[0, 6], B_pre[1, 7], B_pre[0, 7]])
+        data.extend([B_pre[2, 0], B_pre[1, 0], B_pre[2, 1], B_pre[1, 1], B_pre[2, 2], B_pre[1, 2], B_pre[2, 3], B_pre[1, 3], B_pre[2, 4], B_pre[1, 4], B_pre[2, 5], B_pre[1, 5], B_pre[2, 6], B_pre[1, 6], B_pre[2, 7], B_pre[1, 7]])
+        data.extend([B_pre[2, 0], B_pre[0, 0], B_pre[2, 1], B_pre[0, 1], B_pre[2, 2], B_pre[0, 2], B_pre[2, 3], B_pre[0, 3], B_pre[2, 4], B_pre[0, 4], B_pre[2, 5], B_pre[0, 5], B_pre[2, 6], B_pre[0, 6], B_pre[2, 7], B_pre[0, 7]])
+        B = sparse.coo_matrix((data, (rows, cols)), shape=(6, 24))
+"""

@@ -64,7 +64,6 @@ class MyPyFEM:
         求解文件, 步骤如下所示, 该函数中不应包含对不同文件类型的分类, 即判断文件类型的bdf cdb等应在其他函数中完成
         """
         mlogger.debug("{} Analysis Calculate Begin {}".format("#" * 6, "#" * 6))
-        # logging.debug("Step 0: Parse File And Define the Problem FEMDB")
         p_begin = time.time()
         reader = self.InitReader()
         reader.ParseFileAndInitFEMDB()

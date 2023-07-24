@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from element.ElementBase import *
-import numpy as np
 from abc import ABC
+
+import numpy as np
+
+from element.ElementBase import *
 
 
 class CPS4(ElementBaseClass, ABC):
@@ -143,24 +145,33 @@ class CPS3(ElementBaseClass, ABC):
         det_J = np.linalg.det(J)
         J_inv = np.linalg.inv(J)
         B_pre = np.matmul(J_inv, dNdr)
-        B = np.array([[B_pre[0, 0], 0, B_pre[0, 1], 0, B_pre[0, 2], 0],
-                      [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
-                      [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]], dtype=float)
+        self.B = np.array([[B_pre[0, 0], 0, B_pre[0, 1], 0, B_pre[0, 2], 0],
+                           [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
+                           [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]], dtype=float)
 
-        return B.T * self.D * B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
+        return self.B.T * self.D * self.B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
 
     def ElementStress(self, displacement):
         """
-        Calculate element stress
+        Reference:
+        1. 《有限单元法》王勖成 P175
         """
+        node_stress = np.matmul(self.B, displacement)
+        a = 1 + np.sqrt(3) / 2
+        b = -0.5
+        c = 1 - np.sqrt(3) / 2
+        m = np.asarray([[a, b, c, b],
+                        [b, a, b, c],
+                        [c, b, a, b],
+                        [b, c, b, a]], dtype=float)
 
 
 if __name__ == "__main__":
     t_ele = CPS3(-1)
     t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
     t_ele.node_coords = np.array([[0, 0],
-                                [4, 0],
-                                [1, 3]], dtype=float)
+                                  [4, 0],
+                                  [1, 3]], dtype=float)
     t_ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
     t_ele.ElementStiffness()
     mlogger.debug("finish")

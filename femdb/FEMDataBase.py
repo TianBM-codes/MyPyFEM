@@ -201,7 +201,11 @@ class FEMDataBase(object):
                     sec_characters = {}
 
                 # 同样, 也并不是所有单元都有实常数, 首先判断是否为空
-                real_const = {"RealConst": self.real_const_hash[iter_ele.real_const_id]}
+                real_const_id = iter_ele.real_const_id
+                if self.real_const_hash.__contains__(real_const_id):
+                    real_const = {"RealConst": real_const_id}
+                else:
+                    real_const = {}
 
                 # 所有计算单刚的参数均已设置完毕, 可以计算单刚
                 iter_ele.SetAllCharacterAndCalD({**mat_dict, **sec_characters, **real_const})
