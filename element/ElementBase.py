@@ -167,16 +167,14 @@ class DNDrCalculator:
         self.DKQShell = None
 
         # dNdr: 将各种整合起来
-        self.DNdr = {"C3D8": self.C3D8,
-                     "C3D6": self.C3D6,
-                     "C3D4": self.C3D4,
+        self.DNdr = {"C3D6": self.C3D6,
+                     "C3D8": self.C3D8,
                      "DKTShell": self.DKTShell,
                      "DKQShell": self.DKQShell}
 
         self.CalculateAllDNDr()
 
     def CalculateAllDNDr(self):
-        self.CalculateC3D4()
         self.CalculateC3D6()
         self.CalculateC3D8()
         self.CalculateDKTShell()
@@ -208,7 +206,25 @@ class DNDrCalculator:
 
         self.C3D8 = dNdrs
 
+    def CalculateC3D6(self):
+        # Gaussian Weight
+        sample_r = [0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667, 0.166666667]
+        sample_s = [0.166666667, 0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667]
+        sample_t = [-0.577350269, -0.577350269, -0.577350269, 0.577350269, 0.577350269, 0.577350269]
+        weight = 0.166666667
 
-    # def CalculateC3D4(self):
+        # 在6个高斯点上积分
+        dNdrs = []
+        for ii in range(6):
+            r, s, t = sample_r[ii], sample_s[ii], sample_t[ii]
+            dNdrs.append(weight * np.asarray([[0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)],
+                                              [0.5 * (1 - t), 0, -0.5 * r],
+                                              [0, 0.5 * (1 - t), -0.5 * s],
+                                              [-0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)],
+                                              [0.5 * (1 + t), 0, 0.5 * r],
+                                              [0, 0.5 * (1 + t), 0.5 * s]], dtype=float).T)
+
+        self.C3D6 = dNdrs
+
 
 AllEleTypeDNDr = DNDrCalculator()
