@@ -41,76 +41,16 @@ class C3D8(ElementBaseClass, ABC):
         TODO: https://www.bilibili.com/video/BV19y4y1z76E/?vd_source=f964a6ab226be6b0cd5d082ed4135949 C3D20 还有二维单元的
         Bathe 上册 P323
         dimension: 8*3, [[x1,y1,z1],[x2,y2,z2],...[x8,y8,z8]], type:np.ndarray, dtype:float
-        Reference:
-        1. B Bar method: <<The Finite Element Method Linear Static and Dynamic Finite Element Analysis(Thomas J.R.Hughes)>> P232
-
-        # Shape Function:
-        N1 = (1 - r) * (1 - s) * (1 + t) / 8
-        N2 = (1 - r) * (1 - s) * (1 - t) / 8
-        N3 = (1 - r) * (1 + s) * (1 - t) / 8
-        N4 = (1 - r) * (1 + s) * (1 + t) / 8
-        N5 = (1 + r) * (1 - s) * (1 + t) / 8
-        N6 = (1 + r) * (1 - s) * (1 - t) / 8
-        N7 = (1 + r) * (1 + s) * (1 - t) / 8
-        N8 = (1 + r) * (1 + s) * (1 + t) / 8
-
-        # Partial
-        dN1dr, dN1ds, dN1dt = (s - 1) * (1 + t) / 8, (r - 1) * (1 + t) / 8, (1 - r) * (1 - s) / 8
-        dN2dr, dN2ds, dN2dt = (s - 1) * (1 - t) / 8, (r - 1) * (1 - t) / 8, (r - 1) * (1 - s) / 8
-        dN3dr, dN3ds, dN3dt = (s + 1) * (t - 1) / 8, (1 - r) * (1 - t) / 8, (r - 1) * (1 + s) / 8
-        dN4dr, dN4ds, dN4dt = (s + 1) * (-1 - t) / 8, (1 - r) * (1 + t) / 8, (1 - r) * (1 + s) / 8
-        dN5dr, dN5ds, dN5dt = (1 - s) * (1 + t) / 8, -(1 + r) * (1 + t) / 8, (1 + r) * (1 - s) / 8
-        dN6dr, dN6ds, dN6dt = (1 - s) * (1 - t) / 8, (1 + r) * (t - 1) / 8, (1 + r) * (s - 1) / 8
-        dN7dr, dN7ds, dN7dt = (1 + s) * (1 - t) / 8, (1 + r) * (1 - t) / 8, -(1 + r) * (1 + s) / 8
-        dN8dr, dN8ds, dN8dt = (1 + s) * (1 + t) / 8, (1 + r) * (1 + t) / 8, (1 + r) * (1 + s) / 8
         """
         assert self.node_coords.shape == (8, 3)
 
-        # Gaussian Weight
-        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-
-        # 在8个高斯点上积分
-        for ri in range(2):
-            for si in range(2):
-                for ti in range(2):
-                    r, s, t = sample_pt[ri], sample_pt[si], sample_pt[ti]
-                    dNdr = 0.125 * np.asarray([[(s + 1) * (-1 - t), (1 - r) * (1 + t), (1 - r) * (1 + s)],
-                                               [(s - 1) * (1 + t), (r - 1) * (1 + t), (1 - r) * (1 - s)],
-                                               [(s - 1) * (1 - t), (r - 1) * (1 - t), (r - 1) * (1 - s)],
-                                               [(s + 1) * (t - 1), (1 - r) * (1 - t), (r - 1) * (1 + s)],
-                                               [(1 + s) * (1 + t), (1 + r) * (1 + t), (1 + r) * (1 + s)],
-                                               [(1 - s) * (1 + t), -(1 + r) * (1 + t), (1 + r) * (1 - s)],
-                                               [(1 - s) * (1 - t), (1 + r) * (t - 1), (1 + r) * (s - 1)],
-                                               [(1 + s) * (1 - t), (1 + r) * (1 - t), -(1 + r) * (1 + s)]]).T
-                    g_weight = weight[ri] * weight[si] * weight[ti]
-
-                    # Jacobi 3*3 & B Matrix 8*24
-                    J = np.matmul(dNdr, self.node_coords)
-                    det_J = np.linalg.det(J)
-                    J_inv = np.linalg.inv(J)
-                    B_pre = np.matmul(J_inv, dNdr)
-                    B = np.asarray([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
-                                    [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
-                                    [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
-                                    [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5],
-                                     B_pre[0, 5], 0, B_pre[1, 6], B_pre[0, 6], 0, B_pre[1, 7], B_pre[0, 7], 0],
-                                    [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
-                                     B_pre[1, 5], 0, B_pre[2, 6], B_pre[1, 6], 0, B_pre[2, 7], B_pre[1, 7]],
-                                    [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
-                                     B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]], dtype=float)
-
-                    self.B = self.B + B
-                    self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * g_weight
-
-        # 这里还有么有再优化的空间?
-        dNdr = AllEleTypeDNDr.GetElementDNdr(ele_type="C3D8")
-        tempB = np.zeros((6, 24), dtype=float)
-        tempK = np.zeros((24, 24), dtype=float)
+        # 在8个高斯点上积分, 这里还有么有再优化的空间?
+        dNdrs, weights = AllEleTypeDNDr.C3D8
         for ii in range(8):
-            J = np.matmul(dNdr, self.node_coords)
+            J = np.matmul(dNdrs[ii], self.node_coords)
             det_J = np.linalg.det(J)
             J_inv = np.linalg.inv(J)
-            B_pre = np.matmul(J_inv, dNdr)
+            B_pre = np.matmul(J_inv, dNdrs[ii])
             B = np.asarray([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
                             [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
                             [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
@@ -121,8 +61,8 @@ class C3D8(ElementBaseClass, ABC):
                             [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
                              B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]], dtype=float)
 
-            tempB = tempB + B
-            tempK = tempK + np.matmul(np.matmul(B.T, self.D), B) * det_J
+            self.B = self.B + B
+            self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weights[ii]
 
         return self.K
 

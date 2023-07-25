@@ -150,6 +150,95 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         return self.eq_numbers
 
 
+def CalculateC3D8():
+    """
+    Reference:
+    1. B Bar method: <<The Finite Element Method Linear Static and Dynamic Finite Element Analysis(Thomas J.R.Hughes)>> P232
+
+    # Shape Function:
+    N1 = (1 - r) * (1 - s) * (1 + t) / 8
+    N2 = (1 - r) * (1 - s) * (1 - t) / 8
+    N3 = (1 - r) * (1 + s) * (1 - t) / 8
+    N4 = (1 - r) * (1 + s) * (1 + t) / 8
+    N5 = (1 + r) * (1 - s) * (1 + t) / 8
+    N6 = (1 + r) * (1 - s) * (1 - t) / 8
+    N7 = (1 + r) * (1 + s) * (1 - t) / 8
+    N8 = (1 + r) * (1 + s) * (1 + t) / 8
+
+    # Partial
+    dN1dr, dN1ds, dN1dt = (s - 1) * (1 + t) / 8, (r - 1) * (1 + t) / 8, (1 - r) * (1 - s) / 8
+    dN2dr, dN2ds, dN2dt = (s - 1) * (1 - t) / 8, (r - 1) * (1 - t) / 8, (r - 1) * (1 - s) / 8
+    dN3dr, dN3ds, dN3dt = (s + 1) * (t - 1) / 8, (1 - r) * (1 - t) / 8, (r - 1) * (1 + s) / 8
+    dN4dr, dN4ds, dN4dt = (s + 1) * (-1 - t) / 8, (1 - r) * (1 + t) / 8, (1 - r) * (1 + s) / 8
+    dN5dr, dN5ds, dN5dt = (1 - s) * (1 + t) / 8, -(1 + r) * (1 + t) / 8, (1 + r) * (1 - s) / 8
+    dN6dr, dN6ds, dN6dt = (1 - s) * (1 - t) / 8, (1 + r) * (t - 1) / 8, (1 + r) * (s - 1) / 8
+    dN7dr, dN7ds, dN7dt = (1 + s) * (1 - t) / 8, (1 + r) * (1 - t) / 8, -(1 + r) * (1 + s) / 8
+    dN8dr, dN8ds, dN8dt = (1 + s) * (1 + t) / 8, (1 + r) * (1 + t) / 8, (1 + r) * (1 + s) / 8
+    """
+    # Gaussian Weight
+    sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+
+    # 在8个高斯点上积分
+    dNdrs = []
+    weights = []
+    for ri in range(2):
+        for si in range(2):
+            for ti in range(2):
+                r, s, t = sample_pt[ri], sample_pt[si], sample_pt[ti]
+                dNdr = 0.125 * np.asarray([[(s + 1) * (-1 - t), (1 - r) * (1 + t), (1 - r) * (1 + s)],
+                                           [(s - 1) * (1 + t), (r - 1) * (1 + t), (1 - r) * (1 - s)],
+                                           [(s - 1) * (1 - t), (r - 1) * (1 - t), (r - 1) * (1 - s)],
+                                           [(s + 1) * (t - 1), (1 - r) * (1 - t), (r - 1) * (1 + s)],
+                                           [(1 + s) * (1 + t), (1 + r) * (1 + t), (1 + r) * (1 + s)],
+                                           [(1 - s) * (1 + t), -(1 + r) * (1 + t), (1 + r) * (1 - s)],
+                                           [(1 - s) * (1 - t), (1 + r) * (t - 1), (1 + r) * (s - 1)],
+                                           [(1 + s) * (1 - t), (1 + r) * (1 - t), -(1 + r) * (1 + s)]]).T
+                weights.append(weight[ri] * weight[si] * weight[ti])
+                dNdrs.append(dNdr)
+
+    return dNdrs, weights
+
+
+def CalculateC3D6():
+    """
+    Reference:
+    1. https://www.help.febio.org/FEBio/FEBio_tm_2_7/FEBio_tm_2-7-Subsection-4.1.2.html#:~:text=Pentahedral%20elements%20%28also%20knows%20as%20%E2%80%9Cwedge%E2%80%9D%20elements%29%20consist,s%20and%20t%20and%20are%20given%20as%20follows.
+    2. https://github.com/febiosoftware
+
+    # Shape Function:
+    N1 = 0.5 * (1 - r - s) * (1 - t)
+    N2 = 0.5 * r * (1 - t)
+    N3 = 0.5 * s * (1 - t)
+    N4 = 0.5 * (1 - r - s) * (1 + t)
+    N5 = 0.5 * r * (1 + t)
+    N6 = 0.5 * s * (1 + t)
+
+    # Partial
+    pN1pr, pN1ps, pN1pt = 0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)
+    pN2pr, pN2ps, pN2pt = 0.5 * (1 - t), 0, -0.5 * r
+    pN3pr, pN3ps, pN3pt = 0, 0.5 * (1 - t), -0.5 * s
+    pN4pr, pN4ps, pN4pt = -0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)
+    pN5pr, pN5ps, pN5pt = 0.5 * (1 + t), 0, 0.5 * r
+    pN6pr, pN6ps, pN6pt = 0, 0.5 * (1 + t), 0.5 * s
+    """
+    sample_r = [0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667, 0.166666667]
+    sample_s = [0.166666667, 0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667]
+    sample_t = [-0.577350269, -0.577350269, -0.577350269, 0.577350269, 0.577350269, 0.577350269]
+    weight = 0.166666667
+
+    # 在6个高斯点上积分
+    dNdrs = []
+    for ii in range(6):
+        r, s, t = sample_r[ii], sample_s[ii], sample_t[ii]
+        dNdrs.append(np.asarray([[0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)],
+                                 [0.5 * (1 - t), 0, -0.5 * r],
+                                 [0, 0.5 * (1 - t), -0.5 * s],
+                                 [-0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)],
+                                 [0.5 * (1 + t), 0, 0.5 * r],
+                                 [0, 0.5 * (1 + t), 0.5 * s]], dtype=float).T)
+    return dNdrs, [weight] * 6
+
+
 class DNDrCalculator:
     """
     计算各种单元的dNdr, 也就是同一种单元涉及到的相同的地方, 这样就不需要每个单元都计算一遍,
@@ -158,73 +247,12 @@ class DNDrCalculator:
 
     def __init__(self):
         # solid part
-        self.C3D4 = None
-        self.C3D6 = None
-        self.C3D8 = None
+        self.C3D8 = CalculateC3D8()
+        self.C3D6 = CalculateC3D6()
 
         # shell part
         self.DKTShell = None
         self.DKQShell = None
-
-        # dNdr: 将各种整合起来
-        self.DNdr = {"C3D6": self.C3D6,
-                     "C3D8": self.C3D8,
-                     "DKTShell": self.DKTShell,
-                     "DKQShell": self.DKQShell}
-
-        self.CalculateAllDNDr()
-
-    def CalculateAllDNDr(self):
-        self.CalculateC3D6()
-        self.CalculateC3D8()
-        self.CalculateDKTShell()
-        self.CalculateDKQShell()
-
-    def GetElementDNdr(self, ele_type):
-        return self.DNdr[ele_type]
-
-    def CalculateC3D8(self):
-        # Gaussian Weight
-        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-
-        # 在8个高斯点上积分
-        dNdrs = []
-        for ri in range(2):
-            for si in range(2):
-                for ti in range(2):
-                    r, s, t = sample_pt[ri], sample_pt[si], sample_pt[ti]
-                    dNdr = 0.125 * np.asarray([[(s + 1) * (-1 - t), (1 - r) * (1 + t), (1 - r) * (1 + s)],
-                                               [(s - 1) * (1 + t), (r - 1) * (1 + t), (1 - r) * (1 - s)],
-                                               [(s - 1) * (1 - t), (r - 1) * (1 - t), (r - 1) * (1 - s)],
-                                               [(s + 1) * (t - 1), (1 - r) * (1 - t), (r - 1) * (1 + s)],
-                                               [(1 + s) * (1 + t), (1 + r) * (1 + t), (1 + r) * (1 + s)],
-                                               [(1 - s) * (1 + t), -(1 + r) * (1 + t), (1 + r) * (1 - s)],
-                                               [(1 - s) * (1 - t), (1 + r) * (t - 1), (1 + r) * (s - 1)],
-                                               [(1 + s) * (1 - t), (1 + r) * (1 - t), -(1 + r) * (1 + s)]]).T
-                    g_weight = weight[ri] * weight[si] * weight[ti]
-                    dNdrs.append(dNdr * g_weight)
-
-        self.C3D8 = dNdrs
-
-    def CalculateC3D6(self):
-        # Gaussian Weight
-        sample_r = [0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667, 0.166666667]
-        sample_s = [0.166666667, 0.166666667, 0.666666667, 0.166666667, 0.166666667, 0.666666667]
-        sample_t = [-0.577350269, -0.577350269, -0.577350269, 0.577350269, 0.577350269, 0.577350269]
-        weight = 0.166666667
-
-        # 在6个高斯点上积分
-        dNdrs = []
-        for ii in range(6):
-            r, s, t = sample_r[ii], sample_s[ii], sample_t[ii]
-            dNdrs.append(weight * np.asarray([[0.5 * (t - 1), 0.5 * (t - 1), 0.5 * (r + s - 1)],
-                                              [0.5 * (1 - t), 0, -0.5 * r],
-                                              [0, 0.5 * (1 - t), -0.5 * s],
-                                              [-0.5 * (1 + t), -0.5 * (1 + t), 0.5 * (1 - r - s)],
-                                              [0.5 * (1 + t), 0, 0.5 * r],
-                                              [0, 0.5 * (1 + t), 0.5 * s]], dtype=float).T)
-
-        self.C3D6 = dNdrs
 
 
 AllEleTypeDNDr = DNDrCalculator()
