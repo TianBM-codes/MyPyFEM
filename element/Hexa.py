@@ -74,14 +74,14 @@ class C3D8(ElementBaseClass, ABC):
             for si in range(2):
                 for ti in range(2):
                     r, s, t = sample_pt[ri], sample_pt[si], sample_pt[ti]
-                    dNdr = np.asarray([[(s + 1) * (-1 - t) / 8, (1 - r) * (1 + t) / 8, (1 - r) * (1 + s) / 8],
-                                       [(s - 1) * (1 + t) / 8, (r - 1) * (1 + t) / 8, (1 - r) * (1 - s) / 8],
-                                       [(s - 1) * (1 - t) / 8, (r - 1) * (1 - t) / 8, (r - 1) * (1 - s) / 8],
-                                       [(s + 1) * (t - 1) / 8, (1 - r) * (1 - t) / 8, (r - 1) * (1 + s) / 8],
-                                       [(1 + s) * (1 + t) / 8, (1 + r) * (1 + t) / 8, (1 + r) * (1 + s) / 8],
-                                       [(1 - s) * (1 + t) / 8, -(1 + r) * (1 + t) / 8, (1 + r) * (1 - s) / 8],
-                                       [(1 - s) * (1 - t) / 8, (1 + r) * (t - 1) / 8, (1 + r) * (s - 1) / 8],
-                                       [(1 + s) * (1 - t) / 8, (1 + r) * (1 - t) / 8, -(1 + r) * (1 + s) / 8]]).T
+                    dNdr = 0.125 * np.asarray([[(s + 1) * (-1 - t), (1 - r) * (1 + t), (1 - r) * (1 + s)],
+                                               [(s - 1) * (1 + t), (r - 1) * (1 + t), (1 - r) * (1 - s)],
+                                               [(s - 1) * (1 - t), (r - 1) * (1 - t), (r - 1) * (1 - s)],
+                                               [(s + 1) * (t - 1), (1 - r) * (1 - t), (r - 1) * (1 + s)],
+                                               [(1 + s) * (1 + t), (1 + r) * (1 + t), (1 + r) * (1 + s)],
+                                               [(1 - s) * (1 + t), -(1 + r) * (1 + t), (1 + r) * (1 - s)],
+                                               [(1 - s) * (1 - t), (1 + r) * (t - 1), (1 + r) * (s - 1)],
+                                               [(1 + s) * (1 - t), (1 + r) * (1 - t), -(1 + r) * (1 + s)]]).T
                     g_weight = weight[ri] * weight[si] * weight[ti]
 
                     # Jacobi 3*3 & B Matrix 8*24
@@ -102,6 +102,28 @@ class C3D8(ElementBaseClass, ABC):
                     self.B = self.B + B
                     self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * g_weight
 
+        # 这里还有么有再优化的空间?
+        dNdr = AllEleTypeDNDr.GetElementDNdr(ele_type="C3D8")
+        tempB = np.zeros((6, 24), dtype=float)
+        tempK = np.zeros((24, 24), dtype=float)
+        for ii in range(8):
+            J = np.matmul(dNdr, self.node_coords)
+            det_J = np.linalg.det(J)
+            J_inv = np.linalg.inv(J)
+            B_pre = np.matmul(J_inv, dNdr)
+            B = np.asarray([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
+                            [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
+                            [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
+                            [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5],
+                             B_pre[0, 5], 0, B_pre[1, 6], B_pre[0, 6], 0, B_pre[1, 7], B_pre[0, 7], 0],
+                            [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
+                             B_pre[1, 5], 0, B_pre[2, 6], B_pre[1, 6], 0, B_pre[2, 7], B_pre[1, 7]],
+                            [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
+                             B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]], dtype=float)
+
+            tempB = tempB + B
+            tempK = tempK + np.matmul(np.matmul(B.T, self.D), B) * det_J
+
         return self.K
 
     def ElementStress(self, displacement):
@@ -115,34 +137,39 @@ class C3D8(ElementBaseClass, ABC):
         Reference:
         1. <<有限单元法>> 王勖成 P168-176
         """
-        sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-        for r in sample_pt:
-            for s in sample_pt:
-                for t in sample_pt:
-                    N1 = (1 - r) * (1 - s) * (1 + t) / 8
-                    N2 = (1 - r) * (1 - s) * (1 - t) / 8
-                    N3 = (1 - r) * (1 + s) * (1 - t) / 8
-                    N4 = (1 - r) * (1 + s) * (1 + t) / 8
-                    N5 = (1 + r) * (1 - s) * (1 + t) / 8
-                    N6 = (1 + r) * (1 - s) * (1 - t) / 8
-                    N7 = (1 + r) * (1 + s) * (1 - t) / 8
-                    N8 = (1 + r) * (1 + s) * (1 + t) / 8
+        # Nodes Displacement ==> Gaussian Points Displacement
 
-        self.D * np.matmul(self.B, displacement)
-        a = 0.25 * (5 + 3 * np.sqrt(3))
-        b = -0.25 * (np.sqrt(3) + 1)
-        c = 0.25 * (np.sqrt(3) - 1)
-        d = 0.25 * (5 - 3 * np.sqrt(3))
+        a = 0.00943738783765593  # 0.125*(1-1/np.sqrt(3))**3
+        b = 0.49056261216234404  # 0.125*(1+1/np.sqrt(3))**3
+        c = 0.13144585576580214  # 0.125*(1+1/np.sqrt(3))*2/3
+        d = 0.03522081090086451  # 0.125*(1-1/np.sqrt(3))*2/3
+        N2G = np.asarray([[a, b, c, b, b, c, d, c],
+                          [b, a, b, c, c, b, c, d],
+                          [c, b, a, b, d, c, b, c],
+                          [b, c, b, a, c, d, c, b],
+                          [b, c, d, c, a, b, c, b],
+                          [c, b, c, d, b, a, b, c],
+                          [d, c, b, c, c, b, a, b],
+                          [c, d, c, b, b, c, b, a]], dtype=float)
 
-        # m: 节点应力转至积分点应力
-        m = np.asarray([[a, b, c, b, b, c, d, c],
-                        [b, a, b, c, c, b, c, d],
-                        [c, b, a, b, d, c, b, c],
-                        [b, c, b, a, c, d, c, b],
-                        [b, c, d, c, a, b, c, b],
-                        [c, b, c, d, b, a, b, c],
-                        [d, c, b, c, c, b, a, b],
-                        [c, d, c, b, b, c, b, a]], dtype=float)
+        gs_dis = np.matmul(N2G, displacement)
+        gs_stress = self.D * np.matmul(self.B, gs_dis)
+        a = 2.549038105676658  # 0.25 * (5 + 3 * np.sqrt(3))
+        b = -0.68301270189222  # -0.25 * (np.sqrt(3) + 1)
+        c = 0.183012701892219  # 0.25 * (np.sqrt(3) - 1)
+        d = -0.04903810567666  # 0.25 * (5 - 3 * np.sqrt(3))
+
+        # G2N: Gaussian Points Stress ==> Node Stress
+        G2N = np.asarray([[a, b, c, b, b, c, d, c],
+                          [b, a, b, c, c, b, c, d],
+                          [c, b, a, b, d, c, b, c],
+                          [b, c, b, a, c, d, c, b],
+                          [b, c, d, c, a, b, c, b],
+                          [c, b, c, d, b, a, b, c],
+                          [d, c, b, c, c, b, a, b],
+                          [c, d, c, b, b, c, b, a]], dtype=float)
+
+        node_stress = np.matmul(G2N, gs_stress)
 
 
 """

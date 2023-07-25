@@ -148,3 +148,67 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         """
         return self.eq_numbers
+
+
+class DNDrCalculator:
+    """
+    计算各种单元的dNdr, 也就是同一种单元涉及到的相同的地方, 这样就不需要每个单元都计算一遍,
+    同一种单元计算一次即可
+    """
+
+    def __init__(self):
+        # solid part
+        self.C3D4 = None
+        self.C3D6 = None
+        self.C3D8 = None
+
+        # shell part
+        self.DKTShell = None
+        self.DKQShell = None
+
+        # dNdr: 将各种整合起来
+        self.DNdr = {"C3D8": self.C3D8,
+                     "C3D6": self.C3D6,
+                     "C3D4": self.C3D4,
+                     "DKTShell": self.DKTShell,
+                     "DKQShell": self.DKQShell}
+
+        self.CalculateAllDNDr()
+
+    def CalculateAllDNDr(self):
+        self.CalculateC3D4()
+        self.CalculateC3D6()
+        self.CalculateC3D8()
+        self.CalculateDKTShell()
+        self.CalculateDKQShell()
+
+    def GetElementDNdr(self, ele_type):
+        return self.DNdr[ele_type]
+
+    def CalculateC3D8(self):
+        # Gaussian Weight
+        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+
+        # 在8个高斯点上积分
+        dNdrs = []
+        for ri in range(2):
+            for si in range(2):
+                for ti in range(2):
+                    r, s, t = sample_pt[ri], sample_pt[si], sample_pt[ti]
+                    dNdr = 0.125 * np.asarray([[(s + 1) * (-1 - t), (1 - r) * (1 + t), (1 - r) * (1 + s)],
+                                               [(s - 1) * (1 + t), (r - 1) * (1 + t), (1 - r) * (1 - s)],
+                                               [(s - 1) * (1 - t), (r - 1) * (1 - t), (r - 1) * (1 - s)],
+                                               [(s + 1) * (t - 1), (1 - r) * (1 - t), (r - 1) * (1 + s)],
+                                               [(1 + s) * (1 + t), (1 + r) * (1 + t), (1 + r) * (1 + s)],
+                                               [(1 - s) * (1 + t), -(1 + r) * (1 + t), (1 + r) * (1 - s)],
+                                               [(1 - s) * (1 - t), (1 + r) * (t - 1), (1 + r) * (s - 1)],
+                                               [(1 + s) * (1 - t), (1 + r) * (1 - t), -(1 + r) * (1 + s)]]).T
+                    g_weight = weight[ri] * weight[si] * weight[ti]
+                    dNdrs.append(dNdr * g_weight)
+
+        self.C3D8 = dNdrs
+
+
+    # def CalculateC3D4(self):
+
+AllEleTypeDNDr = DNDrCalculator()
