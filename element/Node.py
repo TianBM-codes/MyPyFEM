@@ -27,8 +27,9 @@ class Node(object):
         self.is_assist_node = False  # 定义梁方向的节点为辅助节点, 在计算总刚维度的时候不予考虑
 
         # 结果保存
-        self.strain, self.stress = np.zeros(6), np.zeros(6)
         self.displacement = None  # 节点位移, 计算方法为 np.sqrt(np.square(dx,dy,dz))
+        self.stress = []
+        self.average_stress = None
 
         # 根据单元自由度改变的量, 默认节点有3个自由度
         self.dof_disp = np.asarray([None] * 3, dtype=float)
@@ -96,7 +97,7 @@ class Node(object):
     def GetDisplacement(self):
         return self.displacement
 
-    def SetBoundaryWithCDBType(self, direct_str:str, value:float):
+    def SetBoundaryWithCDBType(self, direct_str: str, value: float):
         """
         ANSYS CDB文件施加约束的方式, 与INP文件的不同
         :param direct_str: 约束的方向
@@ -121,13 +122,12 @@ class Node(object):
             self.dof_disp[5] = value
             self.b_code[5] = True
         elif direct_str.startswith("ALL"):
-            self.dof_disp = np.asarray([value]*len(self.dof_disp), dtype=float)
+            self.dof_disp = np.asarray([value] * len(self.dof_disp), dtype=float)
             self.b_code = [True] * len(self.b_code)
         else:
             mlogger.fatal("UnSupport boundary type:{}".format(str))
             sys.exit(1)
         self.is_boundary_node = True
-
 
     def SetBoundaryWithINPType(self, begin_idx=None, end_idx=None, value=0, b_type=None):
         """
@@ -167,10 +167,22 @@ class Node(object):
                 self.dof_disp[0], self.dof_disp[1], self.dof_disp[2] = 0, 0, 0
                 self.b_code[0], self.b_code[1], self.b_code[2] = True, True, True
         elif b_type == "ENCASTRE":
-            self.dof_disp = np.asarray([0]*self.dof_count)
+            self.dof_disp = np.asarray([0] * self.dof_count)
             self.b_code = [True] * self.dof_count
 
         else:
             mlogger.fatal("Unknown AbaqusBoundary Type: {}".format(b_type))
             sys.exit(1)
         self.is_boundary_node = True
+
+    def AppendStressResult(self, stress: np.array):
+        """
+        给节点分配由单元计算来的应力结果, 然后平均即得到节点应力
+        """
+        self.stress.append(stress)
+
+    def AverageStress(self):
+        """
+        平均节点的应力结果, 作为节点的应力结果输出
+        """
+        self.average_stress = np.sum(np.asarray(self.stress), axis=0)

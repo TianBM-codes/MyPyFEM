@@ -45,6 +45,7 @@ class C3D6(ElementBaseClass, ABC):
             # Jacobi 3*3 & B Matrix 8*24
             J = np.matmul(dNdrs[ii], self.node_coords)
             det_J = np.linalg.det(J)
+            # TODO: 不要进行求逆运算, 而是直接解方程, 其他单元也是这样, 统一改一下
             J_inv = np.linalg.inv(J)
             B_pre = np.matmul(J_inv, dNdrs[ii])
             B = np.array([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0],

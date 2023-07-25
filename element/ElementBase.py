@@ -76,7 +76,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def ElementStress(self, displacement):
+    def ElementStress(self, displacement: np.array):
         """ Calculate element stress """
         pass
 
@@ -150,30 +150,37 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         return self.eq_numbers
 
 
+"""
+以下为计算各种单元形函数对参数坐标的导数
+"""
+
+
 def CalculateC3D8():
     """
     Reference:
     1. B Bar method: <<The Finite Element Method Linear Static and Dynamic Finite Element Analysis(Thomas J.R.Hughes)>> P232
+    2. <<有限元法>> Bath P323
 
+    注意节点编号规则(逆时针,右手螺旋向z正向), 即参数坐标对应具体哪个真实节点
     # Shape Function:
-    N1 = (1 - r) * (1 - s) * (1 + t) / 8
-    N2 = (1 - r) * (1 - s) * (1 - t) / 8
-    N3 = (1 - r) * (1 + s) * (1 - t) / 8
-    N4 = (1 - r) * (1 + s) * (1 + t) / 8
-    N5 = (1 + r) * (1 - s) * (1 + t) / 8
-    N6 = (1 + r) * (1 - s) * (1 - t) / 8
-    N7 = (1 + r) * (1 + s) * (1 - t) / 8
-    N8 = (1 + r) * (1 + s) * (1 + t) / 8
+    N1 = (1 + r) * (1 + s) * (1 + t) / 8
+    N2 = (1 - r) * (1 + s) * (1 + t) / 8
+    N3 = (1 - r) * (1 - s) * (1 + t) / 8
+    N4 = (1 + r) * (1 - s) * (1 + t) / 8
+    N5 = (1 + r) * (1 + s) * (1 - t) / 8
+    N6 = (1 - r) * (1 + s) * (1 - t) / 8
+    N7 = (1 - r) * (1 - s) * (1 - t) / 8
+    N8 = (1 + r) * (1 - s) * (1 - t) / 8
 
     # Partial
-    dN1dr, dN1ds, dN1dt = (s - 1) * (1 + t) / 8, (r - 1) * (1 + t) / 8, (1 - r) * (1 - s) / 8
-    dN2dr, dN2ds, dN2dt = (s - 1) * (1 - t) / 8, (r - 1) * (1 - t) / 8, (r - 1) * (1 - s) / 8
-    dN3dr, dN3ds, dN3dt = (s + 1) * (t - 1) / 8, (1 - r) * (1 - t) / 8, (r - 1) * (1 + s) / 8
-    dN4dr, dN4ds, dN4dt = (s + 1) * (-1 - t) / 8, (1 - r) * (1 + t) / 8, (1 - r) * (1 + s) / 8
-    dN5dr, dN5ds, dN5dt = (1 - s) * (1 + t) / 8, -(1 + r) * (1 + t) / 8, (1 + r) * (1 - s) / 8
-    dN6dr, dN6ds, dN6dt = (1 - s) * (1 - t) / 8, (1 + r) * (t - 1) / 8, (1 + r) * (s - 1) / 8
-    dN7dr, dN7ds, dN7dt = (1 + s) * (1 - t) / 8, (1 + r) * (1 - t) / 8, -(1 + r) * (1 + s) / 8
-    dN8dr, dN8ds, dN8dt = (1 + s) * (1 + t) / 8, (1 + r) * (1 + t) / 8, (1 + r) * (1 + s) / 8
+    dN1dr, dN1ds, dN1dt = (1 + s) * (1 + t) / 8, (1 + r) * (1 + t) / 8, (1 + r) * (1 + s) / 8
+    dN2dr, dN2ds, dN2dt = -(1 + s) * (1 + t) / 8, (1 - r) * (1 + t) / 8, (1 - r) * (1 + s) / 8
+    dN3dr, dN3ds, dN3dt = (s - 1) * (1 + t) / 8, (r - 1) * (1 + t) / 8, (1 - r) * (1 - s) / 8
+    dN4dr, dN4ds, dN4dt = (1 - s) * (1 + t) / 8, -(1 + r) * (1 + t) / 8, (1 + r) * (1 - s) / 8
+    dN5dr, dN5ds, dN5dt = (1 + s) * (1 - t) / 8, (1 + r) * (1 - t) / 8, -(1 + r) * (1 + s) / 8
+    dN6dr, dN6ds, dN6dt = (1 + s) * (t - 1) / 8, (1 - r) * (1 - t) / 8, (r - 1) * (1 + s) / 8
+    dN7dr, dN7ds, dN7dt = (s - 1) * (1 - t) / 8, (r - 1) * (1 - t) / 8, (r - 1) * (1 - s) / 8
+    dN8dr, dN8ds, dN8dt = (1 - s) * (1 - t) / 8, (1 + r) * (t - 1) / 8, (1 + r) * (s - 1) / 8
     """
     # Gaussian Weight
     sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
@@ -185,14 +192,14 @@ def CalculateC3D8():
         for si in range(2):
             for ti in range(2):
                 r, s, t = sample_pt[ri], sample_pt[si], sample_pt[ti]
-                dNdr = 0.125 * np.asarray([[(s + 1) * (-1 - t), (1 - r) * (1 + t), (1 - r) * (1 + s)],
-                                           [(s - 1) * (1 + t), (r - 1) * (1 + t), (1 - r) * (1 - s)],
-                                           [(s - 1) * (1 - t), (r - 1) * (1 - t), (r - 1) * (1 - s)],
-                                           [(s + 1) * (t - 1), (1 - r) * (1 - t), (r - 1) * (1 + s)],
-                                           [(1 + s) * (1 + t), (1 + r) * (1 + t), (1 + r) * (1 + s)],
-                                           [(1 - s) * (1 + t), -(1 + r) * (1 + t), (1 + r) * (1 - s)],
-                                           [(1 - s) * (1 - t), (1 + r) * (t - 1), (1 + r) * (s - 1)],
-                                           [(1 + s) * (1 - t), (1 + r) * (1 - t), -(1 + r) * (1 + s)]]).T
+                dNdr = 0.125 * np.asarray([[(1 + s) * (1 + t) / 8, (1 + r) * (1 + t) / 8, (1 + r) * (1 + s) / 8],
+                                           [-(1 + s) * (1 + t) / 8, (1 - r) * (1 + t) / 8, (1 - r) * (1 + s) / 8],
+                                           [(s - 1) * (1 + t) / 8, (r - 1) * (1 + t) / 8, (1 - r) * (1 - s) / 8],
+                                           [(1 - s) * (1 + t) / 8, -(1 + r) * (1 + t) / 8, (1 + r) * (1 - s) / 8],
+                                           [(1 + s) * (1 - t) / 8, (1 + r) * (1 - t) / 8, -(1 + r) * (1 + s) / 8],
+                                           [(1 + s) * (t - 1) / 8, (1 - r) * (1 - t) / 8, (r - 1) * (1 + s) / 8],
+                                           [(s - 1) * (1 - t) / 8, (r - 1) * (1 - t) / 8, (r - 1) * (1 - s) / 8],
+                                           [(1 - s) * (1 - t) / 8, (1 + r) * (t - 1) / 8, (1 + r) * (s - 1) / 8]]).T
                 weights.append(weight[ri] * weight[si] * weight[ti])
                 dNdrs.append(dNdr)
 

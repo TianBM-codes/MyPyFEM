@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import pypardiso
 
 from element.ElementBase import *
 import numpy as np
@@ -49,8 +50,9 @@ class C3D8(ElementBaseClass, ABC):
         for ii in range(8):
             J = np.matmul(dNdrs[ii], self.node_coords)
             det_J = np.linalg.det(J)
-            J_inv = np.linalg.inv(J)
-            B_pre = np.matmul(J_inv, dNdrs[ii])
+            # J_inv = np.linalg.inv(J)
+            # B_pre = np.matmul(J_inv, dNdrs[ii])
+            B_pre = pypardiso.spsolve(J, dNdrs[ii])
             B = np.asarray([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
                             [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
                             [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
@@ -69,47 +71,52 @@ class C3D8(ElementBaseClass, ABC):
     def ElementStress(self, displacement):
         """
         计算节点应力(已知高斯点处的应变矩阵, 以及节点位移)
+        Sigma = Gaussian2Global * B * Global2Gaussian * u
         1. 计算积分点位移
         2. 计算积分点应力
         3. 外推至节点
-        4. 节点平均
+        4. 节点平均(数据库中的方法)
 
         Reference:
         1. <<有限单元法>> 王勖成 P168-176
         """
-        # Nodes Displacement ==> Gaussian Points Displacement
+        # 计算高斯点的位移(矩阵中都是正数)
+        # Node2Gaussian: Nodes Displacement ==> Gaussian Points Displacement
+        a = 0.49056261216234404  # 0.125*(1+1/np.sqrt(3))**3
+        b = 0.13144585576580214  # 0.125*(1+1/np.sqrt(3))*2/3
+        c = 0.03522081090086451  # 0.125*(1-1/np.sqrt(3))*2/3
+        d = 0.00943738783765593  # 0.125*(1-1/np.sqrt(3))**3
+        Global2Gaussian = np.asarray([[a, b, c, b, b, c, d, c],
+                                      [b, a, b, c, c, b, c, d],
+                                      [c, b, a, b, d, c, b, c],
+                                      [b, c, b, a, c, d, c, b],
+                                      [b, c, d, c, a, b, c, b],
+                                      [c, b, c, d, b, a, b, c],
+                                      [d, c, b, c, c, b, a, b],
+                                      [c, d, c, b, b, c, b, a]], dtype=float)
 
-        a = 0.00943738783765593  # 0.125*(1-1/np.sqrt(3))**3
-        b = 0.49056261216234404  # 0.125*(1+1/np.sqrt(3))**3
-        c = 0.13144585576580214  # 0.125*(1+1/np.sqrt(3))*2/3
-        d = 0.03522081090086451  # 0.125*(1-1/np.sqrt(3))*2/3
-        N2G = np.asarray([[a, b, c, b, b, c, d, c],
-                          [b, a, b, c, c, b, c, d],
-                          [c, b, a, b, d, c, b, c],
-                          [b, c, b, a, c, d, c, b],
-                          [b, c, d, c, a, b, c, b],
-                          [c, b, c, d, b, a, b, c],
-                          [d, c, b, c, c, b, a, b],
-                          [c, d, c, b, b, c, b, a]], dtype=float)
+        # 计算高斯点的应力
 
-        gs_dis = np.matmul(N2G, displacement)
+        gs_dis = np.matmul(Global2Gaussian, displacement.reshape((3,3)))
         gs_stress = self.D * np.matmul(self.B, gs_dis)
+
+        # 高斯点应力外推至节点
         a = 2.549038105676658  # 0.25 * (5 + 3 * np.sqrt(3))
         b = -0.68301270189222  # -0.25 * (np.sqrt(3) + 1)
         c = 0.183012701892219  # 0.25 * (np.sqrt(3) - 1)
         d = -0.04903810567666  # 0.25 * (5 - 3 * np.sqrt(3))
 
-        # G2N: Gaussian Points Stress ==> Node Stress
-        G2N = np.asarray([[a, b, c, b, b, c, d, c],
-                          [b, a, b, c, c, b, c, d],
-                          [c, b, a, b, d, c, b, c],
-                          [b, c, b, a, c, d, c, b],
-                          [b, c, d, c, a, b, c, b],
-                          [c, b, c, d, b, a, b, c],
-                          [d, c, b, c, c, b, a, b],
-                          [c, d, c, b, b, c, b, a]], dtype=float)
+        # Gaussian2Node: Gaussian Points Stress ==> Node Stress
+        Gaussian2Global = np.asarray([[a, b, c, b, b, c, d, c],
+                                      [b, a, b, c, c, b, c, d],
+                                      [c, b, a, b, d, c, b, c],
+                                      [b, c, b, a, c, d, c, b],
+                                      [b, c, d, c, a, b, c, b],
+                                      [c, b, c, d, b, a, b, c],
+                                      [d, c, b, c, c, b, a, b],
+                                      [c, d, c, b, b, c, b, a]], dtype=float)
 
-        node_stress = np.matmul(G2N, gs_stress)
+        return np.matmul(Gaussian2Global, gs_stress)
 
 
 """

@@ -28,7 +28,7 @@ import pypardiso
 # https://github.com/xmlyqing00/Cholmod-Scikit-Sparse-Windows
 # Numpy-intel: https://pypi.org/project/intel-numpy/
 # Numpy+Mkl
-# Chosky分解求解对称正定问题
+# cholesky 分解求解对称正定问题
 # https://blog.csdn.net/weixin_38285131/article/details/81288338
 # https://stackoverflow.com/questions/15573557/call-c-using-eigen-library-function-in-python
 # https://pybind11.readthedocs.io/en/stable/advanced/cast/eigen.html
@@ -41,7 +41,6 @@ class Domain(object):
     Domain class : Define the problem domain
     Only a single instance of Domain class can be created
     TODO 去掉一些没用过的函数
-    TODO 优化import
     """
 
     def __init__(self):
@@ -305,12 +304,39 @@ class Domain(object):
         # 求解self.Ua TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
         self.Ua = pypardiso.spsolve(Kaa, self.Ra - Kab * self.Ub)
 
+        # 所有自由度的解
         U = np.append(self.Ua, self.Ub)
+
         # 按自由度分配给所有节点
         for nd in self.femdb.node_list:
             for ii in range(nd.GetDofCount()):
                 nd.dof_disp[ii] = U[nd.eq_num[ii]]
             nd.CalNodeMagnitudeDisplacement()
+
+    def CalculateNodeStress(self):
+        """
+        计算节点的应力
+        """
+        for _, ele_group in self.femdb.ele_grp_hash.items():
+            eles = ele_group.Elements()
+            for iter_ele in eles:
+                # 计算各个单元的节点位移
+                search_node_ids = iter_ele.search_node_ids
+                ele_displacement = []
+                for idx in range(iter_ele.nodes_count):
+                    nid = search_node_ids[idx]
+                    node = self.femdb.GetNodeBySearchId(nid)
+                    ele_displacement.append(node.dof_disp)
+
+                # 根据节点位移, 以单元为计算单位, 计算单元节点应力
+                stress = iter_ele.ElementStress(np.asarray(ele_displacement))
+                for idx in range(iter_ele.nodes_count):
+                    nid = search_node_ids[idx]
+                    node = self.femdb.GetNodeBySearchId(nid)
+                    node.AppendStressResult(stress[idx,:])
+
+        for node in self.femdb.node_list:
+            node.AverageStress()
 
     """ 
     以下的函数为计算输出部分, 后处理部分

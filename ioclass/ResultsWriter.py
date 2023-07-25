@@ -141,7 +141,7 @@ class ResultsWriter(object):
                      '{ ResultSet\n'
                      '( name="Static Displacement", target="NodeResult", type="Vector", varlabels="X|Y|Z", subcase=0)\n')
 
-            # 节点只保存位移幅值, 所以这里都保存在x方向的位移上
+            # 节点无需保存幅值, SiPESC平台自动计算
             for ii in range(len(self.femdb.node_list)):
                 node = self.femdb.node_list[ii]
                 node_id = node.id
@@ -149,3 +149,15 @@ class ResultsWriter(object):
                 uf.write("( {}, {}, {}, {})\n".format(node_id, displacement[0], displacement[1], displacement[2]))
 
             uf.write('}\n')
+
+            """
+            写入应力结果
+            """
+            uf.write('{ StaticStrs;\n')
+            uf.write('( 1, {};)\n'.format(len(self.femdb.node_list)))
+            uf.write('{ StaticStrsSet;\n')
+            uf.write(' 1, "Stress", 2;)\n')
+            for ii in range(len(self.femdb.node_list)):
+                node = self.femdb.node_list[ii]
+
+            uf.write()
