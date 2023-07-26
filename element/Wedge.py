@@ -39,7 +39,7 @@ class C3D6(ElementBaseClass, ABC):
         """
         assert self.node_coords.shape == (6, 3)
 
-        dNdrs, weights = AllEleTypeDNDr.C3D6
+        dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D6
         # 在6个高斯点上积分
         for ii in range(self.gs_count):
             # Jacobi 3*3 & B Matrix 8*24

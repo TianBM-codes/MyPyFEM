@@ -146,7 +146,7 @@ class ResultsWriter(object):
                 node = self.femdb.node_list[ii]
                 node_id = node.id
                 displacement = node.dof_disp
-                uf.write("( {}, {}, {}, {})\n".format(node_id, displacement[0], displacement[1], displacement[2]))
+                uf.write("( {}, {:.6}, {:.6}, {:.6})\n".format(node_id, displacement[0], displacement[1], displacement[2]))
 
             uf.write('}\n')
 
@@ -156,8 +156,11 @@ class ResultsWriter(object):
             uf.write('{ StaticStrs;\n')
             uf.write('( 1, {};)\n'.format(len(self.femdb.node_list)))
             uf.write('{ StaticStrsSet;\n')
-            uf.write(' 1, "Stress", 2;)\n')
+            uf.write('( 1, "Stress", 2;)\n')
             for ii in range(len(self.femdb.node_list)):
                 node = self.femdb.node_list[ii]
+                xx, yy, zz, xy, yz, xz = node.average_stress
+                uf.write("( {}, {:.6}, {:.6}, {:.6}, {:.6}, {:.6},{:.6})\n".format(node.id, xx, yy, zz, xy, yz, xz))
 
-            uf.write()
+            uf.write('}\n')  # 应力结果结束
+            uf.write('}\n')  # 整个文件结束

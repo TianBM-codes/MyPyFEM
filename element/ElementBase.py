@@ -262,4 +262,4 @@ class DNDrCalculator:
         self.DKQShell = None
 
 
-AllEleTypeDNDr = DNDrCalculator()
+AllEleTypeDNDrAtGaussianPoint = DNDrCalculator()

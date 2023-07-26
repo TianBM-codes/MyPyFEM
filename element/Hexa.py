@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import pypardiso
+import scipy.sparse.linalg
 
 from element.ElementBase import *
 import numpy as np
@@ -16,7 +17,8 @@ class C3D8(ElementBaseClass, ABC):
         self.K = np.zeros([24, 24], dtype=float)  # 刚度矩阵
         self.vtp_type = "hexahedron"
         self.unv_code = 80600
-        self.B = np.zeros([6, 24], dtype=float)  # 高斯积分点处的应变矩阵
+        self.gs_count = 8
+        self.Gaussian_B = []  # 高斯积分点处的应变矩阵
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -46,25 +48,27 @@ class C3D8(ElementBaseClass, ABC):
         assert self.node_coords.shape == (8, 3)
 
         # 在8个高斯点上积分, 这里还有么有再优化的空间?
-        dNdrs, weights = AllEleTypeDNDr.C3D8
-        for ii in range(8):
+        dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D8
+        for ii in range(self.gs_count):
             J = np.matmul(dNdrs[ii], self.node_coords)
             det_J = np.linalg.det(J)
             # J_inv = np.linalg.inv(J)
             # B_pre = np.matmul(J_inv, dNdrs[ii])
-            B_pre = pypardiso.spsolve(J, dNdrs[ii])
-            B = np.asarray([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
-                            [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
-                            [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
-                            [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5],
-                             B_pre[0, 5], 0, B_pre[1, 6], B_pre[0, 6], 0, B_pre[1, 7], B_pre[0, 7], 0],
-                            [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
-                             B_pre[1, 5], 0, B_pre[2, 6], B_pre[1, 6], 0, B_pre[2, 7], B_pre[1, 7]],
-                            [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
-                             B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]], dtype=float)
+            # B_pre = pypardiso.spsolve(sparse.csc_matrix(J), dNdrs[ii])
+            B_pre = np.linalg.solve(J, dNdrs[ii])
 
-            self.B = self.B + B
-            self.K = self.K + np.matmul(np.matmul(B.T, self.D), B) * det_J * weights[ii]
+            B_at_gs_pt = np.asarray([[B_pre[0, 0], 0, 0, B_pre[0, 1], 0, 0, B_pre[0, 2], 0, 0, B_pre[0, 3], 0, 0, B_pre[0, 4], 0, 0, B_pre[0, 5], 0, 0, B_pre[0, 6], 0, 0, B_pre[0, 7], 0, 0],
+                                     [0, B_pre[1, 0], 0, 0, B_pre[1, 1], 0, 0, B_pre[1, 2], 0, 0, B_pre[1, 3], 0, 0, B_pre[1, 4], 0, 0, B_pre[1, 5], 0, 0, B_pre[1, 6], 0, 0, B_pre[1, 7], 0],
+                                     [0, 0, B_pre[2, 0], 0, 0, B_pre[2, 1], 0, 0, B_pre[2, 2], 0, 0, B_pre[2, 3], 0, 0, B_pre[2, 4], 0, 0, B_pre[2, 5], 0, 0, B_pre[2, 6], 0, 0, B_pre[2, 7]],
+                                     [B_pre[1, 0], B_pre[0, 0], 0, B_pre[1, 1], B_pre[0, 1], 0, B_pre[1, 2], B_pre[0, 2], 0, B_pre[1, 3], B_pre[0, 3], 0, B_pre[1, 4], B_pre[0, 4], 0, B_pre[1, 5],
+                                      B_pre[0, 5], 0, B_pre[1, 6], B_pre[0, 6], 0, B_pre[1, 7], B_pre[0, 7], 0],
+                                     [0, B_pre[2, 0], B_pre[1, 0], 0, B_pre[2, 1], B_pre[1, 1], 0, B_pre[2, 2], B_pre[1, 2], 0, B_pre[2, 3], B_pre[1, 3], 0, B_pre[2, 4], B_pre[1, 4], 0, B_pre[2, 5],
+                                      B_pre[1, 5], 0, B_pre[2, 6], B_pre[1, 6], 0, B_pre[2, 7], B_pre[1, 7]],
+                                     [B_pre[2, 0], 0, B_pre[0, 0], B_pre[2, 1], 0, B_pre[0, 1], B_pre[2, 2], 0, B_pre[0, 2], B_pre[2, 3], 0, B_pre[0, 3], B_pre[2, 4], 0, B_pre[0, 4], B_pre[2, 5], 0,
+                                      B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]], dtype=float)
+
+            self.Gaussian_B.append(B_at_gs_pt)
+            self.K = self.K + np.matmul(np.matmul(B_at_gs_pt.T, self.D), B_at_gs_pt) * det_J * weights[ii]
 
         return self.K
 
@@ -96,11 +100,15 @@ class C3D8(ElementBaseClass, ABC):
                                       [c, d, c, b, b, c, b, a]], dtype=float)
 
         # 计算高斯点的应力
+        gs_stress = []
+        gs_dis = np.matmul(Global2Gaussian, displacement.reshape((8, 3))).reshape((24,))
+        for ii in range(self.gs_count):
+            gs_stress.append(np.matmul(self.D, np.matmul(self.Gaussian_B[ii], gs_dis)))
+        gs_stress = np.asarray(gs_stress)
 
-        gs_dis = np.matmul(Global2Gaussian, displacement.reshape((3,3)))
-        gs_stress = self.D * np.matmul(self.B, gs_dis)
-
-        # 高斯点应力外推至节点
+        """
+        高斯点应力外推至节点
+        """
         a = 2.549038105676658  # 0.25 * (5 + 3 * np.sqrt(3))
         b = -0.68301270189222  # -0.25 * (np.sqrt(3) + 1)
         c = 0.183012701892219  # 0.25 * (np.sqrt(3) - 1)
@@ -116,7 +124,9 @@ class C3D8(ElementBaseClass, ABC):
                                       [d, c, b, c, c, b, a, b],
                                       [c, d, c, b, b, c, b, a]], dtype=float)
 
-        return np.matmul(Gaussian2Global, gs_stress)
+        node_stress = np.matmul(Gaussian2Global, gs_stress)
+
+        return node_stress
 
 
 """
