@@ -158,6 +158,8 @@ class MITC3(ElementBaseClass, ABC):
     def CalElementDMatrix(self, an_type=None):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        Reference:
+        1. Note and Explanation of Formulation for MITC Shell Element and its Implemention through Open Source Finite Element Software, Elmer
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
