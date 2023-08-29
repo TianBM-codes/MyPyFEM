@@ -48,7 +48,12 @@ class GaussIntegrationPoint:
             weight = (1 / 3, 1 / 3, 1 / 3)
             return sample_point, weight
         elif n == 4:
-            sample_point = [(1 / 3, 1 / 3), (3 / 5, 1 / 5), (1 / 5, 1 / 5), (1 / 5, 3 / 5)]
+            sample_point = [
+                (1 / 3, 1 / 3),
+                (3 / 5, 1 / 5),
+                (1 / 5, 1 / 5),
+                (1 / 5, 3 / 5),
+            ]
             weight = (-27 / 48, 25 / 48, 25 / 48, 25 / 48)
             return sample_point, weight
         else:
@@ -73,7 +78,13 @@ class GaussIntegrationPoint:
             weight = (0.25, 0.25, 0.25, 0.25)
             return sample_point, weight
         elif n == 5:
-            sample_point = [(0.25, 0.25, 0.25), (0.5, 1 / 6, 1 / 6), (1 / 6, 1 / 6, 1 / 6), (1 / 6, 1 / 6, 0.5), (1 / 6, 0.5, 1 / 6)]
+            sample_point = [
+                (0.25, 0.25, 0.25),
+                (0.5, 1 / 6, 1 / 6),
+                (1 / 6, 1 / 6, 1 / 6),
+                (1 / 6, 1 / 6, 0.5),
+                (1 / 6, 0.5, 1 / 6),
+            ]
             weight = (-0.8, 9 / 20, 9 / 20, 9 / 20, 9 / 20)
             return sample_point, weight
         else:
