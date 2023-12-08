@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# from femdb.FEMDataBase import *
 from femdb.FEMDataBase import *
 import pypardiso
 
@@ -58,6 +59,8 @@ class Domain(object):
         # 以下为刚度阵相关
         self.stiff_list = []
         self.eq_nums = []
+        self.femdb2 = FEMDataBase()
+        self.femdb2.AddNode()
 
     def AssignElementCharacter(self):
         """
@@ -128,7 +131,9 @@ class Domain(object):
         if suffix == InputFileType.INP:
             for bd in self.femdb.load_case.GetBoundaries():
                 node_set_name = bd.GetSetName()
-                node_set = self.femdb.GetSpecificFEMObject(FEMObject.NodeSet, node_set_name)
+                node_set = self.femdb.GetSpecificFEMObject(
+                    FEMObject.NodeSet, node_set_name
+                )
                 node_ids = node_set.GetNodeIds()
                 bd_type = bd.GetBoundaryType()
                 for nd in node_ids:
@@ -143,7 +148,9 @@ class Domain(object):
                     nd_idx = self.femdb.node_hash[node_ids[idx]]
                     direct = directs[idx]
                     con_value = con_values[idx]
-                    self.femdb.node_list[nd_idx].SetBoundaryWithCDBType(direct, con_value)
+                    self.femdb.node_list[nd_idx].SetBoundaryWithCDBType(
+                        direct, con_value
+                    )
 
         else:
             mlogger.fatal("UnSupport Boundary")
@@ -240,7 +247,9 @@ class Domain(object):
                         rows.append(eq_nums[row])
                         cols.append(eq_nums[column])
                         datas.append(stiff_mat[row, column])
-        self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)), shape=(self.eq_count, self.eq_count))
+        self.femdb.global_stiff_matrix = sparse.coo_matrix(
+            (datas, (rows, cols)), shape=(self.eq_count, self.eq_count)
+        )
 
         if GlobalInfor[GlobalVariant.PlotGlobalStiffness]:
             plt.spy(self.femdb.global_stiff_matrix, markersize=1)
@@ -275,7 +284,9 @@ class Domain(object):
                 node_set = c_load.set_name
                 f_dir = c_load.direction
                 f_value = c_load.value
-                nodes = self.femdb.GetSpecificFEMObject(FEMObject.NodeSet, node_set).GetNodeIds()
+                nodes = self.femdb.GetSpecificFEMObject(
+                    FEMObject.NodeSet, node_set
+                ).GetNodeIds()
                 for nd in nodes:
                     cnode = self.femdb.node_list[self.femdb.node_hash[nd]]
                     f_eq_num = cnode.GetEquationNumbers()[f_dir]
@@ -297,8 +308,12 @@ class Domain(object):
 
         # 求解
         self.femdb.global_stiff_matrix = self.femdb.global_stiff_matrix.tocsc()
-        Kaa = self.femdb.global_stiff_matrix[:self.free_dof_count, :self.free_dof_count]
-        Kab = self.femdb.global_stiff_matrix[:self.free_dof_count, self.free_dof_count:]
+        Kaa = self.femdb.global_stiff_matrix[
+            : self.free_dof_count, : self.free_dof_count
+        ]
+        Kab = self.femdb.global_stiff_matrix[
+            : self.free_dof_count, self.free_dof_count :
+        ]
         self.Ub = np.asarray(self.Ub, dtype=float)
 
         # 求解self.Ua TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
@@ -333,7 +348,7 @@ class Domain(object):
                 for idx in range(iter_ele.nodes_count):
                     nid = search_node_ids[idx]
                     node = self.femdb.GetNodeBySearchId(nid)
-                    node.AppendStressResult(stress[idx,:])
+                    node.AppendStressResult(stress[idx, :])
 
         for node in self.femdb.node_list:
             node.AverageStress()
@@ -344,3 +359,7 @@ class Domain(object):
 
     def GetDisplacementBySearchId(self, nd_id):
         return self.femdb.node_list[nd_id].displacement
+
+
+if __name__ == "__main__":
+    print("slfdkj")
