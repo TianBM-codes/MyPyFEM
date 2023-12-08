@@ -1,14 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import numpy as np
-import random
-
-
-class Node:
-    def __init__(self, nid, x=None, y=None, z=None):
-        self.id = nid  # 节点在导入文件中的编号
-        self.coord = np.asarray([x, y, z], dtype=float)
+from femdb.FEMDataBase import *
 
 
 class Element:
