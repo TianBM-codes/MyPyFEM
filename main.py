@@ -11,6 +11,8 @@ from ioclass.CDBParser import CDBParser
 from ioclass.BDFParser import BDFParser
 from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
+sys.path.insert(0, "./femdb")
+sys.path.insert(0, "../NumericalCases")
 
 
 class MyPyFEM:

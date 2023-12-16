@@ -162,3 +162,19 @@ class LoadCase(object):
 
     def GetConcentratedLoads(self):
         return self.c_loads
+
+
+class FlagSHypBoundary(object):
+    """
+    FlagSHyp程序的边界条件
+    0: free
+    1: x prescribed
+    2: y prescribed
+    3: x,y prescribed
+    4: z prescribed
+    5: x,z prescribed
+    6: y,z prescribed
+    7: x,y,z prescribed
+    """
+
+

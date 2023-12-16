@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from utils.Singleton import Singleton
 from femdb.LoadCase import *
 from femdb.Material import *
 from element.Node import *
@@ -13,11 +12,17 @@ from collections import OrderedDict
 from scipy import sparse
 
 
-@Singleton
 class FEMDataBase(object):
     """
     有限元数据库, 实例化的都存储在这里
     """
+
+    _instance = None  # 类变量用于存储唯一的实例
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(FEMDataBase, cls).__new__(cls)
+        return cls._instance
 
     def __init__(self):
         # 输入文件
@@ -27,8 +32,10 @@ class FEMDataBase(object):
         self.node_list = []  # List of all nodes in the domain, 实例化数据
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
 
-        # elements
-        # Dict of all Element in the domain, key: ele_keyword, value: ele_group 单元实际数据也存在这里
+        """
+        elements
+        Dict of all Element in the domain, key: ele_keyword, value: ele_group 单元实际数据也存在这里
+        """
         self.ele_grp_hash = {}
         self.biggest_grp = ""  # 最大的组, 含义是哪个组内包含的单元最多
         self.et_hash = {}
@@ -263,50 +270,3 @@ class FEMDataBase(object):
         :param eq_count:
         """
         self.global_stiff_matrix = sparse.coo_matrix((eq_count, eq_count), dtype=float)
-
-
-@Singleton
-class NLFEMDataBase(object):
-    """
-    非线性有限元数据库, 实例化的都存储在这里
-    """
-
-    def __init__(self):
-        # 输入文件
-        self.file_path = None
-
-        # nodes
-        self.node_list = []  # List of all nodes in the domain, 实例化数据
-        self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
-
-        # elements
-        # Dict of all Element in the domain, key: ele_keyword, value: ele_group 单元实际数据也存在这里
-        self.ele_grp_hash = {}
-        self.biggest_grp = ""  # 最大的组, 含义是哪个组内包含的单元最多
-        self.et_hash = {}
-        self.equation_number = None
-
-        # 单元真实id对应group_hash中对应单元组中的index, (key:real_id) => (value: index), 所以存在多对一的情况
-        self.ele_idx_hash = {}
-        self.ele_count = 0  # 单元个数
-
-        # Preprocess Sets
-        self.node_sets = []
-        self.ele_sets = []
-
-        # Preprocess Fem
-        self.properties = []
-        self.sections = []
-        self.materials = []
-        self.global_stiff_matrix = None
-        self.load_case = LoadCase()
-        self.real_const_hash = {}
-
-    """ 
-    以下的函数为解析文件的相关函数, 添加节点、单元、节点集、单元集、属性、材料、边界条件、LoadCase等 
-    """
-    def AddNode(self):
-        """
-
-        :return:
-        """

@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# from femdb.FEMDataBase import *
 from femdb.FEMDataBase import *
 import pypardiso
 
@@ -59,8 +58,6 @@ class Domain(object):
         # 以下为刚度阵相关
         self.stiff_list = []
         self.eq_nums = []
-        self.femdb2 = FEMDataBase()
-        self.femdb2.AddNode()
 
     def AssignElementCharacter(self):
         """
@@ -103,7 +100,10 @@ class Domain(object):
         self.femdb.AssignElementProperty()
 
     def CalBoundaryEffect(self):
-        # 计算每个节点有多少自由度
+        """
+        计算每个节点有多少自由度
+        @return:
+        """
         six_dof_nodes = []
         two_dof_nodes = []
         for key, ele_grp in self.femdb.ele_grp_hash.items():
@@ -309,11 +309,11 @@ class Domain(object):
         # 求解
         self.femdb.global_stiff_matrix = self.femdb.global_stiff_matrix.tocsc()
         Kaa = self.femdb.global_stiff_matrix[
-            : self.free_dof_count, : self.free_dof_count
-        ]
+              : self.free_dof_count, : self.free_dof_count
+              ]
         Kab = self.femdb.global_stiff_matrix[
-            : self.free_dof_count, self.free_dof_count :
-        ]
+              : self.free_dof_count, self.free_dof_count:
+              ]
         self.Ub = np.asarray(self.Ub, dtype=float)
 
         # 求解self.Ua TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
@@ -362,4 +362,4 @@ class Domain(object):
 
 
 if __name__ == "__main__":
-    print("slfdkj")
+    pass

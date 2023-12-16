@@ -15,6 +15,7 @@ from element.Plate import *
 from element.Tetra import *
 from element.Wedge import *
 from element.Hexa import *
+from CustomException import *
 
 
 class ElementFactory:
@@ -32,7 +33,9 @@ class ElementFactory:
         :param opt: 附加参数, 比如181可能是3节点壳也可能是4节点壳, solid45可能是8节点也可能是4节点
         :return: 单元和节点个数
         """
+        ######################################################
         # 1D Element
+        ######################################################
         if e_type in ["T3D2"]:
             return T3D2(e_id), 2
         elif e_type in ["B31", 188]:
@@ -40,13 +43,14 @@ class ElementFactory:
         elif e_type in [189]:
             return Beam189(e_id), 3
 
-        # 2D Element
         elif e_type in ["CPS3"]:
             return CPS3(e_id), 3
         elif e_type in ["CPS4"]:
             return CPS4(e_id), 4
 
+        ######################################################
         # 3D Element
+        ######################################################
         elif e_type in ["S3"]:
             return DKTShell(e_id), 3
         elif e_type in ["S4", "S4R", "S4RT"]:
@@ -57,21 +61,18 @@ class ElementFactory:
             elif opt == 3:
                 return DKTShell(e_id), 3
             else:
-                mlogger.fatal("Shell 181 don't support opt {}".format(opt))
-                sys.exit(1)
+                raise NoSupportOption("Shell181", opt)
 
-        elif e_type in ["C3D8", 45]:
+        elif e_type in ["C3D8", 45, "hexa8"]:
             return C3D8(e_id), 8
         elif e_type in ["C3D8R"]:
-            mlogger.fatal("No impl such element")
-            sys.exit(1)
+            raise NoImplSuchElement(e_type)
         elif e_type in ["C3D6"]:
             return C3D6(e_id), 6
         elif e_type in ["C3D4"]:
             return C3D4(e_id), 4
         elif e_type in ["C3D20R"]:
-            mlogger.fatal("No impl such element")
-            sys.exit(1)
+            raise NoImplSuchElement(e_type)
         elif e_type == 185:
             if opt == 8:
                 return C3D8(e_id), 8
@@ -80,11 +81,9 @@ class ElementFactory:
             elif opt == 4:
                 return C3D4(e_id), 4
             else:
-                mlogger.fatal("Wrong opt parameter: {}".format(opt))
-                sys.exit(1)
+                raise NoImplSuchElement(e_type)
 
-        mlogger.fatal("Fatal Error: No Such ElementType: {}".format(e_type))
-        sys.exit(1)
+        raise NoImplSuchElement(e_type)
 
     @staticmethod
     def GetElementNodeDofCount(e_type):
@@ -117,5 +116,4 @@ class ElementFactory:
         elif e_type in [181]:
             return 6
 
-        mlogger.fatal("No Such ElementType: {}".format(e_type))
-        sys.exit(1)
+        raise NoImplSuchElement(e_type)

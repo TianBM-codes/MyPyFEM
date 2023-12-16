@@ -20,3 +20,25 @@ class ISOMaterial(object):
 
     def SetValueDict(self, value_dict):
         self.value_dict = value_dict
+
+
+class CompressibleNeoHookean(object):
+    """ 可压缩的NeoHookean材料 """
+
+
+"""
+plane stain or three-dimensional compressible neo-Hookean
+"""
+
+
+class MaterialFactory(object):
+
+    @staticmethod
+    def CreateMaterial(mat_type: str):
+        """
+
+        @param mat_type:
+        @return:
+        """
+        if mat_type in [1]:
+            return CompressibleNeoHookean()

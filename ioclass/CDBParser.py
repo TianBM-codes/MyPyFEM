@@ -31,6 +31,7 @@ class CDBParser(object):
         2. 括号开头是fortran格式符号, 注意可能会连续出现两行格式符号
         3. *开头的是其他相关, 暂时不予解析
         4. /开头的跟着的是注释
+
         Reference:
         1. D:\\software\\python\\setup394\\Lib\\site-packages\\ansys\\mapdl\\reader
         2. ANSYS Help - Mechanical APDL Element Reference
@@ -55,7 +56,6 @@ class CDBParser(object):
                     assert len(splits) == 3
                     self.et_hash[int(splits[1].strip())] = int(splits[2].strip())
                     self.iter_line = cdb_f.readline()
-
 
                 # 解析实常数, 本行暂时不解析内容, 直接解析下一行开始的实常数
                 elif self.iter_line.startswith("RLBLOCK,"):
