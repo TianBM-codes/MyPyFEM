@@ -1,12 +1,21 @@
 # !/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+from femdb.ElementGroup import ElementGroup
+from typing import Dict, List
+
 
 class Mesh(object):
     """
-    划分的单元和节点
+    Mesh Information
     """
 
     def __init__(self):
+        """
+        n_nodes_elem: every elem nodes count
+        """
         self.element_type = None
-        self.element_count = -1
+        self.nelem = -1
+        self.n_dofs = -1
+        self.n_nodes_elem = -1
+        self.ele_grp_hash: Dict[int, ElementGroup] = {}

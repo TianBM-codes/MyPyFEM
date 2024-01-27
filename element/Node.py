@@ -175,6 +175,30 @@ class Node(object):
             sys.exit(1)
         self.is_boundary_node = True
 
+    def SetBoundaryWithFlagSHyPType(self, bound_num):
+        """
+        P265 Note 2, 其中0对应free
+        @param bound_num:
+        @return:
+        """
+        if bound_num == "0":
+            return
+
+        if bound_num == "1":
+            self.dof_disp[0] = 0
+        elif bound_num == "2":
+            self.dof_disp[1] = 0
+        elif bound_num == "3":
+            self.dof_disp[0], self.dof_disp[1] = 0, 0
+        elif bound_num == "4":
+            self.dof_disp[2] = 0
+        elif bound_num == "5":
+            self.dof_disp[0], self.dof_disp[2] = 0, 0
+        elif bound_num == "6":
+            self.dof_disp[1], self.dof_disp[2] = 0, 0
+        elif bound_num == "7":
+            self.dof_disp[0], self.dof_disp[1], self.dof_disp[2] = 0, 0, 0
+
     def AppendStressResult(self, stress: np.array):
         """
         给节点分配由单元计算来的应力结果, 然后平均即得到节点应力

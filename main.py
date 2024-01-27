@@ -9,8 +9,10 @@ from femdb.GlobalEnum import *
 from ioclass.INPParser import InpParser
 from ioclass.CDBParser import CDBParser
 from ioclass.BDFParser import BDFParser
+from ioclass.FlagSHyPParser import FlagSHyPParser
 from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
+from femdb.NLDomain import NLDomain
 sys.path.insert(0, "./femdb")
 sys.path.insert(0, "../NumericalCases")
 
@@ -60,6 +62,9 @@ class MyPyFEM:
         elif suffix == ".bdf":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.BDF
             return BDFParser(self.input_file_path)
+        elif suffix == ".dat":
+            GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.FlagSHyP
+            return FlagSHyPParser(self.input_file_path)
         else:
             mlogger.fatal("UnSupport File Suffix:{}".format(suffix))
             sys.exit(1)
@@ -134,6 +139,10 @@ class MyPyFEM:
             mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
             mlogger.debug(" " + "-" * 40)
             mlogger.debug(" Finish Analysis\n")
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.NLStatic:
+            nl_domain = NLDomain()
+            nl_domain.initialisation()
 
         else:
             mlogger.fatal("UnSupport Analyse Type")

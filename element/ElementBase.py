@@ -45,6 +45,10 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
         self.B = None  # 应变矩阵, 用于求解应力
+        self.ngauss = -1
+        self.e_type = None
+        self.n_dofs_elem = None
+        self.DN_Dchi = None
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
@@ -260,6 +264,10 @@ class DNDrCalculator:
         # shell part
         self.DKTShell = None
         self.DKQShell = None
+
+    def GetElementDNDchi(self, ele_type):
+        if ele_type in ["hexa"]:
+            return self.C3D8
 
 
 AllEleTypeDNDrAtGaussianPoint = DNDrCalculator()

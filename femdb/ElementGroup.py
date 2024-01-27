@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from femdb.ElementFactory import *
+from typing import List
+from element.ElementBase import ElementBaseClass
 
 
 class ElementGroup:
@@ -12,7 +14,7 @@ class ElementGroup:
     def __init__(self, e_type):
         self.e_type = e_type
         # 其中存储的是同一单元类型的单元, 存储了单元的全部信息
-        self.eles = []
+        self.eles: List[ElementBaseClass] = []
         # 单元组中的所有真实ID, 类型是set, 可以快速查找对应ID是否属于该组
         self.ele_id_sets = set()
 

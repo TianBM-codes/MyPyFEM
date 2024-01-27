@@ -18,6 +18,18 @@ from element.Hexa import *
 from CustomException import *
 
 
+def AnalyseDimension(e_type):
+    """
+    获取分析的维度，是2D还是3D
+    @return:
+    """
+    if e_type in ["CPS4", ]:
+        return 1
+    elif e_type in ["S3"]:
+        return 2
+    return 3
+
+
 class ElementFactory:
     """
     Reference:
@@ -117,3 +129,9 @@ class ElementFactory:
             return 6
 
         raise NoImplSuchElement(e_type)
+
+    @staticmethod
+    def GetElementNGauss(e_type):
+        if e_type in ["hexa8"]:
+            return 8
+        raise NotImplementedError(e_type)

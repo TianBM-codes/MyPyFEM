@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import sys
 
+import numpy as np
+
 from femdb.GlobalEnum import *
 
 
@@ -116,12 +118,45 @@ class CdbConcentratedLoad(object):
         self.value = value
 
 
+class FlagSHyPCLoad(object):
+    """ FlagSHyP Concentrate Load"""
+
+    def __init__(self, line):
+        line_split = line.split(" ")
+        self.node_id = int(line_split[0])
+        force_x = float(line_split[1])
+        force_y = float(line_split[2])
+        if len(line_split) == 3:
+            if GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.ThreeDimension:
+                self.c_force = [force_x, force_y, 0]
+            else:
+                self.c_force = [force_x, force_y]
+        elif len(line_split) == 4:
+            if GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.TwoDimension:
+                self.c_force = [force_x, force_y]
+        else:
+            mlogger.fatal(f"Wrong CLoad FlagSHyP Format{line}")
+            sys.exit(1)
+
+
+class FlagSHyPPressLoad(object):
+    """ FlagSHyP Press Load"""
+
+    def __init__(self, line):
+        line_split = line.split(" ")
+        self.p_id = line_split[0]
+        self.face_node = [int(ii) for ii in line_split[1:-1]]
+        self.p_value = float(line_split[-1])
+
+
 class LoadCase(object):
     """ Class LoadCase is used to store load data """
 
     def __init__(self):
         self.c_loads = []
         self.boundaries = []
+        self.p_loads = []
+        self.gravity = None
 
     def __str__(self):
         self.case_ = "\n  Here is LoadCase:\n"
@@ -157,24 +192,36 @@ class LoadCase(object):
         cf.SetCForce(node, direction, value)
         self.c_loads.append(cf)
 
+    def AddFlagSHyPCLoad(self, line):
+        """
+        @return:
+        """
+
+    def AddFlagSHyPPressLoad(self, p_load: FlagSHyPPressLoad):
+        self.p_loads.append(p_load)
+
     def GetBoundaries(self):
         return self.boundaries
 
     def GetConcentratedLoads(self):
         return self.c_loads
 
-
-class FlagSHypBoundary(object):
-    """
-    FlagSHyp程序的边界条件
-    0: free
-    1: x prescribed
-    2: y prescribed
-    3: x,y prescribed
-    4: z prescribed
-    5: x,z prescribed
-    6: y,z prescribed
-    7: x,y,z prescribed
-    """
+    def AddGravity(self, gravity):
+        assert len(gravity) == 3
+        self.gravity = gravity
 
 
+class RightHandItem(object):
+    def __init__(self):
+        self.nominal_external_load = None
+        self.residual = None
+        self.external_load = None
+        self.nominal_press = None
+        self.T_int = None
+
+    def Init(self, n_dof):
+        self.nominal_external_load = np.zeros((n_dof, 1))
+        self.residual = np.zeros((n_dof, 1))
+        self.external_load = np.zeros((n_dof, 1))
+        self.nominal_press = np.zeros((n_dof, 1))
+        self.T_int = np.zeros((n_dof, 1))

@@ -128,6 +128,10 @@ class MaterialKey(Enum):
     Density = 2
     Niu = 3
     G = 4
+    Lamda = 5
+    Kappa = 6
+    TauY = 7
+    Harden = 8
 
 
 class PropertyKey(Enum):
@@ -171,8 +175,9 @@ class AnalyseDimension(Enum):
     """
     分析类型, 暂时区分2D还是3D
     """
-    TwoDimension = 1
-    ThreeDimension = 2
+    NoAssign = 1
+    TwoDimension = 2
+    ThreeDimension = 3
 
 
 class AnalyseType(Enum):
@@ -181,6 +186,7 @@ class AnalyseType(Enum):
     """
     LinearStatic = 1
     ModalAnalyse = 2
+    NLStatic = 3
 
 
 class InputFileType(Enum):
@@ -190,6 +196,7 @@ class InputFileType(Enum):
     CDB = 1
     INP = 2
     BDF = 3
+    FlagSHyP = 4
 
 
 class BeamSectionType(Enum):
@@ -213,6 +220,6 @@ class GlobalVariant(Enum):
 GlobalInfor = {
     GlobalVariant.InputFileSuffix: -1,
     GlobalVariant.AnaType: -1,
-    GlobalVariant.Dimension: AnalyseDimension.ThreeDimension,
+    GlobalVariant.Dimension: AnalyseDimension.NoAssign,
     GlobalVariant.PlotGlobalStiffness: False
 }

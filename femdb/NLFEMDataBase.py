@@ -2,19 +2,18 @@
 # -*- coding: utf-8 -*-
 
 from femdb.LoadCase import LoadCase
-from femdb.Material import ISOMaterial
+from femdb.Material import Material
 from element.Node import Node
 from femdb.Sets import NodeSet, EleSet
 from femdb.Property import Property
 from femdb.Section import *
 from femdb.ElementGroup import *
-from collections import OrderedDict
-from scipy import sparse
 from femdb.Mesh import Mesh
 from femdb.Geom import Geom
 from femdb.Kinematics import Kinematics
-from ElementFactory import ElementFactory
+from typing import Dict, List
 from CustomException import *
+from SolveControl import SolveControl
 
 
 class NLFEMDataBase(object):
@@ -31,10 +30,12 @@ class NLFEMDataBase(object):
 
     def __init__(self):
         self.file_path = None
+        self.title = None
         self.Mesh = Mesh()
         self.Geom = Geom()
-        self.title = None
-        self.Mat = []
-        self.Load = None
-        self.Kinematics = Kinematics
-
+        self.LoadCase = LoadCase()
+        self.Material = Material()
+        self.Kinematics = Kinematics()
+        self.Dimension = AnalyseDimension.NoAssign
+        self.SolveControl = SolveControl()
+        self.ElementGroupHash: Dict[int, ElementGroup] = {}
