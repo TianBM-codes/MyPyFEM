@@ -187,11 +187,61 @@ class NLDomain(object):
 
     def CauchyTypeSelection(self, gauss_index, mat):
         if isinstance(mat, HyperElasticPlasticInPrincipal):
+            dim = GlobalInfor[GlobalVariant.Dimension]
             """
             Box 7.1 Algorithm for Rate-Independent Von Mises Plasticity with Isotropic Hardening
             """
             self.plastics.oldEpbar = self.plastics.epbar
-            self.plastics.invCp = self.plastics.oldInvCp
+            self.plastics.oldInvCp = self.plastics.invCp
+
+            """
+            Trial stage
+            """
+            be_trial = np.matmul(self.kinematics.F, np.matmul(self.plastics.oldInvCp, self.kinematics.F.T))
+            V, D = np.linalg.eig(be_trial)
+            lambdae_trial = np.sqrt(np.diag(D))
+            na_trial = V
+            mu = mat.value_dict[MaterialKey.Niu]
+            tauaa_trial = (2 * mu) * np.log(lambdae_trial) - (2 * mu / 3) * np.log(np.linalg.det(self.kinematics.F))
+            tau_trial = np.zeros(dim)
+            for idim in range(dim):
+                tau_trial += tauaa_trial[idim] * np.outer(na_trial[:, idim], na_trial[:, idim])
+
+            """
+            Checking for yielding
+            """
+            H = mat.value_dict[MaterialKey.Harden]
+            ty0 = mat.value_dict[MaterialKey.TauY]
+            f = np.sqrt(3 / 2) * np.linalg.norm(tau_trial, 'fro') - (ty0 + H * self.plastics.oldEpbar);
+
+            if f > 0:
+                """
+                Radial return algorithm. Return Dgamma (increment in the plastic
+                multiplier) and the direction vector nua.
+                """
+                denominator = np.sqrt(2 / 3) * np.linalg.norm(tau_trial, 'fro')
+                nu_a = tauaa_trial / denominator
+                Dgamma = f / (3 * mu + H)
+
+                lambdae_trial = np.array([0.5, 0.8, 1.2])  # 替换为实际的 lambdae_trial 数组
+                norm_tauaa_trial = np.linalg.norm(tauaa_trial, 'fro')  # 计算 tauaa_trial 的 Frobenius 范数
+                lambdae = np.exp(np.log(lambdae_trial) - Dgamma * nu_a)
+                tauaa = (1 - 2 * mu * Dgamma / (np.sqrt(2 / 3) * norm_tauaa_trial)) * tauaa_trial
+                tau = np.zeros((dim, dim))
+                be = np.zeros((dim, dim))
+                for idim in range(dim):
+                    tau += tauaa[idim] * np.outer(na_trial[:dim, idim], na_trial[:dim, idim])
+                    be += lambdae[idim] ** 2 * np.outer(na_trial[:dim, idim], na_trial[:dim, idim])
+            else:
+                tau = tau_trial[:dim, :dim]
+                tauaa = tauaa_trial[:dim]
+                Dgamma = 0
+                nu_a = np.zeros(dim)
+                be = be_trial[:dim, :dim]
+
+            """
+            Obtain the Cauchy stress tensor
+            """
 
         else:
             mlogger.fatal("Unknown Material Stress")

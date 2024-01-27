@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from CustomException import *
+from utils.CustomException import *
 from abc import ABC
 from typing import Dict, List
 from GlobalEnum import MaterialKey

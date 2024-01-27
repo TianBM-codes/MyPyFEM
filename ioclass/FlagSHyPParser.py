@@ -3,11 +3,11 @@
 import numpy as np
 from femdb.NLFEMDataBase import NLFEMDataBase
 from element.Node import Node
-from CustomException import *
-from ElementFactory import ElementFactory, AnalyseDimension
-from Material import MaterialFactory
-from LoadCase import FlagSHyPPressLoad, FlagSHyPCLoad
-from SolveControl import FlagSHyPSolveControl
+from utils.CustomException import *
+from femdb.ElementFactory import ElementFactory, AnalyseDimension
+from femdb.Material import MaterialFactory
+from femdb.LoadCase import FlagSHyPPressLoad, FlagSHyPCLoad
+from femdb.SolveControl import FlagSHyPSolveControl
 
 
 class FlagSHyPParser(object):

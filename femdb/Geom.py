@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from element.Node import Node
-from ElementBase import AllEleTypeDNDrAtGaussianPoint
+from element.ElementBase import AllEleTypeDNDrAtGaussianPoint
 from GlobalEnum import *
 from typing import List
 import numpy as np

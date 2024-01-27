@@ -15,7 +15,7 @@ from element.Plate import *
 from element.Tetra import *
 from element.Wedge import *
 from element.Hexa import *
-from CustomException import *
+from utils.CustomException import *
 
 
 def AnalyseDimension(e_type):

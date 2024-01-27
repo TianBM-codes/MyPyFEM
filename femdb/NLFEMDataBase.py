@@ -12,7 +12,7 @@ from femdb.Mesh import Mesh
 from femdb.Geom import Geom
 from femdb.Kinematics import Kinematics
 from typing import Dict, List
-from CustomException import *
+from utils.CustomException import *
 from SolveControl import SolveControl
 
 
