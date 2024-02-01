@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from femdb.ElementGroup import ElementGroup
-from typing import Dict, List
+from typing import Dict
 
 
 class Mesh(object):
@@ -19,3 +19,4 @@ class Mesh(object):
         self.n_dofs = -1
         self.n_nodes_elem = -1
         self.ele_grp_hash: Dict[int, ElementGroup] = {}
+        self.dof_nodes = None

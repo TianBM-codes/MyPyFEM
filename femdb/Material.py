@@ -1,24 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import numpy as np
 
 from utils.CustomException import *
 from abc import ABC
-from typing import Dict, List
+from typing import Dict
 from GlobalEnum import MaterialKey
-
-
-class Plastics(object):
-    def __init__(self):
-        self.epbar = None
-        self.invCp = None
-        self.oldEpbar = None
-        self.oldInvCp = None
-
-    def InitVariant(self, ngauss, nelem, ndim):
-        self.epbar = np.zeros((ngauss, nelem))
-        self.invCp = np.reshape(np.repeat(np.eye(ndim), ngauss * nelem),
-                                (ndim, ndim, ngauss, nelem))
 
 
 class MaterialBase(object):

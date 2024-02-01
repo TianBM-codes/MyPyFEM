@@ -1,16 +1,14 @@
 # !/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
 
 from femdb.NLFEMDataBase import NLFEMDataBase
 from GlobalEnum import *
 from Kinematics import Kinematics
-from Material import Plastics
+from femdb.Plasticity import *
 from Material import HyperElasticPlasticInPrincipal
 from LoadCase import RightHandItem
 from element.ElementBase import AllEleTypeDNDrAtGaussianPoint
 from utils.CustomException import *
-import numpy as np
 
 
 class IdentityTensor(object):
@@ -22,16 +20,18 @@ class IdentityTensor(object):
         c2 = delta(i,k)*delta(j,l) + delta(i,l)*delta(j,k)
         (see textbook example 2.8)
         """
-        I = np.eye(dimension)
-        c1 = np.zeros((dimension, dimension, dimension, dimension))
-        c2 = np.zeros((dimension, dimension, dimension, dimension))
+        self.I = np.eye(dimension)
+        self.c1 = np.zeros((dimension, dimension, dimension, dimension))
+        self.c2 = np.zeros((dimension, dimension, dimension, dimension))
 
         for l in range(dimension):
             for k in range(dimension):
                 for j in range(dimension):
                     for i in range(dimension):
-                        c1[i, j, k, l] = c1[i, j, k, l] + I[i, j] * I[k, l]
-                        c2[i, j, k, l] = c2[i, j, k, l] + I[i, k] * I[j, l] + I[i, l] * I[j, k]
+                        self.c1[i, j, k, l] = self.c1[i, j, k, l] + self.I[i, j] * self.I[k, l]
+                        self.c2[i, j, k, l] = (self.c2[i, j, k, l] +
+                                               self.I[i, k] * self.I[j, l] +
+                                               self.I[i, l] * self.I[j, k])
 
 
 class AuxVariant(object):
@@ -43,14 +43,30 @@ class AuxVariant(object):
         self.n_nodes_element = None
 
 
+class GlobalK(object):
+    def __init__(self):
+        self.indexi = None
+        self.indexj = None
+        self.counter = None
+        self.stiffness = None
+
+
 class NLDomain(object):
+    _instance = None  # 类变量用于存储唯一的实例
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(NLDomain, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
         self.fem_db = NLFEMDataBase()
         self.identity_tensor = IdentityTensor(GlobalInfor[GlobalVariant.Dimension])
         self.right_hand_item = RightHandItem()
         self.kinematics = Kinematics()
-        self.plastics = Plastics()
+        self.plastics = Plasticity()
         self.aux_variant = AuxVariant()
+        self.global_k = GlobalK()
 
     def initialisation(self):
         """
@@ -62,6 +78,13 @@ class NLDomain(object):
         Initialise undeformed geometry and initial residual and external forces. 
         Initialise external force vector contribution due to pressure
         (nominal value prior to load increment).
+        
+        Welcomes the user and determines whether the problem is being
+        restarted or a data file is to be read. 
+        Reads all necessary input data.
+        Initialises kinematic variables and internal variables.
+        Compute initial tangent matrix and equivalent force vector, excluding
+        pressure component.
         """
         self.fem_db.Geom.InitX()
         self.right_hand_item.Init(self.fem_db.Mesh.n_dofs)
@@ -117,10 +140,10 @@ class NLDomain(object):
         Initialise counter for storing sparse information into 
         global tangent stiffness matrix.
         """
-        counter = 1
-        indexi = np.zeros((n_components, 1))
-        indexj = np.zeros((n_components, 1))
-        global_stiffness = np.zeros((n_components, 1))
+        self.global_k.counter = 1
+        self.global_k.indexi = np.zeros((n_components, 1))
+        self.global_k.indexj = np.zeros((n_components, 1))
+        self.global_k.stiffness = np.zeros((n_components, 1))
 
         """
         Main element loop
@@ -131,121 +154,17 @@ class NLDomain(object):
                 mat_id = ele.mat_id
                 mat = self.fem_db.Material.Mat[mat_id]
                 ele_id = ele.id_key
-                epbar = self.plastics.epbar[:, ele_id]
-                invCp = self.plastics.invCp[:, :, :, ele_id]
+                epbar = self.plastics.plastic_deformation_state.epbar[:, ele_id]
+                invCp = self.plastics.plastic_deformation_state.invCp[:, :, :, ele_id]
                 # TODO 这里需要节点排好，对应关系另外存储，不要每次都查询dict, 只有在读取输入文件和写结果的时候初始化各种dict
                 xlocal = self.fem_db.Geom.x[node_ids, :]
                 x0local = self.fem_db.Geom.x0[node_ids, :]
                 Ve = self.fem_db.Geom.V_ele[node_ids, :]
-                self.ElementForceAndStiffness(xlocal, x0local, mat, Ve)
+                from element_calculation.ElementForceAndStiffness import ElementForceAndStiffness
+                ElementForceAndStiffness(xlocal, x0local, mat_id, Ve, ele)
 
-    def ElementForceAndStiffness(self, xlocal, Xlocal, mat, Ve):
-        """
-        Computes the element vector of global internal forces and the tangent
-        stiffness matrix.
-        @return:
-        """
-        T_internal = np.zeros((self.aux_variant.n_dofs_elem, 1))
-        self.kinematics.ComputeGradients(xlocal, Xlocal, self.aux_variant.DN_Dchi)
-
-        """
-        Computes element mean dilatation kinematics, pressure and bulk modulus.
-        """
-        if isinstance(mat, HyperElasticPlasticInPrincipal):
-            DN_x_mean = np.zeros(GlobalInfor[GlobalVariant.Dimension], self.aux_variant.n_nodes_element)
-            ve = 0
-            for ii in range(self.aux_variant.ngauss):
-                JW = self.kinematics.Jx_chi[ii] * self.aux_variant.weight[ii]
-                """
-                Gauss contribution to the elemental deformed volume.Elemental averaged shape functions.
-                """
-                ve += JW
-                DN_x_mean += self.aux_variant.DN_Dchi[:, :, ii] * JW
-            DN_x_mean = DN_x_mean / ve
-            Jbar = ve / Ve
-
-            """
-            Computes element mean dilatation pressure and bulk modulus.
-            """
-            if isinstance(mat, HyperElasticPlasticInPrincipal):
-                kappa = mat.value_dict[MaterialKey.Kappa]
-                press = kappa * np.log(Jbar) / Jbar
-                kappa_bar = kappa / Jbar - press
-
-        else:
-            raise NoImplSuchMaterial(mat.GetName())
-
-        """
-        Gauss quadrature integration loop. Extract kinematics at the particular Gauss point.
-        Obtain stresses (for incompressible or nearly incompressible, 
-        only deviatoric component) and internal variables in plasticity.
-        Obtain elasticity tensor (for incompressible or nearly incompressible, 
-        only deviatoric component).
-        """
-        for jj in range(self.aux_variant.ngauss):
-            self.CauchyTypeSelection(jj, mat)
-
-    def CauchyTypeSelection(self, gauss_index, mat):
-        if isinstance(mat, HyperElasticPlasticInPrincipal):
-            dim = GlobalInfor[GlobalVariant.Dimension]
-            """
-            Box 7.1 Algorithm for Rate-Independent Von Mises Plasticity with Isotropic Hardening
-            """
-            self.plastics.oldEpbar = self.plastics.epbar
-            self.plastics.oldInvCp = self.plastics.invCp
-
-            """
-            Trial stage
-            """
-            be_trial = np.matmul(self.kinematics.F, np.matmul(self.plastics.oldInvCp, self.kinematics.F.T))
-            V, D = np.linalg.eig(be_trial)
-            lambdae_trial = np.sqrt(np.diag(D))
-            na_trial = V
-            mu = mat.value_dict[MaterialKey.Niu]
-            tauaa_trial = (2 * mu) * np.log(lambdae_trial) - (2 * mu / 3) * np.log(np.linalg.det(self.kinematics.F))
-            tau_trial = np.zeros(dim)
-            for idim in range(dim):
-                tau_trial += tauaa_trial[idim] * np.outer(na_trial[:, idim], na_trial[:, idim])
-
-            """
-            Checking for yielding
-            """
-            H = mat.value_dict[MaterialKey.Harden]
-            ty0 = mat.value_dict[MaterialKey.TauY]
-            f = np.sqrt(3 / 2) * np.linalg.norm(tau_trial, 'fro') - (ty0 + H * self.plastics.oldEpbar);
-
-            if f > 0:
-                """
-                Radial return algorithm. Return Dgamma (increment in the plastic
-                multiplier) and the direction vector nua.
-                """
-                denominator = np.sqrt(2 / 3) * np.linalg.norm(tau_trial, 'fro')
-                nu_a = tauaa_trial / denominator
-                Dgamma = f / (3 * mu + H)
-
-                lambdae_trial = np.array([0.5, 0.8, 1.2])  # 替换为实际的 lambdae_trial 数组
-                norm_tauaa_trial = np.linalg.norm(tauaa_trial, 'fro')  # 计算 tauaa_trial 的 Frobenius 范数
-                lambdae = np.exp(np.log(lambdae_trial) - Dgamma * nu_a)
-                tauaa = (1 - 2 * mu * Dgamma / (np.sqrt(2 / 3) * norm_tauaa_trial)) * tauaa_trial
-                tau = np.zeros((dim, dim))
-                be = np.zeros((dim, dim))
-                for idim in range(dim):
-                    tau += tauaa[idim] * np.outer(na_trial[:dim, idim], na_trial[:dim, idim])
-                    be += lambdae[idim] ** 2 * np.outer(na_trial[:dim, idim], na_trial[:dim, idim])
-            else:
-                tau = tau_trial[:dim, :dim]
-                tauaa = tauaa_trial[:dim]
-                Dgamma = 0
-                nu_a = np.zeros(dim)
-                be = be_trial[:dim, :dim]
-
-            """
-            Obtain the Cauchy stress tensor
-            """
-
-        else:
-            mlogger.fatal("Unknown Material Stress")
-            raise NoImplSuchMaterialStress(mat.GetName())
+    def ChooseIncrementalAlgorithm(self):
+        pass
 
 
 if __name__ == "__main__":

@@ -18,11 +18,13 @@
 * Static
 * Nonlinear
 
+## 代码约定
+* 全局内容字母全部大写
+
 ## To Do List
 - [ ] Dynamic Analysis
 - [ ] Stress
 - [ ] Compare With Commercial Software
-- [ ] Javier Bonet旧书中还有需要转移到新书上的笔记
 
 ## Reference Book
 1. Javier Bonet 《Nonlinear Solid Mechanics for Finite Element Analysis: Statics》

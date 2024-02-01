@@ -60,6 +60,8 @@ class FlagSHyPParser(object):
                 else:
                     raise InputTextFormat(node_line)
                 fem_db.Geom.AddNode(node)
+            tmp = np.arange(1, fem_db.Dimension * fem_db.Geom.npoin + 1)
+            fem_db.Mesh.dof_nodes = tmp.reshape(fem_db.Dimension, -1)
 
             """
             读取单元信息, 依次是单元编号、材料编号以及包含节点ID(connectivity)
