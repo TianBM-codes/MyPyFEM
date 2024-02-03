@@ -5,7 +5,6 @@ from femdb.NLFEMDataBase import NLFEMDataBase
 from GlobalEnum import *
 from Kinematics import Kinematics
 from femdb.Plasticity import *
-from Material import HyperElasticPlasticInPrincipal
 from LoadCase import RightHandItem
 from element.ElementBase import AllEleTypeDNDrAtGaussianPoint
 from utils.CustomException import *
