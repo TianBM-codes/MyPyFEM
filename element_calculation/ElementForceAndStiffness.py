@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
+from element.ElementBase import ElementBaseClass
 from GlobalEnum import *
 from femdb.NLDomain import NLDomain
 from femdb.Material import *
@@ -19,13 +20,14 @@ element_indexj = nl_domain.global_k.indexj
 element_stiffness = nl_domain.global_k.stiffness
 AUX = nl_domain.aux_variant
 IDENTITY_TENSOR = nl_domain.identity_tensor
+T_int = nl_domain.right_hand_item.T_int
 
 fem_db = NLFEMDataBase()
 MAT = fem_db.Material.Mat
 MESH = fem_db.Mesh
 
 
-def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele):
+def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
     """
     Computes the element vector of global internal forces and the tangent
     stiffness matrix.
@@ -137,3 +139,11 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele):
                 element_stiffness[counter:counter + dim ** 2] = kappa_bar * ve * DN_x_meana_DN_x_meanb.flatten()
 
                 counter += dim ** 2
+    """
+    Utility function for the assembly of element force vectors into the 
+    global force vector. 
+    """
+    global_dofs = MESH.dof_nodes[:, ele.node_ids]
+    T_int[global_dofs, 1] += T_internal
+
+

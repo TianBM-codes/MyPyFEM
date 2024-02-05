@@ -7,6 +7,7 @@ from Kinematics import Kinematics
 from femdb.Plasticity import *
 from LoadCase import RightHandItem
 from element.ElementBase import AllEleTypeDNDrAtGaussianPoint
+from scipy.sparse import coo_matrix, csr_matrix
 from utils.CustomException import *
 
 
@@ -162,8 +163,33 @@ class NLDomain(object):
                 from element_calculation.ElementForceAndStiffness import ElementForceAndStiffness
                 ElementForceAndStiffness(xlocal, x0local, mat_id, Ve, ele)
 
+                """
+                Storage of updated value of the internal variables. 
+                """
+                # TODO: 首先将节点排好序后，再储存 self.plasticity
+
+        """
+        Global tangent stiffness matrix sparse assembly except pressure contributions. 
+        """
+        S = coo_matrix(self.global_k.indexi, self.global_k.indexj, self.global_k.stiffness)
+        self.global_k.stiffness = csr_matrix(S)
+        """
+        Compute global residual force vector except pressure contributions.
+        """
+        self.right_hand_item.residual = self.right_hand_item.T_int - self.right_hand_item.external_load
+
     def ChooseIncrementalAlgorithm(self):
-        pass
+        from solver.NewtonRaphsonAlgorithm import NewtonRaphsonAlgorithm
+        from solver.LineSearchNewtonRaphsonAlgorithm import LineSearchNewtonRaphsonAlgorithm
+        from solver.ArcLengthNewtonRaphsonAlgorithm import ArcLengthNewtonRaphsonAlgorithm
+        CON = self.fem_db.SolveControl
+        if abs(CON.arcln) == 0:
+            if not CON.searc:
+                NewtonRaphsonAlgorithm()
+            else:
+                LineSearchNewtonRaphsonAlgorithm()
+        else:
+            ArcLengthNewtonRaphsonAlgorithm()
 
 
 if __name__ == "__main__":

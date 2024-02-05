@@ -157,6 +157,7 @@ class LoadCase(object):
         self.boundaries = []
         self.p_loads = []
         self.gravity = None
+        self.n_pressure_loads = None
 
     def __str__(self):
         self.case_ = "\n  Here is LoadCase:\n"

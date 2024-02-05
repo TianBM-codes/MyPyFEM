@@ -18,6 +18,9 @@ class SolveControl(object):
         self.iterold = None
         self.nwant = None
         self.iwant = None
+        self.afail = 0
+        self.incrm = 0
+        self.fracl = 1
 
 
 class FlagSHyPSolveControl(SolveControl, object):

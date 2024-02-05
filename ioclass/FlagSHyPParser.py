@@ -20,7 +20,6 @@ class FlagSHyPParser(object):
         """
         """
         self.fem_database = NLFEMDataBase()
-        self.bbb = NLFEMDataBase()
         # self.fem_database.G
         self.fem_database.Geom = None
         self.dat_path = input_path
@@ -108,7 +107,7 @@ class FlagSHyPParser(object):
             load_split = dat_file.readline().split(" ")
             concentrate_line_count = int(load_split[0])
             prescribed_dis_count = int(load_split[1])
-            press_count = int(load_split[2])
+            fem_db.LoadCase.n_pressure_loads = int(load_split[2])
             gravity = [float(load_split[3]), float(load_split[4]), float(load_split[5])]
             fem_db.LoadCase.AddGravity(gravity)
 
@@ -119,7 +118,7 @@ class FlagSHyPParser(object):
             for ii in range(prescribed_dis_count):
                 pass
 
-            for ii in range(press_count):
+            for ii in range(fem_db.LoadCase.n_pressure_loads):
                 p_load = FlagSHyPPressLoad(dat_file.readline())
                 fem_db.LoadCase.AddFlagSHyPPressLoad(p_load)
 
