@@ -49,6 +49,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.e_type = None
         self.n_dofs_elem = None
         self.DN_Dchi = None
+        self.n_face_dofs_elem = None
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,

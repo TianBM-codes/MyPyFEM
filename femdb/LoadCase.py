@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import abc
 import sys
 
 import numpy as np
+from typing import List
 
 from femdb.GlobalEnum import *
 
@@ -79,7 +81,12 @@ class NastranBoundary:
         return self.node_list, self.directs, self.con_values
 
 
-class InpConcentratedLoad(object):
+class ConcentratedLoad(object):
+    def __init__(self):
+        pass
+
+
+class InpConcentratedLoad(ConcentratedLoad):
     """ ABAQUS集中力类 """
 
     def __init__(self, set_name=None, direction=None, value=None):
@@ -89,15 +96,17 @@ class InpConcentratedLoad(object):
         :param value: 力的大小(float)
         """
         # Abaqus inp mode
+        super().__init__()
         self.set_name = set_name
         self.direction = direction
         self.value = value
 
 
-class CdbConcentratedLoad(object):
+class CdbConcentratedLoad(ConcentratedLoad):
     """ ANSYS集中力类 """
 
     def __init__(self):
+        super().__init__()
         self.direction, self.node, self.value = None, None, None
         self.force_type = {"FX": 0, "FY": 1, "FZ": 2}
 
@@ -118,10 +127,11 @@ class CdbConcentratedLoad(object):
         self.value = value
 
 
-class FlagSHyPCLoad(object):
+class FlagSHyPCLoad(ConcentratedLoad):
     """ FlagSHyP Concentrate Load"""
 
     def __init__(self, line):
+        super().__init__()
         line_split = line.split(" ")
         self.node_id = int(line_split[0])
         force_x = float(line_split[1])
@@ -139,12 +149,20 @@ class FlagSHyPCLoad(object):
             sys.exit(1)
 
 
-class FlagSHyPPressLoad(object):
+class PressLoad(object):
+    def __init__(self):
+        self.ele_id = None
+        self.face_node = None
+        self.p_value = None
+
+
+class FlagSHyPPressLoad(PressLoad):
     """ FlagSHyP Press Load"""
 
     def __init__(self, line):
+        super().__init__()
         line_split = line.split(" ")
-        self.p_id = line_split[0]
+        self.ele_id = line_split[0]
         self.face_node = [int(ii) for ii in line_split[1:-1]]
         self.p_value = float(line_split[-1])
 
@@ -153,9 +171,9 @@ class LoadCase(object):
     """ Class LoadCase is used to store load data """
 
     def __init__(self):
-        self.c_loads = []
+        self.c_loads: List[ConcentratedLoad] = []
         self.boundaries = []
-        self.p_loads = []
+        self.p_loads: List[PressLoad] = []
         self.gravity = None
         self.n_pressure_loads = None
 

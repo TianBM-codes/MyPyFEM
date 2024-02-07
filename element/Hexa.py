@@ -20,6 +20,7 @@ class C3D8(ElementBaseClass, ABC):
         self.gs_count = 8
         self.Gaussian_B = []  # 高斯积分点处的应变矩阵
         self.n_dofs_elem = 24
+        self.n_face_dofs_elem = 12
 
     def CalElementDMatrix(self, an_type=None):
         """

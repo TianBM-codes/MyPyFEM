@@ -41,6 +41,7 @@ class AuxVariant(object):
         self.weight = None
         self.DN_Dchi = None
         self.n_nodes_element = None
+        self.n_face_dofs_elem = None
 
 
 class GlobalK(object):
@@ -99,6 +100,7 @@ class NLDomain(object):
                 self.aux_variant.weight, self.aux_variant.DN_Dchi = (
                     AllEleTypeDNDrAtGaussianPoint.GetElementDNDchi(grp.eles[0].e_type))
                 self.aux_variant.n_nodes_element = grp.eles[0].nodes_count
+                self.aux_variant.n_face_dofs_elem = grp.eles[0].n_face_dofs_elem
                 break
 
         self.kinematics.Init(GlobalInfor[GlobalVariant.Dimension],
