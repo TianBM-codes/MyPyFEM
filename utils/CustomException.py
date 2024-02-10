@@ -42,6 +42,13 @@ class NoImplSuchMaterial(Exception):
     def __str__(self):
         return f"未实现该材料类型:\n{self.err_msg}"
 
+class NoImplSuchShapeFunction(Exception):
+    def __init__(self, err_msg):
+        self.err_msg = err_msg
+
+    def __str__(self):
+        return f"未实现该单元形函数:\n{self.err_msg}"
+
 
 class NoImplSuchElasticityModulus(Exception):
     def __init__(self, err_msg):

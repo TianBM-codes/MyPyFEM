@@ -3,7 +3,7 @@
 
 from element.Node import Node
 from element.ElementBase import AllEleTypeDNDrAtGaussianPoint
-from GlobalEnum import *
+from utils.GlobalEnum import *
 from typing import List
 import numpy as np
 

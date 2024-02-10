@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
-from GlobalEnum import *
+from utils.GlobalEnum import *
 from femdb.NLDomain import NLDomain
 from element.ElementBase import ElementBaseClass
 

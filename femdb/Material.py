@@ -4,7 +4,7 @@
 from utils.CustomException import *
 from abc import ABC
 from typing import Dict
-from GlobalEnum import MaterialKey
+from utils.GlobalEnum import MaterialKey
 
 
 class MaterialBase(object):

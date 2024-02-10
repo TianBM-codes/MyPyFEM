@@ -13,6 +13,7 @@ from femdb.Geom import Geom
 from femdb.Kinematics import Kinematics
 from typing import Dict, List
 from utils.CustomException import *
+from femdb.Boundary import BoundaryBase
 from SolveControl import SolveControl
 
 
@@ -34,6 +35,7 @@ class NLFEMDataBase(object):
         self.Mesh = Mesh()
         self.Geom = Geom()
         self.LoadCase = LoadCase()
+        self.BC = BoundaryBase()
         self.Material = Material()
         self.Kinematics = Kinematics()
         self.Dimension = AnalyseDimension.NoAssign

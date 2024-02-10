@@ -46,12 +46,14 @@ class FlagSHyPParser(object):
             """
             读取节点个数、节点坐标以及边界条件, 三维问题, 每个节点有xyz三个坐标
             """
-            fem_db.Geom.npoin = int(dat_file.readline())
-            for ii in range(fem_db.Geom.npoin):
+            fem_db.Geom.node_count = int(dat_file.readline())
+            fem_db.BC.icode = np.zeros(fem_db.Geom.node_count)
+            for ii in range(fem_db.Geom.node_count):
                 node_line = dat_file.readline().strip().split(" ")
 
                 node = Node(int(node_line[0]))
                 node.SetBoundaryWithFlagSHyPType(node_line[1])
+                fem_db.BC.icode[ii] = int(node_line[1])
                 if len(node_line) == 5:
                     node.coord = np.asarray([node_line[2], node_line[3], node_line[4]], dtype=float)
                 elif len(node_line) == 4:
@@ -78,6 +80,9 @@ class FlagSHyPParser(object):
             """
             Obtain fixed and free degree of freedom numbers (dofs).
             """
+            from femdb.Boundary import FlagSHyPBoundary
+            fem_db.BC = FlagSHyPBoundary()
+            fem_db.BC.FindFixedAndFreeDofs()
 
             """
             Read the number of materials and material properties. 

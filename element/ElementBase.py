@@ -2,11 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import abc
-import numpy as np
-from femdb.GlobalEnum import *
 from femdb.Integration import *
 from utils.UtilsFunction import *
-from scipy import sparse
 
 
 class ElementBaseClass(metaclass=abc.ABCMeta):
@@ -36,7 +33,6 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         """
         self.id = eid
         self.id_key = None  # 用来重新排列后在map中的key值, self.id为value
-        self.nodes_count = -1  # Number of nodes per element
         self.node_ids = np.asarray([])  # Node list of the element
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
@@ -45,11 +41,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
         self.B = None  # 应变矩阵, 用于求解应力
-        self.ngauss = -1
-        self.e_type = None
-        self.n_dofs_elem = None
         self.DN_Dchi = None
-        self.n_face_dofs_elem = None
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,

@@ -2,10 +2,8 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
-from element.ElementBase import ElementBaseClass
-from GlobalEnum import *
+from utils.GlobalEnum import *
 from femdb.NLDomain import NLDomain
-from femdb.Material import *
 import numpy as np
 from scipy.sparse import coo_matrix
 
@@ -18,9 +16,8 @@ KINEMATICS = nl_domain.kinematics
 dim = GlobalInfor[GlobalVariant.Dimension]
 element_indexi = nl_domain.global_k.indexi
 element_indexj = nl_domain.global_k.indexj
-element_stiffness = nl_domain.global_k.stiffness
+GLOBAL_K = nl_domain.global_k
 AUX = nl_domain.aux_variant
-IDENTITY_TENSOR = nl_domain.identity_tensor
 T_int = nl_domain.right_hand_item.T_int
 RightHand = nl_domain.right_hand_item
 
@@ -48,7 +45,7 @@ def PressureLoadAndStiffnessAssembly():
     n_components = AUX.n_face_dofs_elem ** 2 * AUX.ngauss * LOAD_CASE.n_pressure_loads
     indexi = np.zeros(n_components)
     indexj = np.zeros(n_components)
-    global_stiffness = np.zeros(n_components)
+    stiffness = np.zeros(n_components)
     counter = 1
 
     """
@@ -59,10 +56,11 @@ def PressureLoadAndStiffnessAssembly():
         Intermediate variables associated to a particular element (ipressure).
         """
         element_id = LOAD_CASE.p_loads[ipressure].ele_id
-        ele = None
+        global_nodes = LOAD_CASE.p_loads[ipressure].face_node
+        cur_group = None
         for _, grp in fem_db.ElementGroupHash.items():
             if grp.IsElementInGroup(element_id):
-                ele = grp.eles[element_id]
+                cur_group = grp
                 break
 
         """
@@ -70,5 +68,41 @@ def PressureLoadAndStiffnessAssembly():
         contribution for a boundary (UNIT pressure load) element.
         """
         counter0 = counter
-        from element_calculation import PressureElementLoadAndStiffness
-        PressureElementLoadAndStiffness
+        from element_calculation.PressureElementLoadAndStiffness import PressureElementLoadAndStiffness
+        R_pressure_0 = PressureElementLoadAndStiffness(cur_group, global_nodes,
+                                                       indexi, indexj, stiffness, counter)
+
+        """
+        Compute boundary (NOMINAL pressure load) force vector contribution 
+        for a boundary (NOMINAL pressure load) element.
+        """
+        nominal_press = R_pressure_0 * LOAD_CASE.p_loads[ipressure]
+
+        """
+        Assemble boundary (NOMINAL pressure load) element force vector 
+        contribution into global force vector. 
+        """
+        RightHand.nominal_press += nominal_press
+
+        """
+        Compute boundary (CURRENT pressure load) element stiffness matrix 
+        contribution.
+        """
+        stiffness[counter0:counter - 1] = LOAD_CASE.p_loads[ipressure] * CON.xlmax * stiffness[counter0:counter - 1]
+
+    """
+    Assemble boundary (CURRENT pressure load) stiffness matrix.
+    """
+    RightHand.K_pressure = coo_matrix((stiffness, (indexi, indexj)), shape=(MESH.n_dofs, MESH.n_dofs))
+
+    """
+    Add boundary (CURRENT pressure load) global force vector contribution 
+    into Residual.
+    """
+    RightHand.residual += CON.dlamb * RightHand.nominal_press
+
+    """
+    Subtract (opposite to outward normal) boundary (CURRENT pressure load) 
+    stiffness matrix into overall stiffness matrix.
+    """
+    GLOBAL_K.stiffness -= RightHand.K_pressure

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from femdb.GlobalEnum import *
+from utils.GlobalEnum import *
 
 
 class BeamSection(object):

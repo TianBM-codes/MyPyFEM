@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import sys
-
 import numpy as np
-
-from femdb.GlobalEnum import *
+from utils.GlobalEnum import *
 
 
 class GaussIntegrationPoint:

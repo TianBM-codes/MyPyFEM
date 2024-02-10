@@ -47,6 +47,7 @@ import numpy as np
 from fortranformat import FortranRecordReader, FortranRecordWriter
 from fortranformat import config as ff_config
 
+
 # Possibility to set ff_config.RET_WRITTEN_VARS_ONLY = True
 # See:
 # https://bitbucket.org/brendanarnold/py-fortranformat/issue/1/reading-less-records-than-specified-by#comment-531697
@@ -83,7 +84,7 @@ def coord2csc(ncol, irow, jcol, val=None):
         raise ValueError('irow and jcol must have the same length')
 
     rowind = np.zeros(nnz, dtype=int)
-    colptr = np.zeros(ncol+1, dtype=int)
+    colptr = np.zeros(ncol + 1, dtype=int)
     if val is not None: values = np.zeros(nnz)
 
     # Store number of nonzeros in each column
@@ -93,8 +94,8 @@ def coord2csc(ncol, irow, jcol, val=None):
     colptr[ncol] = nnz
 
     # Go backwards to find the row index of the first nonzero in each column
-    for j in range(ncol-1, -1, -1):
-        colptr[j] = colptr[j+1] - colptr[j]
+    for j in range(ncol - 1, -1, -1):
+        colptr[j] = colptr[j + 1] - colptr[j]
 
     # Copy entries
     for k in range(nnz):
@@ -105,8 +106,8 @@ def coord2csc(ncol, irow, jcol, val=None):
         colptr[j] = elem + 1
 
     # Restore colptr
-    for j in range(ncol-1, 0, -1):
-        colptr[j] = colptr[j-1]
+    for j in range(ncol - 1, 0, -1):
+        colptr[j] = colptr[j - 1]
     colptr[0] = 0
 
     if val is None:
@@ -136,14 +137,15 @@ def csc2coord(rowind, colptr):
                of the nonzeros.
     """
     nnz = len(rowind)
-    ncol = len(colptr)-1
+    ncol = len(colptr) - 1
     irow = np.empty(nnz, int)
     jcol = np.empty(nnz, int)
     for i in range(ncol):
-        for j in range(colptr[i], colptr[i+1]):
+        for j in range(colptr[i], colptr[i + 1]):
             jcol[j] = i
             irow[j] = rowind[j]
-    return (irow,jcol)
+    return (irow, jcol)
+
 
 class HarwellBoeingMatrix:
     """
@@ -169,12 +171,13 @@ class HarwellBoeingMatrix:
         :readGuess:    read starting guess, if any (False)
         :realSol:      read solution vector, if any (False)
     """
+
     def __init__(self, fname, **kwargs):
 
         self.title = ''
         self.key = ''
         self.ip = self.ind = self.val = None
-        self.nrhs   = 0
+        self.nrhs = 0
         self.rhsptr = self.rhsind = self.rhs = None
         self.guess = self.sol = None
 
@@ -191,7 +194,7 @@ class HarwellBoeingMatrix:
             :ip:    array of pointer to rows
             :ind:   array of indices of nonzero elements in each row
         """
-        #if self.ip is None or self.ind is None: return (None,None,None)
+        # if self.ip is None or self.ind is None: return (None,None,None)
         return (self.val, self.ip, self.ind)
 
     def find(self):
@@ -203,23 +206,23 @@ class HarwellBoeingMatrix:
             :irow:   array of indices of nonzero elements in each row
             :jcol:   array of indices of nonzero elements in each column
         """
-        if self.ip is None or self.ind is None: return (None,None,None)
+        if self.ip is None or self.ind is None: return (None, None, None)
         irow, jcol = csc2coord(self.ind, self.ip)
         return (self.val, irow, jcol)
 
     def _readArray(self, fp, which, nelm, format):
-        #print 'Reading %d values with format %s' % (nelm, format)
+        # print 'Reading %d values with format %s' % (nelm, format)
         fmt = FortranRecordReader(format)
         ind = 0
-        while ind < nelm-1:
+        while ind < nelm - 1:
             fdata = fmt.read(fp.readline())
             ind2 = min(ind + len(fdata), nelm)
-            which[ind:ind2] = fdata[:ind2-ind]
+            which[ind:ind2] = fdata[:ind2 - ind]
             ind = ind2
         # Read last line, if any.
         if ind < nelm:
             fdata = fmt.read(fp.readline())
-            which[ind:] = fdata[:nelm-ind]
+            which[ind:] = fdata[:nelm - ind]
         return
 
     def _fortranRead(self, stream, format):
@@ -245,19 +248,19 @@ class HarwellBoeingMatrix:
 
         # Decide whether matrix is symmetric and real or complex
         dataType = float
-        if self.mxtype[0]=='C': dataType = np.complex
-        self.issym = (self.mxtype[1]=='S')
+        if self.mxtype[0] == 'C': dataType = np.complex
+        self.issym = (self.mxtype[1] == 'S')
 
         # Read right-hand side info if present
         if rhscrd > 0:
             (rhstyp, self.nrhs, nrhsix) = fRead(fp.readline(), 'A3,11X,2I14')
 
         # Set up arrays to hold matrix pattern
-        self.ip = np.empty(self.ncol+1, dtype=int)
+        self.ip = np.empty(self.ncol + 1, dtype=int)
         self.ind = np.empty(self.nnzero, dtype=int)
 
         # Read matrix pattern
-        self._readArray(fp, self.ip, self.ncol+1, ptrfmt)
+        self._readArray(fp, self.ip, self.ncol + 1, ptrfmt)
         self._readArray(fp, self.ind, self.nnzero, indfmt)
 
         # Adjust indices to be 0-based
@@ -267,9 +270,9 @@ class HarwellBoeingMatrix:
         if self.patternOnly or self.mxtype[0] == 'P': return
 
         # Read matrix values
-        if self.mxtype[2] == 'A': # Matrix is assembled
+        if self.mxtype[2] == 'A':  # Matrix is assembled
             vallen = self.nnzero
-        else:                     # Finite-element format, not assembled
+        else:  # Finite-element format, not assembled
             vallen = neltvl
 
         self.val = np.empty(vallen, dtype=dataType)
@@ -281,34 +284,34 @@ class HarwellBoeingMatrix:
             # Read dense right-hand sides
             self.rhs = np.empty((self.nrow, self.nrhs), dataType)
             for i in range(self.nrhs):
-                self._readArray(fp, self.rhs[:,i], self.nrow, rhsfmt)
+                self._readArray(fp, self.rhs[:, i], self.nrow, rhsfmt)
         elif self.mxtype[2] == 'A':
             # Read sparse right-hand sides
-            self.rhsptr = np.empty(self.nrhs+1, int)
+            self.rhsptr = np.empty(self.nrhs + 1, int)
             self.rhsind = np.empty(self.nrhsix, int)
-            self.rhs    = np.empty(self.nrhsix, dataType)
-            self._readArray(fp, self.rhsptr, self.nrhs+1, ptrfmt)
+            self.rhs = np.empty(self.nrhsix, dataType)
+            self._readArray(fp, self.rhsptr, self.nrhs + 1, ptrfmt)
             self._readArray(fp, self.rhsind, self.nrhsix, indfmt)
-            self._readArray(fp, self.rhs,    self.nrhsix, rhsfmt)
+            self._readArray(fp, self.rhs, self.nrhsix, rhsfmt)
             self.rhsind -= 1
             self.rhsptr -= 1
         else:
             # Read elemental right-hand sides
             self.rhs = np.empty((self.nnzero, self.nrhs), dataType)
             for i in range(self.nrhs):
-                self._readArray(fp, self.rhs[:,i], self.nnzero, rhsfmt)
+                self._readArray(fp, self.rhs[:, i], self.nnzero, rhsfmt)
 
         # Read initial guesses if requested (always dense)
         if self.readGuess and rhstyp[1] == 'G':
             self.guess = np.empty((self.nrow, self.nrhs), dataType)
             for i in range(self.nrhs):
-                self._readArray(fp, self.guess[:,i], self.nrow, rhsfmt)
+                self._readArray(fp, self.guess[:, i], self.nrow, rhsfmt)
 
         # Read solution vectors if requested (always dense)
         if self.readSol and rhstyp[2] == 'X':
             self.sol = np.empty((self.nrow, self.nrhs), dataType)
             for i in range(self.nrhs):
-                self._readArray(fp, self.sol[:,i], self.nrow, rhsfmt)
+                self._readArray(fp, self.sol[:, i], self.nrow, rhsfmt)
 
         return
 
@@ -358,17 +361,17 @@ class RutherfordBoeingData(HarwellBoeingMatrix):
             self.ncol = self.nvec
             self.shape = (self.nrow, self.ncol)
             self.nnzero = self.ne
-            self.issym = (self.mxtype[1]=='s')
+            self.issym = (self.mxtype[1] == 's')
             dataType = np.float
-            if self.mxtype[0]=='c':
+            if self.mxtype[0] == 'c':
                 dataType = np.complex
-            elif self.mxtype[0]=='i':
+            elif self.mxtype[0] == 'i':
                 dataType = int
 
             (ptrfmt, indfmt, valfmt) = fRead(fp.readline(), '2A16,A20')
 
             np1 = self.nvec + 1
-            if self.mxtype[1:2] == 're': np1 = 2*self.nvec + 1
+            if self.mxtype[1:2] == 're': np1 = 2 * self.nvec + 1
             self.ip = np.empty(np1, int)
             self._readArray(fp, self.ip, np1, ptrfmt)
 
@@ -380,7 +383,7 @@ class RutherfordBoeingData(HarwellBoeingMatrix):
             self.ind -= 1
 
             # Stop here if pattern only is requested/available
-            if self.patternOnly or self.mxtype[0]=='p' or self.mxtype[0]=='x':
+            if self.patternOnly or self.mxtype[0] == 'p' or self.mxtype[0] == 'x':
                 return
 
             # Read values
@@ -393,37 +396,37 @@ class RutherfordBoeingData(HarwellBoeingMatrix):
 
             # Read supplementary data
             (self.dattyp, self.positn, self.orgniz, self.caseid, numerf, m,
-            nvec, self.nauxd) = fRead(buffer1,
-                                      'A3,2A1,1X,A8,2X,A1,3(2X,I13)')
+             nvec, self.nauxd) = fRead(buffer1,
+                                       'A3,2A1,1X,A8,2X,A1,3(2X,I13)')
             auxfm1, auxfm2, auxfm3 = fRead(buffer2, '3A20')
             self.nrow = m
             self.nvec = self.ncol = nvec
 
             # Read integer data
-            if (self.dattyp=='rhs' and self.orgniz=='s') or \
-                    self.dattyp in ['ipt','icv','ord']:
-                if self.dattyp=='ord':
+            if (self.dattyp == 'rhs' and self.orgniz == 's') or \
+                    self.dattyp in ['ipt', 'icv', 'ord']:
+                if self.dattyp == 'ord':
                     self.nauxd = m * nvec
                     auxfm = auxfm1
                 else:
-                    self.ip = np.empty(nvec+1, int)
-                    self._readArray(fp, self.ip, nvec+1, auxfm1)
+                    self.ip = np.empty(nvec + 1, int)
+                    self._readArray(fp, self.ip, nvec + 1, auxfm1)
                     auxfm = auxfm2
-                    self.ip -= 1 # Adjust to 0-based indexing
+                    self.ip -= 1  # Adjust to 0-based indexing
                 self.ind = np.empty(self.nauxd, int)
                 self._readArray(fp, self.ind, self.nauxd, auxfm)
-                self.ind -= 1 # Adjust to 0-based indexing
+                self.ind -= 1  # Adjust to 0-based indexing
                 if self.dattyp != 'rhs': return
 
             if self.patternOnly: return
 
             # Read values
             dataType = np.float
-            if numerf=='c':
+            if numerf == 'c':
                 dataType = np.complex
-            elif numerf=='i':
+            elif numerf == 'i':
                 dataType = int
-            if self.dattyp != 'rhs': self.nauxd = m*nvec
+            if self.dattyp != 'rhs': self.nauxd = m * nvec
             if self.dattyp == 'rhs' and self.orgniz == 's':
                 auxfm = auxfm3
             else:
@@ -438,7 +441,7 @@ class RutherfordBoeingData(HarwellBoeingMatrix):
         # No type or dimension checking for now...
         y = np.zeros(self.nrow)
         for col in range(self.ncol):
-            for k in range(self.ip[col],self.ip[col+1]):
+            for k in range(self.ip[col], self.ip[col + 1]):
                 row = self.ind[k]
                 val = self.val[k]
                 y[row] += val * other[col]
@@ -450,7 +453,7 @@ class RutherfordBoeingData(HarwellBoeingMatrix):
         # No type or dimension checking for now...
         y = np.zeros(self.ncol)
         for col in range(self.ncol):
-            for k in range(self.ip[col],self.ip[col+1]):
+            for k in range(self.ip[col], self.ip[col + 1]):
                 row = self.ind[k]
                 val = self.val[k]
                 y[col] += val * other[row]
@@ -471,28 +474,30 @@ def get_int_fmt(n):
     "Return appropriate format for integer arrays."
     fmts = ['(40I2)', '(26I3)', '(20I4)', '(16I5)', '(13I6)', '(11I7)',
             '(10I8)', '(8I9)', '(8I10)', '(7I11)', '(4I20)']
-    nlines = [40,26,20,16,13,11,10,8,8,7,4]
+    nlines = [40, 26, 20, 16, 13, 11, 10, 8, 8, 7, 4]
     nn = n
-    for k in range(1,n+1):
+    for k in range(1, n + 1):
         if nn < 10: break
         nn /= 10
-    if k <= 10: return (fmts[k+1], nlines[k+1])
+    if k <= 10: return (fmts[k + 1], nlines[k + 1])
     return (fmts[10], nlines[10])
+
 
 def get_real_fmt(p):
     "Return appropriate format for real array (1 <= p <= 17)."
     fmt = ['(8E10.1E3)', '(7E11.2E3)', '(6E12.3E3)', '(6E13.4E3)',
-            '(5E14.5E3)', '(5E15.6E3)', '(5E16.7E3)', '(4E17.8E3)',
-            '(4E18.9E3)', '(4E19.10E3)', '(4E20.11E3)', '(3E21.12E3)',
-            '(3E22.13E3)', '(3E23.14E3)', '(3E24.15E3)', '(3E25.16E3)']
+           '(5E14.5E3)', '(5E15.6E3)', '(5E16.7E3)', '(4E17.8E3)',
+           '(4E18.9E3)', '(4E19.10E3)', '(4E20.11E3)', '(3E21.12E3)',
+           '(3E22.13E3)', '(3E23.14E3)', '(3E24.15E3)', '(3E25.16E3)']
     fmt1 = ['(1P,8E10.1E3)', '(1P,7E11.2E3)', '(1P,6E12.3E3)',
             '(1P,6E13.4E3)', '(1P,5E14.5E3)', '(1P,5E15.6E3)',
             '(1P,5E16.7E3)', '(1P,4E17.8E3)', '(1P,4E18.9E3)',
             '(1P,4E19.10E3)', '(1P,4E20.11E3)', '(1P,3E21.12E3)',
             '(1P,3E22.13E3)', '(1P,3E23.14E3)', '(1P,3E24.15E3)',
             '(1P,3E25.16E3)']
-    lens = [8,7,6,6,5,5,5,4,4,4,4,3,3,3,3,3]
-    return (fmt[p-2], fmt1[p-2], lens[p-2])
+    lens = [8, 7, 6, 6, 5, 5, 5, 4, 4, 4, 4, 3, 3, 3, 3, 3]
+    return (fmt[p - 2], fmt1[p - 2], lens[p - 2])
+
 
 def fortranWriteLine(data, stream, fformat):
     "Write `data` to `stream` according to Fortran format `fformat`."
@@ -501,20 +506,22 @@ def fortranWriteLine(data, stream, fformat):
     stream.write('\n')
     return
 
+
 def fortranWriteArray(data, chunk_size, stream, fformat):
     """
     Write array `data` to `stream`, possibly using multiple lines,
     according to Fortran format `fformat`.
     """
     nelts = len(data)
-    nelts_per_line = nelts/chunk_size
-    #print 'Writing %d elements %d per line...' % (nelts, chunk_size)
+    nelts_per_line = nelts / chunk_size
+    # print 'Writing %d elements %d per line...' % (nelts, chunk_size)
     for k in range(nelts_per_line):
-        chunk = data[k*chunk_size:(k+1)*chunk_size]
+        chunk = data[k * chunk_size:(k + 1) * chunk_size]
         fortranWriteLine(chunk, stream, fformat)
-    if nelts_per_line*chunk_size < nelts:
-        fortranWriteLine(data[nelts_per_line*chunk_size:], stream, fformat)
+    if nelts_per_line * chunk_size < nelts:
+        fortranWriteLine(data[nelts_per_line * chunk_size:], stream, fformat)
     return
+
 
 # End of helper functions.
 
@@ -537,15 +544,15 @@ def write_rb(fname, nrow, ncol, ip, ind,
     ne = len(ind)
 
     # Check that columns are in order.
-#    for j in range(ncol):
-#        if ip[j+1] <= ip[j]:
-#            raise ValueError, 'Columns must be ordered.'
+    #    for j in range(ncol):
+    #        if ip[j+1] <= ip[j]:
+    #            raise ValueError, 'Columns must be ordered.'
 
     # Check that rows are in order in each column.
-#    for j in range(ncol):
-#        for k in range(ip[j], ip[j+1]-1):
-#            if ind[k] >= ind[k+1]:
-#                raise ValueError, 'Rows must be ordered in each column.'
+    #    for j in range(ncol):
+    #        for k in range(ip[j], ip[j+1]-1):
+    #            if ind[k] >= ind[k+1]:
+    #                raise ValueError, 'Rows must be ordered in each column.'
 
     # Set mxtype.
     mxtype0 = 'r'
@@ -557,19 +564,20 @@ def write_rb(fname, nrow, ncol, ip, ind,
     mxtype = mxtype0 + mxtype1 + 'a'
 
     # Set format and number card images for pointer array.
-    (ptrfmt, ptrn) = get_int_fmt(ne+1)
-    ptrcrd = ncol/ptrn + 1
+    (ptrfmt, ptrn) = get_int_fmt(ne + 1)
+    ptrcrd = ncol / ptrn + 1
 
     # Set format and number card images for index array.
     (indfmt, indn) = get_int_fmt(nrow)
-    indcrd = (ne-1)/indn + 1
+    indcrd = (ne - 1) / indn + 1
 
     # Set number of card images for numerical entries.
     if patternOnly:
-        valcrd = 0 ; valfmi = ' '
+        valcrd = 0;
+        valfmi = ' '
     else:
         (valfmi, valfmo, valn) = get_real_fmt(precision)
-        valcrd = (ne-1)/valn + 1
+        valcrd = (ne - 1) / valn + 1
 
     totcrd = ptrcrd + indcrd + valcrd
     neltvl = 0
@@ -577,9 +585,9 @@ def write_rb(fname, nrow, ncol, ip, ind,
     fp = open(fname, 'w')
 
     lt = len(title)
-    if lt < 72: title = title + (72-lt)*' '
+    if lt < 72: title = title + (72 - lt) * ' '
     lk = len(key)
-    if lk < 8: key = key + (8-lk)*' '
+    if lk < 8: key = key + (8 - lk) * ' '
 
     # Write header.
     fortranWriteLine([title, key], fp, 'A72,A8')
@@ -588,15 +596,15 @@ def write_rb(fname, nrow, ncol, ip, ind,
     fortranWriteLine([ptrfmt, indfmt, valfmi], fp, '2A16,A20')
 
     # Write pointer and index arrays. Ajust for 1-based indexing.
-    #print 'Writing pointer array...'
-    fortranWriteArray(ip+1, ptrn, fp, ptrfmt)
-    #print 'Writing index array...'
-    fortranWriteArray(ind+1, indn, fp, indfmt)
+    # print 'Writing pointer array...'
+    fortranWriteArray(ip + 1, ptrn, fp, ptrfmt)
+    # print 'Writing index array...'
+    fortranWriteArray(ind + 1, indn, fp, indfmt)
 
     # Write matrix entries.
     neltvl = ne
     if not patternOnly:
-        #print 'Writing matrix entries...'
+        # print 'Writing matrix entries...'
         fortranWriteArray(val, valn, fp, valfmo)
 
     fp.close()
@@ -624,18 +632,18 @@ def write_rb_from_coord(fname, nrow, ncol, irow, jcol, val=None, **kwargs):
 
 
 def write_aux(fname, nrow, nvec, precision=17, title='Generic', key='Generic',
-        caseid='Generic', dattyp='rhs', positn='r', orgniz='d', nauxd=None,
-        ip=None, ind=None, val=None):
+              caseid='Generic', dattyp='rhs', positn='r', orgniz='d', nauxd=None,
+              ip=None, ind=None, val=None):
     """
     Write supplementary data to file in Rutherford-Boeing format.
 
     Only real data is supported for now.
     """
 
-    data_types = ['ord','rhs','sln','est','evl','svl','evc','svc','sbv','sbm',
-                  'sbp','ipt','icv','lvl','geo','avl']
-    organizations = ['s','d','e']
-    positions = ['r','l','s']
+    data_types = ['ord', 'rhs', 'sln', 'est', 'evl', 'svl', 'evc', 'svc', 'sbv', 'sbm',
+                  'sbp', 'ipt', 'icv', 'lvl', 'geo', 'avl']
+    organizations = ['s', 'd', 'e']
+    positions = ['r', 'l', 's']
 
     if dattyp not in data_types:
         raise ValueError('Unknown data type: %s' % dattyp)
@@ -644,35 +652,35 @@ def write_aux(fname, nrow, nvec, precision=17, title='Generic', key='Generic',
     if orgniz not in organizations:
         raise ValueError('Unknown organization: %s' % orgniz)
 
-    if dattyp in ['evl','svl','lvl','sbp']: nvec = 1
-    if dattyp in ['evl','svl','lvl','sbv','sbm','sbp','avl']: positn = ' '
+    if dattyp in ['evl', 'svl', 'lvl', 'sbp']: nvec = 1
+    if dattyp in ['evl', 'svl', 'lvl', 'sbv', 'sbm', 'sbp', 'avl']: positn = ' '
     if dattyp != 'rhs': orgniz = ' '
 
     numerf = 'r'
     if dattyp == 'ord': numerf = 'i'
-    if dattyp in ['ipt','icv']: numerf = 'p'
+    if dattyp in ['ipt', 'icv']: numerf = 'p'
 
     if orgniz != 'e':
         nauxd = 0
-        if orgniz == 's' or dattyp in ['icv','ipt']:
+        if orgniz == 's' or dattyp in ['icv', 'ipt']:
             if ip is None:
                 raise ValueError('Need pointer array for data type %s' % dattyp)
-            nauxd = ip(nvec)-1
-        if orgniz == 'd': nauxd = nrow*nvec
+            nauxd = ip(nvec) - 1
+        if orgniz == 'd': nauxd = nrow * nvec
 
     # Set data formats.
     auxfm1 = auxfm2 = auxfm3 = ' '
     fm1 = fm3 = ' '
 
-    if dattyp in ['ipt','icv']:
-        (auxfm1, n1) = get_int_fmt(nauxd+1)
+    if dattyp in ['ipt', 'icv']:
+        (auxfm1, n1) = get_int_fmt(nauxd + 1)
         (auxfm2, n2) = get_int_fmt(nrow)
     elif dattyp == 'ord':
         (auxfm1, n1) = get_int_fmt(nrow)
     else:
         if precision < 2 or precision > 17: precision = 17
         if dattyp == 'rhs' and orgniz == 's':
-            (auxfm1, n1) = get_int_fmt(nauxd+1)
+            (auxfm1, n1) = get_int_fmt(nauxd + 1)
             (auxfm2, n2) = get_int_fmt(nrow)
             (auxfm3, fm3, n3) = get_real_fmt(precision)
         else:
@@ -681,25 +689,25 @@ def write_aux(fname, nrow, nvec, precision=17, title='Generic', key='Generic',
     fp = open(fname, 'w')
 
     lt = len(title)
-    if lt < 72: title = title + (72-lt)*' '
+    if lt < 72: title = title + (72 - lt) * ' '
     lk = len(key)
-    if lk < 8: key = key + (8-lk)*' '
+    if lk < 8: key = key + (8 - lk) * ' '
 
     # Write header.
     fortranWriteLine([title, key], fp, 'A72,A8')
     fortranWriteLine([dattyp, positn, orgniz, caseid, numerf, nrow, nvec,
-        nauxd], fp, 'A3,2A1,1X,A8,1X,A1,3(1X,I13)')
+                      nauxd], fp, 'A3,2A1,1X,A8,1X,A1,3(1X,I13)')
     fortranWriteLine([auxfm1, auxfm2, auxfm3], fp, '3A20')
 
     # Write pointer and index arrays. Ajust for 1-based indexing.
-    if (dattyp == 'rhs' and orgniz == 's') or dattyp in ['ipt','icv']:
-        #print 'Writing pointer array...'
-        fortranWriteArray(ip+1, n1, fp, auxfm1)
-        #print 'Writing index array...'
-        fortranWriteArray(ind+1, n2, fp, auxfm2)
+    if (dattyp == 'rhs' and orgniz == 's') or dattyp in ['ipt', 'icv']:
+        # print 'Writing pointer array...'
+        fortranWriteArray(ip + 1, n1, fp, auxfm1)
+        # print 'Writing index array...'
+        fortranWriteArray(ind + 1, n2, fp, auxfm2)
 
     # Write entries.
-    #print 'Writing entries...'
+    # print 'Writing entries...'
     if dattyp == 'rhs' and orgniz == 's':
         fortranWriteArray(val, n3, fp, fm3)
     else:
@@ -719,6 +727,7 @@ def write_aux_from_rb(fname, rbdata):
               positn=rbdata.positn, orgniz=rbdata.orgniz, nauxd=rbdata.nauxd,
               ip=ip, ind=ind, val=val)
 
+
 def write_aux_from_numpy(fname, array, **kwargs):
     """
     Convenience function write a numpy array to file in RB format.
@@ -737,33 +746,34 @@ if __name__ == '__main__':
     # may not make sense.
 
     import sys
+
     fname = sys.argv[1]
     plot = False
 
     np.set_printoptions(precision=8,
-                           threshold=10,
-                           edgeitems=3,
-                           linewidth=80,
-                           suppress=False)
+                        threshold=10,
+                        edgeitems=3,
+                        linewidth=80,
+                        suppress=False)
 
-    #M = HarwellBoeingMatrix(fname, patternOnly=False, readRhs=True)
+    # M = HarwellBoeingMatrix(fname, patternOnly=False, readRhs=True)
     # Comment this out for Rutherford-Boeing data
-    #if M.readRhs:
+    # if M.readRhs:
     #    for i in range(M.nrhs):
     #        print M.rhs[:,i]
 
     M = RutherfordBoeingData(fname, patternOnly=False)
-    print('Data of order (%-d,%-d) with %-d nonzeros' % (M.nrow,M.ncol,M.nnzero))
+    print('Data of order (%-d,%-d) with %-d nonzeros' % (M.nrow, M.ncol, M.nnzero))
 
     # Plot sparsity pattern
     if plot:
         try:
             import pylab
-        except:
+        except ImportError as e:
             sys.stderr.write('Pylab is required for the demo\n')
             sys.exit(1)
 
-        (val, row,col) = M.find()
+        (val, row, col) = M.find()
         fig = pylab.figure()
         ax = fig.gca()
         ax.plot(col, row, 'ks', markersize=1, linestyle='None')
@@ -776,10 +786,10 @@ if __name__ == '__main__':
         pylab.show()
 
     # Write data back to file
-    #(ip, ind, val) = M.data()
-    #print val
-    #write_rb('newmat.rb', M.nrow, M.ncol, ip, ind, val, symmetric=M.issym)
+    # (ip, ind, val) = M.data()
+    # print val
+    # write_rb('newmat.rb', M.nrow, M.ncol, ip, ind, val, symmetric=M.issym)
     x = np.ones(M.ncol)
-    #y = M*x
-    #write_aux_from_numpy('rhs.rb', y)
+    # y = M*x
+    # write_aux_from_numpy('rhs.rb', y)
     write_aux_from_numpy('sol.rb', x)

@@ -1,8 +1,21 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from utils.CustomException import *
-from abc import ABC
 
+class ARCLEN:
+    def __init__(self):
+        self.arcln = None
+        self.farcl = None
+        self.xincr = None
+        self.afail = None
+        self.itarget = None
+        self.iter_old = None
+
+class Output:
+    def __init__(self):
+        self.inc_out = None
+        self.nwant = None
+        self.iwant = None
 
 class SolveControl(object):
     def __init__(self):
@@ -12,15 +25,13 @@ class SolveControl(object):
         self.miter = None
         self.cnorm = None
         self.searc = None
-        self.arcln = None
-        self.incout = None
-        self.itarget = None
-        self.iterold = None
-        self.nwant = None
-        self.iwant = None
-        self.afail = 0
+        self.msearch = None
         self.incrm = 0
-        self.fracl = 1
+        self.xlamb = None
+        self.niter = 0
+        self.Arclen = ARCLEN()
+        self.Output = Output()
+
 
 
 class FlagSHyPSolveControl(SolveControl, object):
@@ -61,12 +72,12 @@ class FlagSHyPSolveControl(SolveControl, object):
         self.miter = int(split_line[3])
         self.cnorm = float(split_line[4])
         self.searc = float(split_line[5])
-        self.arcln = float(split_line[6])
-        self.incout = int(split_line[7])
-        self.itarget = float(split_line[8])
-        self.iterold = self.itarget
-        self.nwant = int(split_line[9])
-        self.iwant = int(split_line[10])
-        if abs(self.searc * abs(self.arcln)):
+        self.Arclen.arcln = float(split_line[6])
+        self.Output.inc_out = int(split_line[7])
+        self.Arclen.itarget = float(split_line[8])
+        self.Arclen.iter_old = self.Arclen.itarget
+        self.Output.nwant = int(split_line[9])
+        self.Output.iwant = int(split_line[10])
+        if abs(self.searc * abs(self.Arclen.arcln)):
             raise OtherException("Error reading solution control parameters.\n"
                                  "Line search and arc length methods cannot be both activated.\n")

@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import abc
+
 import sys
 
 import numpy as np
 from typing import List
-
-from femdb.GlobalEnum import *
+from utils.GlobalEnum import *
 
 
 class AbaqusBoundary:
@@ -176,6 +175,7 @@ class LoadCase(object):
         self.p_loads: List[PressLoad] = []
         self.gravity = None
         self.n_pressure_loads = None
+        self.n_prescribed_displacements = None
 
     def __str__(self):
         self.case_ = "\n  Here is LoadCase:\n"
@@ -237,6 +237,7 @@ class RightHandItem(object):
         self.external_load = None
         self.nominal_press = None
         self.T_int = None
+        self.reactions = None
 
     def Init(self, n_dof):
         self.nominal_external_load = np.zeros((n_dof, 1))

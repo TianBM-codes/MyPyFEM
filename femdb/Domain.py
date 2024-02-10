@@ -109,10 +109,10 @@ class Domain(object):
         for key, ele_grp in self.femdb.ele_grp_hash.items():
             e_type = self.femdb.et_hash[key]
             # 即使单元是退化单元也可以
-            if ElementFactory.GetElementNodeDofCount(e_type) == 6:
+            if GetElementNodeDofCount(e_type) == 6:
                 for elem in ele_grp.Elements():
                     six_dof_nodes.extend(elem.GetNodeSearchIndex())
-            elif ElementFactory.GetElementNodeDofCount(e_type) == 2:
+            elif GetElementNodeDofCount(e_type) == 2:
                 for elem in ele_grp.Elements():
                     two_dof_nodes.extend(elem.GetNodeSearchIndex())
 

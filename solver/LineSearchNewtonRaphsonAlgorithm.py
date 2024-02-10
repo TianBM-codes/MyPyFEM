@@ -3,7 +3,7 @@
 
 from femdb.NLFEMDataBase import NLFEMDataBase
 from element.ElementBase import ElementBaseClass
-from GlobalEnum import *
+from utils.GlobalEnum import *
 from femdb.NLDomain import NLDomain
 from femdb.Material import *
 import numpy as np

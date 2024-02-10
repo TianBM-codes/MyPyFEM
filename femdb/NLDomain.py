@@ -2,13 +2,12 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
-from GlobalEnum import *
+from utils.GlobalEnum import *
 from Kinematics import Kinematics
 from femdb.Plasticity import *
 from LoadCase import RightHandItem
 from element.ElementBase import AllEleTypeDNDrAtGaussianPoint
 from scipy.sparse import coo_matrix, csr_matrix
-from utils.CustomException import *
 
 
 class IdentityTensor(object):
@@ -42,6 +41,7 @@ class AuxVariant(object):
         self.DN_Dchi = None
         self.n_nodes_element = None
         self.n_face_dofs_elem = None
+        self.boundary_ngauss = None
 
 
 class GlobalK(object):
@@ -95,12 +95,13 @@ class NLDomain(object):
         """
         if GlobalInfor[GlobalVariant.InputFileSuffix] == InputFileType.FlagSHyP:
             for _, grp in self.fem_db.ElementGroupHash.items():
-                self.aux_variant.ngauss = grp.eles[0].ngauss
-                self.aux_variant.n_dofs_elem = grp.eles[0].n_dofs_elem
+                self.aux_variant.ngauss = grp.ngauss
+                self.aux_variant.n_dofs_elem = grp.n_dofs_elem
                 self.aux_variant.weight, self.aux_variant.DN_Dchi = (
                     AllEleTypeDNDrAtGaussianPoint.GetElementDNDchi(grp.eles[0].e_type))
-                self.aux_variant.n_nodes_element = grp.eles[0].nodes_count
-                self.aux_variant.n_face_dofs_elem = grp.eles[0].n_face_dofs_elem
+                self.aux_variant.n_nodes_element = grp.nodes_count
+                self.aux_variant.n_face_dofs_elem = grp.n_face_dofs_elem
+                self.aux_variant.boundary_ngauss = grp.boundary_ngauss
                 break
 
         self.kinematics.Init(GlobalInfor[GlobalVariant.Dimension],
@@ -119,66 +120,9 @@ class NLDomain(object):
         residual vector due to the internal contributions 
         (external contributions will be added later on). 
         """
-        self.ResidualAndStiffnessAssembly()
+        from global_assembly.ResidualAndStiffnessAssembly import ResidualAndStiffnessAssembly
+        ResidualAndStiffnessAssembly()
 
-    def ResidualAndStiffnessAssembly(self):
-        right_hand = self.right_hand_item
-        n_dofs_elem = self.aux_variant.n_dofs_elem
-        ngauss = self.aux_variant.ngauss
-        ndim = GlobalInfor[GlobalVariant.Dimension]
-
-        right_hand.external_load = self.fem_db.SolveControl.xlmax * right_hand.nominal_external_load
-
-        """
-        Pre-allocation memory to indexi, indexj and data for sparse assembly of
-        the stiffness matrix.
-        """
-        n_components_mean_dilatation = self.fem_db.Material.n_nearly_incompressible * np.square(n_dofs_elem, 2)
-        n_components_displacement_based = (self.fem_db.Mesh.nelem * np.square(n_dofs_elem, 2)
-                                           + self.fem_db.Mesh.nelem * np.square(n_dofs_elem, 2) * ndim * ngauss)
-        n_components = n_components_mean_dilatation + n_components_displacement_based
-
-        """
-        Initialise counter for storing sparse information into 
-        global tangent stiffness matrix.
-        """
-        self.global_k.counter = 1
-        self.global_k.indexi = np.zeros((n_components, 1))
-        self.global_k.indexj = np.zeros((n_components, 1))
-        self.global_k.stiffness = np.zeros((n_components, 1))
-
-        """
-        Main element loop
-        """
-        for _, grp in self.fem_db.ElementGroupHash.items():
-            for ele in grp.eles:
-                node_ids = ele.GetNodes()
-                mat_id = ele.mat_id
-                mat = self.fem_db.Material.Mat[mat_id]
-                ele_id = ele.id_key
-                epbar = self.plastics.plastic_deformation_state.epbar[:, ele_id]
-                invCp = self.plastics.plastic_deformation_state.invCp[:, :, :, ele_id]
-                # TODO 这里需要节点排好，对应关系另外存储，不要每次都查询dict, 只有在读取输入文件和写结果的时候初始化各种dict
-                xlocal = self.fem_db.Geom.x[node_ids, :]
-                x0local = self.fem_db.Geom.x0[node_ids, :]
-                Ve = self.fem_db.Geom.V_ele[node_ids, :]
-                from element_calculation.ElementForceAndStiffness import ElementForceAndStiffness
-                ElementForceAndStiffness(xlocal, x0local, mat_id, Ve, ele)
-
-                """
-                Storage of updated value of the internal variables. 
-                """
-                # TODO: 首先将节点排好序后，再储存 self.plasticity
-
-        """
-        Global tangent stiffness matrix sparse assembly except pressure contributions. 
-        """
-        S = coo_matrix(self.global_k.indexi, self.global_k.indexj, self.global_k.stiffness)
-        self.global_k.stiffness = csr_matrix(S)
-        """
-        Compute global residual force vector except pressure contributions.
-        """
-        self.right_hand_item.residual = self.right_hand_item.T_int - self.right_hand_item.external_load
 
     def ChooseIncrementalAlgorithm(self):
         from solver.NewtonRaphsonAlgorithm import NewtonRaphsonAlgorithm

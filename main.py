@@ -5,7 +5,7 @@ import os
 import pathlib
 import time
 import sys
-from femdb.GlobalEnum import *
+from utils.GlobalEnum import *
 from ioclass.INPParser import InpParser
 from ioclass.CDBParser import CDBParser
 from ioclass.BDFParser import BDFParser
