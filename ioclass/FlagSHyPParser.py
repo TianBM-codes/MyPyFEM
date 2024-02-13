@@ -4,7 +4,9 @@ import numpy as np
 from femdb.NLFEMDataBase import NLFEMDataBase
 from element.Node import Node
 from utils.CustomException import *
-from femdb.ElementFactory import ElementFactory, AnalyseDimension
+from utils.GlobalEnum import *
+from femdb.ElementFactory import ElementFactory, GetAnalyseDimension
+from femdb.ElementGroup import ElementGroup
 from femdb.Material import MaterialFactory
 from femdb.LoadCase import FlagSHyPPressLoad, FlagSHyPCLoad
 from femdb.SolveControl import FlagSHyPSolveControl
@@ -20,8 +22,6 @@ class FlagSHyPParser(object):
         """
         """
         self.fem_database = NLFEMDataBase()
-        # self.fem_database.G
-        self.fem_database.Geom = None
         self.dat_path = input_path
         self.iter_line = None
         self.et_hash = {}
@@ -34,54 +34,61 @@ class FlagSHyPParser(object):
         Javier Book P263
         :return:
         """
+        GlobalInfor[GlobalVariant.AnaType] = AnalyseType.NLStatic
         fem_db = self.fem_database
         with open(self.dat_path, 'r', encoding='utf-8') as dat_file:
             """
             读取项目基础信息, 包括项目名称, 以及算例中涉及的单元, 整个项目是几维问题
             """
             fem_db.title = dat_file.readline()
-            ele_type = dat_file.readline()
-            fem_db.Dimension = AnalyseDimension(ele_type)
-
+            ele_type = dat_file.readline().strip()
+            fem_db.Dimension = GetAnalyseDimension(ele_type)
             """
             读取节点个数、节点坐标以及边界条件, 三维问题, 每个节点有xyz三个坐标
             """
             fem_db.Geom.node_count = int(dat_file.readline())
+            fem_db.Mesh.n_dofs = fem_db.Dimension * fem_db.Geom.node_count
             fem_db.BC.icode = np.zeros(fem_db.Geom.node_count)
             for ii in range(fem_db.Geom.node_count):
-                node_line = dat_file.readline().strip().split(" ")
-
-                node = Node(int(node_line[0]))
+                node_line = dat_file.readline().strip().split()
+                nodeId = int(node_line[0])
+                node = Node(nodeId)
                 node.SetBoundaryWithFlagSHyPType(node_line[1])
                 fem_db.BC.icode[ii] = int(node_line[1])
                 if len(node_line) == 5:
                     node.coord = np.asarray([node_line[2], node_line[3], node_line[4]], dtype=float)
+                    GlobalInfor[GlobalVariant.Dimension] = AnalyseDimension.ThreeDimension
                 elif len(node_line) == 4:
                     node.coord = np.asarray([node_line[2], node_line[3]], dtype=float)
+                    GlobalInfor[GlobalVariant.Dimension] = AnalyseDimension.TwoDimension
                 else:
                     raise InputTextFormat(node_line)
-                fem_db.Geom.AddNode(node)
-            tmp = np.arange(1, fem_db.Dimension * fem_db.Geom.npoin + 1)
+                fem_db.Geom.AddNode(node, nodeId)
+            tmp = np.arange(1, fem_db.Dimension * fem_db.Geom.node_count + 1)
             fem_db.Mesh.dof_nodes = tmp.reshape(fem_db.Dimension, -1)
 
             """
             读取单元信息, 依次是单元编号、材料编号以及包含节点ID(connectivity)
             """
             fem_db.Mesh.nelem = int(dat_file.readline())
+            group = ElementGroup(ele_type)
             for ii in range(fem_db.Mesh.nelem):
                 ele, ele_node_count = ElementFactory.CreateElement(ele_type)
-                ele.ngauss = ElementFactory.GetElementNGauss(ele_type)
+                # ele.ngauss = ElementFactory.GetElementNGauss(ele_type)
                 ele_line = dat_file.readline().strip().split()
                 ele.id = int(ele_line[0])
                 ele.mat_id = int(ele_line[1])
                 ele.node_ids = np.asarray(ele_line[2:], dtype=float)
                 ele.e_type = ele_type
+                group.AppendElement(ele)
+            """
+            FlagSHyP只支持一种单元类型
+            """
+            fem_db.ElementGroupHash[0] = group
 
             """
             Obtain fixed and free degree of freedom numbers (dofs).
             """
-            from femdb.Boundary import FlagSHyPBoundary
-            fem_db.BC = FlagSHyPBoundary()
             fem_db.BC.FindFixedAndFreeDofs()
 
             """
@@ -89,7 +96,7 @@ class FlagSHyPParser(object):
             """
             mat_count = int(dat_file.readline())
             for ii in range(mat_count):
-                mat_num, mat_type = dat_file.readline().split(" ")
+                mat_num, mat_type = dat_file.readline().split()
                 mat = MaterialFactory.CreateMaterial(int(mat_type))
                 mat.InitByFlagSHyPFormat(dat_file.readline())
                 fem_db.Material.InsertMaterial(int(mat_num), mat)
@@ -100,7 +107,7 @@ class FlagSHyPParser(object):
             n_nearly_incompressible = 0
             for _, grp in fem_db.ElementGroupHash.items():
                 for ele in grp.eles:
-                    if ele.mat_id in [5, 7, 17]:
+                    if fem_db.Material[ele.mat_id].name in [5, 7, 17]:
                         n_nearly_incompressible += 1
 
             fem_db.Material.n_nearly_incompressible = n_nearly_incompressible
@@ -109,7 +116,7 @@ class FlagSHyPParser(object):
             Read nodal point loads, prescribed displacements, surface pressure loads
             and gravity (details in textbook).
             """
-            load_split = dat_file.readline().split(" ")
+            load_split = dat_file.readline().split()
             concentrate_line_count = int(load_split[0])
             prescribed_dis_count = int(load_split[1])
             fem_db.LoadCase.n_pressure_loads = int(load_split[2])

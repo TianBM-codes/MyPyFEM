@@ -18,7 +18,7 @@ from element.Hexa import *
 from utils.CustomException import *
 
 
-def AnalyseDimension(e_type):
+def GetAnalyseDimension(e_type):
     """
     获取分析的维度，是2D还是3D
     @return:

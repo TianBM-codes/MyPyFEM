@@ -65,7 +65,7 @@ class FlagSHyPSolveControl(SolveControl, object):
         super().__init__()
 
     def InitWithTextLine(self, line):
-        split_line = line.split(" ")
+        split_line = line.split()
         self.nincr = int(split_line[0])
         self.xlmax = int(split_line[1])
         self.dlamb = float(split_line[2])

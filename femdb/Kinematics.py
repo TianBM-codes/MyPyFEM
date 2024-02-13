@@ -8,9 +8,9 @@ class Kinematics(object):
     def __init__(self):
         """
         DN_x: Spatial gradient of the shape functions.
-        Jx_chi: Jacobian of the mapping between spatial and iso parametric domains.
+        Jx_chi: Jacobin of the mapping between spatial and iso parametric domains.
         F: Deformation gradient.
-        J: Jacobian of the deformation gradient.
+        J: Jacobin of the deformation gradient.
         b: Left Cauchy-Green strain tensor (b).
         Ib: First invariant of b.
         lambda: Principal stretches.

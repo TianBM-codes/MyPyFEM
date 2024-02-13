@@ -131,7 +131,7 @@ class FlagSHyPCLoad(ConcentratedLoad):
 
     def __init__(self, line):
         super().__init__()
-        line_split = line.split(" ")
+        line_split = line.split()
         self.node_id = int(line_split[0])
         force_x = float(line_split[1])
         force_y = float(line_split[2])
@@ -160,7 +160,7 @@ class FlagSHyPPressLoad(PressLoad):
 
     def __init__(self, line):
         super().__init__()
-        line_split = line.split(" ")
+        line_split = line.split()
         self.ele_id = line_split[0]
         self.face_node = [int(ii) for ii in line_split[1:-1]]
         self.p_value = float(line_split[-1])

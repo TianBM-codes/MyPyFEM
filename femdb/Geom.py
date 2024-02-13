@@ -33,11 +33,11 @@ class Geom(object):
         self.node_hash[node_id] = len(self.node_list)
 
     def InitX(self):
-        self.x0 = np.zeros((self.node_count, GlobalInfor[GlobalVariant.Dimension]))
+        self.x0 = np.zeros((self.node_count, GetDomainDimension()))
         for ii in range(self.node_count):
             self.x0[ii, :] = self.node_list[ii].coord
 
-        self.x = np.zeros((self.node_count, GlobalInfor[GlobalVariant.Dimension]))
+        self.x = np.zeros((self.node_count, GetDomainDimension()))
         for ii in range(self.node_count):
             self.x[ii, :] = self.node_list[ii].coord
 

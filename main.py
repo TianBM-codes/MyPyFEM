@@ -145,7 +145,7 @@ class MyPyFEM:
             nl_domain.initialisation()
 
         else:
-            mlogger.fatal("UnSupport Analyse Type")
+            mlogger.fatal(f"UnSupport Analyse Type:{GlobalInfor[GlobalVariant.AnaType]}")
             sys.exit(1)
 
 

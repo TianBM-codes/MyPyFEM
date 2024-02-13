@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from enum import Enum
+from utils.CustomException import *
 import logging
 import matplotlib.pyplot as plt
 
@@ -208,6 +209,13 @@ class BeamSectionType(Enum):
     Rectangle = 3
     CircleTube = 4
 
+def GetDomainDimension():
+    if GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.ThreeDimension:
+        return 3
+    elif GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.TwoDimension:
+        return 2
+    else:
+        raise NoSupportDimension(GlobalInfor[GlobalVariant.Dimension])
 
 # 全局变量, 用于存储分析类型、导入文件类型等信息
 class GlobalVariant(Enum):

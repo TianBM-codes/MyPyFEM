@@ -3,32 +3,32 @@
 
 from femdb.NLFEMDataBase import NLFEMDataBase
 from element.ElementBase import ElementBaseClass
+from femdb.ElementGroup import ElementGroup
+from femdb.Plasticity import PlasticDeformationState
 from utils.GlobalEnum import *
-from femdb.NLDomain import NLDomain
 from femdb.Material import *
 import numpy as np
 
 """
 Single instance mode, convenient for programming, Connect Database
 """
-nl_domain = NLDomain()
-PLAST = nl_domain.plastics
-KINEMATICS = nl_domain.kinematics
-dim = GlobalInfor[GlobalVariant.Dimension]
-element_indexi = nl_domain.global_k.indexi
-element_indexj = nl_domain.global_k.indexj
-element_stiffness = nl_domain.global_k.stiffness
-AUX = nl_domain.aux_variant
-IDENTITY_TENSOR = nl_domain.identity_tensor
-T_int = nl_domain.right_hand_item.T_int
-
 fem_db = NLFEMDataBase()
-MAT = fem_db.Material.Mat
+KINEMATICS = fem_db.kinematics
+dim = GlobalInfor[GlobalVariant.Dimension]
+element_indexi = fem_db.global_k.indexi
+element_indexj = fem_db.global_k.indexj
+element_stiffness = fem_db.global_k.stiffness
+AUX = fem_db.aux_variant
+IDENTITY_TENSOR = fem_db.identity_tensor
 MESH = fem_db.Mesh
 
 
-def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
+def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
+                             ele: ElementBaseClass,
+                             grp: ElementGroup,
+                             ele_idx: int):
     """
+    #TODO: 所谓的Voigt格式在哪里体现
     Computes the element vector of global internal forces and the tangent
     stiffness matrix.
     @return:
@@ -44,10 +44,11 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
         DN_x_mean = np.zeros(GlobalInfor[GlobalVariant.Dimension], AUX.n_nodes_element)
         ve = 0
         for ii in range(AUX.ngauss):
+            """
+            Gauss contribution to the elemental deformed volume.
+            Elemental averaged shape functions.
+            """
             JW = KINEMATICS.Jx_chi[ii] * AUX.weight[ii]
-            """
-            Gauss contribution to the elemental deformed volume.Elemental averaged shape functions.
-            """
             ve += JW
             DN_x_mean += AUX.DN_Dchi[:, :, ii] * JW
         DN_x_mean = DN_x_mean / ve
@@ -74,11 +75,18 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
     Obtain elasticity tensor (for incompressible or nearly incompressible, 
     only deviatoric component).
     """
+    if isinstance(mat, HyperElasticPlasticInPrincipal):
+        PLAST_element = PlasticDeformationState()
+        PLAST_element.epbar = grp.global_plasticity[:, ele_idx]
+        PLAST_element.invCp = grp.global_plasticity.invCp[:, :, :, ele_idx]
+    else:
+        raise NoImplSuchMaterial(mat.GetName())
+
     from constitutive_laws.CauchyTypeSelection import CauchyTypeSelection
     from constitutive_laws.ElasticityModulus import ElasticityModulusSelection
-    for jj in range(AUX.ngauss):
-        Cauchy = CauchyTypeSelection(jj, mat)
-        c = ElasticityModulusSelection(mat_id)
+    for igauss in range(AUX.ngauss):
+        Cauchy, PLAST_gauss = CauchyTypeSelection(PLAST_element, igauss, mat)
+        c = ElasticityModulusSelection(PLAST_element, PLAST_gauss, igauss, mat_id)
         """
         Add pressure contribution to stresses and elasticity tensor.
         """
@@ -88,12 +96,12 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
         Compute numerical integration multipliers, Computes the thickness in the deformed 
         configuration for plane stress problems.
         """
-        JW = KINEMATICS.Jx_chi[jj] * AUX.weight[jj]
+        JW = KINEMATICS.Jx_chi[igauss] * AUX.weight[igauss]
 
         """
         Compute equivalent (internal) force vector.
         """
-        T = Cauchy * KINEMATICS.DN_Dx[jj]
+        T = Cauchy * KINEMATICS.DN_Dx[igauss]
         T_internal += T.T.reshape(T.size, 1)
 
         """
@@ -101,13 +109,13 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
         assembly) of the constitutive term of the stiffness matrix.
         """
         from element_calculation.ConstitutiveMatrix import ConstitutiveMatrix
-        ConstitutiveMatrix(ele, jj, c, JW)
+        ConstitutiveMatrix(ele, igauss, c, JW)
 
         """
         Compute contribution (and extract relevant information for subsequent
         assembly) of the geometric term of the stiffness matrix.
         """
-        DN_sigma_DN = np.matmul(KINEMATICS.DN_Dx[jj].T, np.matmul(Cauchy, KINEMATICS.DN_Dx[jj]))
+        DN_sigma_DN = np.matmul(KINEMATICS.DN_Dx[igauss].T, np.matmul(Cauchy, KINEMATICS.DN_Dx[igauss]))
 
         from element_calculation.GeometricMatrix import GeometricMatrix
         GeometricMatrix(ele, DN_sigma_DN, JW)
@@ -116,7 +124,7 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
     Compute contribution (and extract relevant information for subsequent
     assembly) of the mean dilatation term (Kk) of the stiffness matrix.
     """
-    counter = nl_domain.global_k.counter
+    counter = fem_db.global_k.counter
     if isinstance(mat, HyperElasticPlasticInPrincipal):
         for bnode in range(AUX.n_nodes_elem):
             for anode in range(AUX.n_dofs_elem):
@@ -139,11 +147,5 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve, ele: ElementBaseClass):
                 element_stiffness[counter:counter + dim ** 2] = kappa_bar * ve * DN_x_meana_DN_x_meanb.flatten()
 
                 counter += dim ** 2
-    """
-    Utility function for the assembly of element force vectors into the 
-    global force vector. 
-    """
-    global_dofs = MESH.dof_nodes[:, ele.node_ids]
-    T_int[global_dofs, 1] += T_internal
 
-
+    return T_internal, PLAST_element

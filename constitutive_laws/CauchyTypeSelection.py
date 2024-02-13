@@ -2,48 +2,50 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
-from GlobalEnum import *
-from Kinematics import Kinematics
+from utils.GlobalEnum import *
 from femdb.Plasticity import *
-from Material import HyperElasticPlasticInPrincipal
-from element.ElementBase import AllEleTypeDNDrAtGaussianPoint
+from femdb.Material import HyperElasticPlasticInPrincipal, MaterialBase
 from utils.CustomException import *
-from femdb.NLDomain import NLDomain
+import numpy as np
 
 """
 Single instance mode, convenient for programming
 """
-nl_domain = NLDomain()
-plastics = nl_domain.plastics
-kinematics = nl_domain.kinematics
+fem_db = NLFEMDataBase()
+kinematics = fem_db.kinematics
 
 
-def CauchyTypeSelection(gauss_index, mat):
+def CauchyTypeSelection(PLAST_element: PlasticDeformationState, gauss_index: int, mat: MaterialBase):
     if isinstance(mat, HyperElasticPlasticInPrincipal):
-        return HyperElasticPlasticInPrincipalStress(gauss_index, mat)
+        return HyperElasticPlasticInPrincipalStress(PLAST_element, gauss_index, mat)
     else:
         mlogger.fatal("Unknown Material Stress")
         raise NoImplSuchMaterialStress(mat.GetName())
 
 
-def HyperElasticPlasticInPrincipalStress(gauss_index, mat):
-    dim = GlobalInfor[GlobalVariant.Dimension]
+def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState, igauss: int, mat:MaterialBase):
     """
     Box 7.1 Algorithm for Rate-Independent Von Mises Plasticity with Isotropic Hardening
     """
-    plastics.plastic_deformation_state.oldEpbar = plastics.plastic_deformation_state.epbar
-    plastics.plastic_deformation_state.oldInvCp = plastics.plastic_deformation_state.invCp
+    dim = GetDomainDimension()
+
+    PLAST_gauss = PlasticityGauss()
+    PLAST_gauss.old.epbar = PLAST_element.epbar[igauss]
+    PLAST_gauss.old.invCp = PLAST_element.invCp[:, :, igauss]
+    epbar = PLAST_gauss.old.epbar
+    invCp = PLAST_gauss.old.invCp
 
     """
     Trial stage
     """
     be_trial = np.matmul(kinematics.F,
-                         np.matmul(plastics.plastic_deformation_state.oldInvCp, kinematics.F.T))
+                         np.matmul(invCp, kinematics.F.T))
     V, D = np.linalg.eig(be_trial)
     lambdae_trial = np.sqrt(np.diag(D))
     na_trial = V
     mu = mat.value_dict[MaterialKey.Niu]
-    tauaa_trial = (2 * mu) * np.log(lambdae_trial) - (2 * mu / 3) * np.log(np.linalg.det(kinematics.F))
+    tauaa_trial = (2 * mu) * np.log(lambdae_trial) - \
+                  (2 * mu / 3) * np.log(np.linalg.det(kinematics.F))
     tau_trial = np.zeros(dim)
     for ii in range(dim):
         tau_trial += tauaa_trial[ii] * np.outer(na_trial[:, ii], na_trial[:, ii])
@@ -54,7 +56,7 @@ def HyperElasticPlasticInPrincipalStress(gauss_index, mat):
     H = mat.value_dict[MaterialKey.Harden]
     ty0 = mat.value_dict[MaterialKey.TauY]
     f = np.sqrt(3 / 2) * np.linalg.norm(tau_trial, 'fro') - (
-            ty0 + H * plastics.plastic_deformation_state.oldEpbar)
+            ty0 + H * epbar)
 
     if f > 0:
         """
@@ -74,6 +76,7 @@ def HyperElasticPlasticInPrincipalStress(gauss_index, mat):
         for ii in range(dim):
             tau += tauaa[ii] * np.outer(na_trial[:dim, ii], na_trial[:dim, ii])
             be += lambdae[ii] ** 2 * np.outer(na_trial[:dim, ii], na_trial[:dim, ii])
+
     else:
         tau = tau_trial[:dim, :dim]
         tauaa = tauaa_trial[:dim]
@@ -84,19 +87,35 @@ def HyperElasticPlasticInPrincipalStress(gauss_index, mat):
     """
     Obtain the Cauchy stress tensor
     """
-    Cauchy = tau / kinematics.J
-    Cauchyaa = tauaa / kinematics.J
+    PLAST_gauss.stress.Cauchy = tau / kinematics.J
+    PLAST_gauss.stress.Cauchyaa = tauaa / kinematics.J
+
+    """
+    Update plasticity variables. 
+    """
     invF = np.linalg.inv(kinematics.F)
-    invCp_updated = np.dot(invF, np.dot(be, invF.T))
-    epbar_updated = plastics.plastic_deformation_state.oldEpbar + Dgamma
-    lambdae_trial_dim = lambdae_trial[:dim]
-    tau_trial_dim = tau_trial[:dim, :dim]
-    na_trial_dim = na_trial[:dim, :dim]
-    yield_object = YieldCondition(f, Dgamma, nu_a[:dim])
+    PLAST_gauss.update.invCp = np.dot(invF, np.dot(be, invF.T))
+    PLAST_gauss.update.epbar = epbar + Dgamma
 
-    plastics.InitCalculate(Stress(Cauchy, Cauchyaa),
-                           Updated(invCp_updated, epbar_updated),
-                           Trial(lambdae_trial_dim, tau_trial_dim, na_trial_dim),
-                           yield_object)
+    """
+    Store trial values (necessary for evaluation of the elasticity tensor).
+    """
+    PLAST_gauss.trial.lambdae = lambdae_trial[:dim]
+    PLAST_gauss.tau_trial_dim = tau_trial[:dim, :dim]
+    PLAST_gauss.trial.n = na_trial[:dim, :dim]
 
-    return Cauchy
+    """
+    Store the yield criterion (necessary for evaluation of the elasticity tensor).
+    """
+    PLAST_gauss.yield_info.f = f
+    PLAST_gauss.yield_info.Dgamma = Dgamma
+    PLAST_gauss.yield_info.nu_a = nu_a[:dim]
+
+    """
+    Update the value of the internal variables at a Gauss point 
+    (not for trusses).
+    """
+    PLAST_element.invCp[:,:,igauss] = PLAST_gauss.update.invCp
+    PLAST_element.epbar[igauss] = PLAST_gauss.update.epbar
+
+    return PLAST_gauss.stress.Cauchy, PLAST_gauss

@@ -2,22 +2,19 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
-from GlobalEnum import *
-from femdb.Plasticity import *
-from Material import HyperElasticPlasticInPrincipal
+from utils.GlobalEnum import *
+from femdb.Plasticity import PlasticDeformationState, PlasticityGauss
+from femdb.Material import HyperElasticPlasticInPrincipal
 from utils.CustomException import *
-from femdb.NLDomain import NLDomain
+import numpy as np
 
 """
 Single instance mode, convenient for programming
 """
-nl_domain = NLDomain()
-PLAST = nl_domain.plastics
-kinematics = nl_domain.kinematics
-dim = GlobalInfor[GlobalVariant.Dimension]
-
+dim = GetDomainDimension()
 fem_db = NLFEMDataBase()
 MAT = fem_db.Material.Mat
+kinematics = fem_db.kinematics
 
 
 def muab_choice(lambda_alpha, lambda_beta, sigma_alpha, sigma_beta, J, mu):
@@ -29,36 +26,54 @@ def muab_choice(lambda_alpha, lambda_beta, sigma_alpha, sigma_beta, J, mu):
     return muab
 
 
-def ElasticityModulusSelection(mat_id):
+def ElasticityModulusSelection(PLAST_element: PlasticDeformationState,
+                               PLAST_gauss: PlasticityGauss,
+                               igauss: int,
+                               mat_id: int):
+    """
+    Obtain elasticity tensor (for incompressible or nearly incompressible,
+    only deviatoric component).
+    :param PLAST_element:
+    :param PLAST_gauss:
+    :param igauss:
+    :param mat_id:
+    :return:
+    """
     mat = MAT[mat_id]
     if isinstance(mat, HyperElasticPlasticInPrincipal):
-        return HyperElasticPlasticInPrincipalEModulus(mat_id, kinematics)
+        return HyperElasticPlasticInPrincipalEModulus(PLAST_element, PLAST_gauss, igauss, mat_id)
     else:
         raise NoImplSuchElasticityModulus(mat.GetName())
 
 
-def HyperElasticPlasticInPrincipalEModulus(mat_id, kine):
+def HyperElasticPlasticInPrincipalEModulus(PLAST_element:PlasticDeformationState,
+                                           PLAST_gauss:PlasticityGauss,
+                                           igauss:int,
+                                           mat_id:int):
     """
     P212 BOX 7.2: Tangent Modulus
-    @param mat_id: material id
-    @param kine:
-    @return:
     """
     mu = MAT[mat_id].value_dict[MaterialKey.Niu]
     H = MAT[mat_id].value_dict[MaterialKey.Harden]
-    J = kine['J']
+    J = fem_db.kinematics.J[igauss]
 
-    lambdae_trial = PLAST['trial']['lambdae']
-    tau_trial = PLAST['trial']['tau']
-    na_trial = PLAST['trial']['n']
+    PLAST_gauss.old.invCp = PLAST_element.invCp[:,:,igauss]
+    PLAST_gauss.old.epbar = PLAST_element.epbar[igauss]
+
+    lambdae_trial = PLAST_gauss.trial.lambdae
+    tau_trial = PLAST_gauss.trial.tau
+    na_trial = PLAST_gauss.trial.n
     T = na_trial
 
-    Cauchyaa = PLAST['stress']['Cauchyaa']
+    """
+    Cauchy stress tensor and its eigenvalues.
+    """
+    Cauchyaa = PLAST_gauss.stress.Cauchyaa
 
-    Dgamma = PLAST['yield']['Dgamma']
-    nua = PLAST['yield']['nu_a']
+    Dgamma = PLAST_gauss.yield_info.Dgamma
+    nua = PLAST_gauss.yield_info.nu_a
 
-    if PLAST['yield']['f'] > 0:
+    if PLAST_gauss.yield_info.f > 0:
         denominator = np.sqrt(2 / 3) * np.linalg.norm(tau_trial, 'fro')
         c_alphabeta = (
                 (1 - 2 * mu * Dgamma / denominator) *

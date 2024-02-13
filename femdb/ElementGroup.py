@@ -4,8 +4,7 @@
 from femdb.ElementFactory import *
 from typing import List
 from element.ElementBase import ElementBaseClass
-from femdb.Interpolation import Interpolation
-from femdb.Quadrature import Quadrature
+from femdb.Plasticity import PlasticDeformationState
 
 
 def GetElementNodeDofCount(e_type):
@@ -53,10 +52,12 @@ def GetNGauss(e_type):
 
     raise NoImplSuchElement(e_type)
 
+
 def GetNDofsElem(e_type):
     if e_type in ["hexa8"]:
-        return 3*8
+        return 3 * 8
     raise NoImplSuchElement(e_type)
+
 
 def GetNNodesElem(e_type):
     if e_type in ["hexa8"]:
@@ -69,15 +70,24 @@ def GetNFaceDofsElem(e_type):
         return 12
     raise NoImplSuchElement(e_type)
 
+
 def GetNodesCount(e_type):
     if e_type in ["hexa8"]:
         return 8
     raise NoImplSuchElement(e_type)
 
+
 def GetBoundaryNGauss(e_type):
     if e_type in ["hexa8"]:
         return 4
     raise NoImplSuchElement(e_type)
+
+
+def GetNFaceNodesElem(e_type):
+    if e_type in ["hexa8"]:
+        return 4
+    raise NoImplSuchElement(e_type)
+
 
 class ElementInfo:
     def __init__(self, e_type):
@@ -85,6 +95,7 @@ class ElementInfo:
         self.n_dofs_elem = GetNDofsElem(e_type)
         self.n_nodes_elem = GetNNodesElem(e_type)
         self.n_face_dofs_elem = GetNFaceDofsElem(e_type)
+        self.n_face_nodes_elem = GetNFaceNodesElem(e_type)
         self.nodes_count = GetNodesCount(e_type)
         self.boundary_ngauss = GetBoundaryNGauss(e_type)
 
@@ -95,6 +106,7 @@ class ElementGroup:
     """
 
     def __init__(self, e_type):
+        from femdb.Interpolation import Interpolation
         self.e_type = e_type
         # 其中存储的是同一单元类型的单元, 存储了单元的全部信息
         self.eles: List[ElementBaseClass] = []
@@ -109,6 +121,11 @@ class ElementGroup:
         self.element_info = ElementInfo(e_type)
         self.interpolation = Interpolation(self.e_type, self.element_info)
         self.quadrature = self.interpolation.quadrature
+
+        """
+        Plasticity variant
+        """
+        self.global_plasticity = PlasticDeformationState()
 
     def AppendElement(self, r_ele):
         """
@@ -148,12 +165,21 @@ class ElementGroup:
         """
         返回一个空的Matrix, 在集成总刚的时候避免重复申请单刚
         """
-        dof_count = ElementFactory.GetElementNodeDofCount(self.e_type)
-        return np.zeros(dof_count, dof_count)
+        # dof_count = ElementFactory.GetElementNodeDofCount(self.e_type)
+        # return np.zeros(dof_count, dof_count)
 
     def CalElementsEquationNum(self):
         """
         计算该单元组中所有单元包含节点对应的方程号, 为集成总刚做准备
         """
-        for e in self.eles:
-            e.CalEquationNumber()
+        # for e in self.eles:
+        #     e.CalEquationNumber()
+
+    def InitGlobalPlasticity(self):
+        """
+        Global Plasticity
+        """
+        self.global_plasticity.epbar = np.zeros((self.element_info.ngauss,
+                                                 len(self.eles)))
+        self.global_plasticity.invCp = np.reshape(np.repeat(np.eye(GetDomainDimension()), self.element_info.ngauss * len(self.eles)),
+                                                  (GetDomainDimension(), GetDomainDimension(), self.element_info.ngauss, len(self.eles)))

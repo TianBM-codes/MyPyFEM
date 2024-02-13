@@ -8,9 +8,9 @@ from utils.GlobalEnum import MaterialKey
 
 
 class MaterialBase(object):
-    def __init__(self, name, value_dict):
+    def __init__(self, name):
         self.name = name
-        self.value_dict = value_dict
+        self.value_dict = {}
 
     def GetName(self):
         return self.name
@@ -30,6 +30,11 @@ class Material(object):
     def InsertMaterial(self, mat_id, mat: MaterialBase):
         self.Mat[mat_id] = mat
 
+    def __getitem__(self, item):
+        if self.Mat.__contains__(item):
+            return self.Mat[item]
+        else:
+            return None
 
 class ISOMaterial(MaterialBase, ABC):
     """ 各向同性材料 """
@@ -46,8 +51,8 @@ class CompressibleNeoHookean(MaterialBase, ABC):
     plane stain or three-dimensional compressible neo-Hookean
     """
 
-    def __init__(self, name, value_dict):
-        super().__init__(name, value_dict)
+    def __init__(self, name):
+        super().__init__(name)
 
 
 class HyperElasticPlasticInPrincipal(MaterialBase, ABC):
@@ -56,11 +61,11 @@ class HyperElasticPlasticInPrincipal(MaterialBase, ABC):
     plastic in principle directions
     """
 
-    def __init__(self, name, value_dict):
-        super().__init__(name, value_dict)
+    def __init__(self, name):
+        super().__init__(name)
 
     def InitByFlagSHyPFormat(self, line):
-        lineSplit = line.split(" ")
+        lineSplit = line.split()
         self.value_dict[MaterialKey.Density] = float(lineSplit[0])
         self.value_dict[MaterialKey.Niu] = float(lineSplit[1])
         self.value_dict[MaterialKey.Lamda] = float(lineSplit[2])
@@ -71,7 +76,6 @@ class HyperElasticPlasticInPrincipal(MaterialBase, ABC):
 
 
 class MaterialFactory(object):
-
     @staticmethod
     def CreateMaterial(mat_type: int):
         """
@@ -80,8 +84,8 @@ class MaterialFactory(object):
         @return:
         """
         if mat_type in [1]:
-            return CompressibleNeoHookean(None, None)
+            return CompressibleNeoHookean(mat_type)
         elif mat_type in [17]:
-            return HyperElasticPlasticInPrincipal(None, None)
+            return HyperElasticPlasticInPrincipal(mat_type)
         else:
             raise NoImplSuchMaterial(mat_type)

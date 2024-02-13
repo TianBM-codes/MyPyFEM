@@ -3,7 +3,6 @@
 
 import numpy as np
 import abc
-from femdb.NLFEMDataBase import NLFEMDataBase
 from utils.GlobalEnum import *
 
 
@@ -53,6 +52,7 @@ class FlagSHyPBoundary(BoundaryBase):
         super().__init__()
 
     def FindFixedAndFreeDofs(self):
+        from femdb.NLFEMDataBase import NLFEMDataBase
         fem_db = NLFEMDataBase()
         n_dofs = fem_db.Mesh.n_dofs
         dim = GlobalInfor[GlobalVariant.Dimension]
