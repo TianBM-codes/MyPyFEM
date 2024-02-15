@@ -2,25 +2,19 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
-from element.ElementBase import ElementBaseClass
 from utils.GlobalEnum import *
-from femdb.NLDomain import NLDomain
-from femdb.Material import *
-import numpy as np
 
 """
 Single instance mode, convenient for programming, Connect Database
 """
-nl_domain = NLDomain()
-PLAST = nl_domain.plastics
-KINEMATICS = nl_domain.kinematics
+fem_db = NLFEMDataBase()
+KINEMATICS = fem_db.kinematics
 dim = GlobalInfor[GlobalVariant.Dimension]
-element_indexi = nl_domain.global_k.indexi
-element_indexj = nl_domain.global_k.indexj
-element_stiffness = nl_domain.global_k.stiffness
-AUX = nl_domain.aux_variant
-IDENTITY_TENSOR = nl_domain.identity_tensor
-T_int = nl_domain.right_hand_item.T_int
+element_indexi = fem_db.global_k.indexi
+element_indexj = fem_db.global_k.indexj
+element_stiffness = fem_db.global_k.stiffness
+IDENTITY_TENSOR = fem_db.identity_tensor
+T_int = fem_db.right_hand_item.T_int
 
 fem_db = NLFEMDataBase()
 MAT = fem_db.Material.Mat

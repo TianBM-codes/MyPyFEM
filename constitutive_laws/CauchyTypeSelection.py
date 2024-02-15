@@ -38,17 +38,17 @@ def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState,
     """
     Trial stage
     """
-    be_trial = np.matmul(kinematics.F,
-                         np.matmul(invCp, kinematics.F.T))
-    V, D = np.linalg.eig(be_trial)
-    lambdae_trial = np.sqrt(np.diag(D))
+    be_trial = np.matmul(kinematics.F[:,:,igauss],
+                         np.matmul(invCp, kinematics.F[:,:,igauss].T))
+    D, V = np.linalg.eig(be_trial)
+    lambdae_trial = np.sqrt(D)
     na_trial = V
     mu = mat.value_dict[MaterialKey.Niu]
     tauaa_trial = (2 * mu) * np.log(lambdae_trial) - \
-                  (2 * mu / 3) * np.log(np.linalg.det(kinematics.F))
+                  (2 * mu / 3) * np.log(np.linalg.det(kinematics.F[:,:,igauss]))
     tau_trial = np.zeros(dim)
     for ii in range(dim):
-        tau_trial += tauaa_trial[ii] * np.outer(na_trial[:, ii], na_trial[:, ii])
+        tau_trial = tau_trial + tauaa_trial[ii] * np.outer(na_trial[:, ii], na_trial[:, ii])
 
     """
     Checking for yielding
@@ -87,13 +87,13 @@ def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState,
     """
     Obtain the Cauchy stress tensor
     """
-    PLAST_gauss.stress.Cauchy = tau / kinematics.J
-    PLAST_gauss.stress.Cauchyaa = tauaa / kinematics.J
+    PLAST_gauss.stress.Cauchy = tau / kinematics.J[igauss]
+    PLAST_gauss.stress.Cauchyaa = tauaa / kinematics.J[igauss]
 
     """
     Update plasticity variables. 
     """
-    invF = np.linalg.inv(kinematics.F)
+    invF = np.linalg.inv(kinematics.F[:,:,igauss])
     PLAST_gauss.update.invCp = np.dot(invF, np.dot(be, invF.T))
     PLAST_gauss.update.epbar = epbar + Dgamma
 

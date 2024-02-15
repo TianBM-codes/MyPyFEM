@@ -2,26 +2,21 @@
 # -*- coding: utf-8 -*-
 
 from femdb.NLFEMDataBase import NLFEMDataBase
-from element.ElementBase import ElementBaseClass
 from utils.GlobalEnum import *
-from femdb.NLDomain import NLDomain
-from femdb.Material import *
 import numpy as np
 
 """
 Single instance mode, convenient for programming, Connect Database
 """
-nl_domain = NLDomain()
-PLAST = nl_domain.plastics
-KINEMATICS = nl_domain.kinematics
+fem_db = NLFEMDataBase()
+KINEMATICS = fem_db.kinematics
 dim = GlobalInfor[GlobalVariant.Dimension]
-element_indexi = nl_domain.global_k.indexi
-element_indexj = nl_domain.global_k.indexj
-element_stiffness = nl_domain.global_k.stiffness
-AUX = nl_domain.aux_variant
-IDENTITY_TENSOR = nl_domain.identity_tensor
-T_int = nl_domain.right_hand_item.T_int
-RightHand = nl_domain.right_hand_item
+element_indexi = fem_db.global_k.indexi
+element_indexj = fem_db.global_k.indexj
+element_stiffness = fem_db.global_k.stiffness
+IDENTITY_TENSOR = fem_db.identity_tensor
+T_int = fem_db.right_hand_item.T_int
+RightHand = fem_db.right_hand_item
 
 
 def linear_solver(K, F, fixed_dof):
@@ -56,7 +51,6 @@ def linear_solver(K, F, fixed_dof):
 
 
 def arclen(displ, dispf):
-    fem_db = NLFEMDataBase()
     CON = fem_db.SolveControl
     CON.Arclen.afail = 0
 
@@ -129,7 +123,6 @@ def CheckResidualNorm():
     """
     Obtain the reactions
     """
-    fem_db = NLFEMDataBase()
     BC = fem_db.BC
     RightHand.reactions = RightHand.residual[BC.fixed_dof] + \
                           RightHand.external_load[BC.fixed_dof]
@@ -152,7 +145,6 @@ def CheckResidualNorm():
 def ArcLengthNewtonRaphsonAlgorithm():
     from global_assembly.ResidualAndStiffnessAssembly import ResidualAndStiffnessAssembly
     from global_assembly.PressureLoadAndStiffnessAssembly import PressureLoadAndStiffnessAssembly
-    fem_db = NLFEMDataBase()
     CON = fem_db.SolveControl
     BC = fem_db.BC
     GEOM = fem_db.Geom
@@ -204,9 +196,9 @@ def ArcLengthNewtonRaphsonAlgorithm():
         while rnorm > CON.cnorm and CON.niter < CON.miter:
             CON.niter += 1
             # Solve for iterative displacements.
-            displ, _ = linear_solver(nl_domain.global_k.stiffness, -RightHand.residual, BC.fixdof)
+            displ, _ = linear_solver(fem_db.global_k.stiffness, -RightHand.residual, BC.fixdof)
             # Solve for displacements (for a nominal load).
-            dispf, _ = linear_solver(nl_domain.global_k.stiffness,
+            dispf, _ = linear_solver(fem_db.global_k.stiffness,
                                   RightHand.nominal_external_load - RightHand.nominal_pressure,
                                   BC.fixdof)
             displ = arclen(displ, dispf)

@@ -14,7 +14,7 @@ from femdb.LoadCase import RightHandItem
 
 
 class IdentityTensor(object):
-    def __init__(self, dimension):
+    def __init__(self):
         """
         Obtain entities which will be constant and only computed once.
         components of fourth order isotropic tensors
@@ -22,10 +22,14 @@ class IdentityTensor(object):
         c2 = delta(i,k)*delta(j,l) + delta(i,l)*delta(j,k)
         (see textbook example 2.8)
         """
+        self.I = None
+        self.c1 = None
+        self.c2 = None
+
+    def InitVariant(self, dimension):
         self.I = np.eye(dimension)
         self.c1 = np.zeros((dimension, dimension, dimension, dimension))
         self.c2 = np.zeros((dimension, dimension, dimension, dimension))
-
         for l in range(dimension):
             for k in range(dimension):
                 for j in range(dimension):
@@ -81,11 +85,16 @@ class NLFEMDataBase(object):
             self.Dimension = AnalyseDimension.NoAssign
             self.SolveControl = SolveControl()
             self.ElementGroupHash: Dict[int, ElementGroup] = {}
+            self.identity_tensor = IdentityTensor()
 
             self.right_hand_item = RightHandItem()
             self.kinematics = Kinematics()
-            self.aux_variant = AuxVariant()
             self.global_k = GlobalK()
-            self.identity_tensor = IdentityTensor(GetDomainDimension())
 
             self._initialized = True
+
+    def SetDimensionVariant(self, dimension: int):
+        if dimension in [2, 3]:
+            self.identity_tensor.InitVariant(dimension)
+        else:
+            raise NoSupportDimension(dimension)

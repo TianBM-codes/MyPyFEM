@@ -5,6 +5,14 @@ import numpy as np
 
 
 class Kinematics(object):
+    _instance = None
+    _initialized = False
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(Kinematics, cls).__new__(cls)
+        return cls._instance
+
     def __init__(self):
         """
         DN_x: Spatial gradient of the shape functions.
@@ -16,18 +24,21 @@ class Kinematics(object):
         lambda: Principal stretches.
         n: Spatial principal directions.
         """
-        self.DN_Dx = None
-        self.Jx_chi = None
-        self.F = None
-        self.J = None
-        self.b = None
-        self.Ib = None
-        self.lambda_ = None
-        self.n = None
+        if not self._initialized:
+            self.DN_Dx = None
+            self.Jx_chi = None
+            self.F = None
+            self.J = None
+            self.b = None
+            self.Ib = None
+            self.lambda_ = None
+            self.n = None
 
-        self.ngauss = None
-        self.ndim = None
-        self.n_nodes_elem = None
+            self.ngauss = None
+            self.ndim = None
+            self.n_nodes_elem = None
+
+            self._initialized = True
 
     def Init(self, ndim, n_nodes_elem, ngauss):
         """
@@ -60,35 +71,35 @@ class Kinematics(object):
         Reference:
         Javier Bonet P236 公式(9.8)
         """
-        for ii in range(self.ngauss):
+        for igauss in range(self.ngauss):
             """
             Derivative of shape functions with respect to initial coordinates
             """
-            DX_Dchi = np.matmul(Xlocal, DN_Dchi)
-            DN_DX = np.matmul(DN_Dchi, np.linalg.inv(DX_Dchi))
+            DX_Dchi = np.matmul(Xlocal, DN_Dchi[:, :, igauss].T)
+            DN_DX = np.matmul(np.linalg.inv(DX_Dchi.T), DN_Dchi[:, :, igauss])
             """
             current coordinates
             """
-            Dx_Dchi = np.matmul(xlocal, DN_Dchi)
-            DN_Dx = np.matmul(DN_Dchi, np.linalg.inv(Dx_Dchi))
+            Dx_Dchi = np.matmul(xlocal, DN_Dchi[:, :, igauss].T)
+            DN_Dx = np.matmul(np.linalg.inv(Dx_Dchi.T),DN_Dchi[:, :, igauss])
             """
             Compute various strain measures
             """
-            F = np.matmul(xlocal, DN_DX)
+            F = np.matmul(xlocal, DN_DX.T)
             J = np.linalg.det(F)
             b = np.matmul(F, F.T)
             V, D = np.linalg.eig(b)
             """
             Storage of variables
             """
-            self.DN_Dx[:, :, ii] = DN_Dx
-            self.Jx_chi[ii] = np.abs(np.linalg.det(Dx_Dchi))
-            self.F[:, ii] = F
-            self.J[:, ii] = J
-            self.b[:, ii] = b
-            self.Ib[ii] = np.trace(b)
-            self.lambda_[:, ii] = np.sqrt(np.diag(D))
-            self.n[:, :, ii] = V
+            self.DN_Dx[:, :, igauss] = DN_Dx
+            self.Jx_chi[igauss] = np.abs(np.linalg.det(Dx_Dchi))
+            self.F[:, :, igauss] = F
+            self.J[igauss] = J
+            self.b[:,:, igauss] = b
+            self.Ib[igauss] = np.trace(b)
+            self.lambda_[:, igauss] = np.sqrt(np.diag(D))
+            self.n[:, :, igauss] = V
 
     def PrintVariables(self):
         print(f"F({self.F.shape}):\n", self.F)

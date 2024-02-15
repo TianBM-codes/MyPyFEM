@@ -12,13 +12,7 @@ import numpy as np
 Single instance mode, convenient for programming, Connect Database
 """
 nl_domain = NLDomain()
-PLAST = nl_domain.plastics
-KINEMATICS = nl_domain.kinematics
 dim = GlobalInfor[GlobalVariant.Dimension]
-AUX = nl_domain.aux_variant
-IDENTITY_TENSOR = nl_domain.identity_tensor
-T_int = nl_domain.right_hand_item.T_int
-RightHand = nl_domain.right_hand_item
 
 fem_db = NLFEMDataBase()
 MAT = fem_db.Material.Mat
@@ -27,17 +21,17 @@ CON = fem_db.SolveControl
 LOAD_CASE = fem_db.LoadCase
 
 
-def Levi_civita_contraction_vector(vector, dim):
-    if dim == 2:
+def Levi_civita_contraction_vector(vector, dim_p):
+    if dim_p == 2:
         matrix = np.array([[0, vector[2]], [-vector[2], 0]])
-    elif dim == 3:
+    elif dim_p == 3:
         matrix = np.array([
             [0, vector[2], -vector[1]],
             [-vector[2], 0, vector[0]],
             [vector[1], -vector[0], 0]
         ])
     else:
-        mlogger.fatal(f"Wrong Dim:{dim}")
+        mlogger.fatal(f"Wrong Dim:{dim_p}")
         sys.exit(7)
     return matrix
 

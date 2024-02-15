@@ -16,12 +16,12 @@ def ResidualAndStiffnessAssembly():
     """
     fem_db = NLFEMDataBase()
     global_k = fem_db.global_k
-    aux_variant = fem_db.aux_variant
     right_hand_item = fem_db.right_hand_item
     MESH = fem_db.Mesh
 
-    n_dofs_elem = aux_variant.n_dofs_elem
-    ngauss = aux_variant.ngauss
+    grp_ele_info = fem_db.ElementGroupHash[0].element_info
+    n_dofs_elem = grp_ele_info.n_dofs_elem
+    ngauss = grp_ele_info.ngauss
     ndim = GetDomainDimension()
     T_int = fem_db.right_hand_item.T_int
 
@@ -63,9 +63,9 @@ def ResidualAndStiffnessAssembly():
                 raise NoImplSuchMaterial(mat.GetName())
 
             # TODO 这里需要节点排好，对应关系另外存储，不要每次都查询dict, 只有在读取输入文件和写结果的时候初始化各种dict
-            xlocal = fem_db.Geom.x[node_ids, :]
-            x0local = fem_db.Geom.x0[node_ids, :]
-            Ve = fem_db.Geom.V_ele[node_ids, :]
+            xlocal = fem_db.Geom.x[:, node_ids]
+            x0local = fem_db.Geom.x0[:, node_ids]
+            Ve = fem_db.Geom.V_ele[ele_idx]
             from element_calculation.ElementForceAndStiffness import ElementForceAndStiffness
             T_internal, PLAST_element = ElementForceAndStiffness(xlocal, x0local, mat_id, Ve, ele, grp, ele_idx)
 
@@ -74,8 +74,8 @@ def ResidualAndStiffnessAssembly():
             Utility function for the assembly of element force vectors into the 
             global force vector. 
             """
-            global_dofs = MESH.dof_nodes[:, ele.node_ids]
-            T_int[global_dofs, 1] += T_internal
+            global_dofs = MESH.dof_nodes[:, ele.search_node_ids]
+            T_int[global_dofs.flatten()] = T_int[global_dofs.flatten()] + T_internal
 
             """
             Storage of updated value of the internal variables.

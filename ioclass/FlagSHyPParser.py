@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 import numpy as np
 from femdb.NLFEMDataBase import NLFEMDataBase
-from element.Node import Node
-from utils.CustomException import *
 from utils.GlobalEnum import *
-from femdb.ElementFactory import ElementFactory, GetAnalyseDimension
+from femdb.ElementFactory import ElementFactory, SetAnalyseDimension
 from femdb.ElementGroup import ElementGroup
 from femdb.Material import MaterialFactory
 from femdb.LoadCase import FlagSHyPPressLoad, FlagSHyPCLoad
@@ -14,13 +13,9 @@ from femdb.SolveControl import FlagSHyPSolveControl
 
 class FlagSHyPParser(object):
     """
-    读取FlagSHy的录入文件
     # TODO 这里需要节点排好，对应关系另外存储，不要每次都查询dict, 只有在读取输入文件和写结果的时候初始化各种dict
     """
-
     def __init__(self, input_path):
-        """
-        """
         self.fem_database = NLFEMDataBase()
         self.dat_path = input_path
         self.iter_line = None
@@ -42,30 +37,34 @@ class FlagSHyPParser(object):
             """
             fem_db.title = dat_file.readline()
             ele_type = dat_file.readline().strip()
-            fem_db.Dimension = GetAnalyseDimension(ele_type)
+            SetAnalyseDimension(ele_type)
+            dim = GetDomainDimension()
+            fem_db.SetDimensionVariant(dim)
             """
-            读取节点个数、节点坐标以及边界条件, 三维问题, 每个节点有xyz三个坐标
+            读取节点个数、节点坐标以及边界条件, 三维问题, 每个节点有xyz三个坐标, 节点重排序
             """
             fem_db.Geom.node_count = int(dat_file.readline())
-            fem_db.Mesh.n_dofs = fem_db.Dimension * fem_db.Geom.node_count
+            fem_db.Mesh.n_dofs = dim * fem_db.Geom.node_count
             fem_db.BC.icode = np.zeros(fem_db.Geom.node_count)
+            fem_db.Geom.x = np.zeros((GetDomainDimension(), fem_db.Geom.node_count), dtype=float)
+            fem_db.Geom.x0 = np.zeros((GetDomainDimension(), fem_db.Geom.node_count), dtype=float)
             for ii in range(fem_db.Geom.node_count):
                 node_line = dat_file.readline().strip().split()
                 nodeId = int(node_line[0])
-                node = Node(nodeId)
-                node.SetBoundaryWithFlagSHyPType(node_line[1])
+                fem_db.Geom.NdId2ListIdx[nodeId] = ii
+                fem_db.Geom.ListIdx2NdId[ii] = nodeId
                 fem_db.BC.icode[ii] = int(node_line[1])
+
                 if len(node_line) == 5:
-                    node.coord = np.asarray([node_line[2], node_line[3], node_line[4]], dtype=float)
-                    GlobalInfor[GlobalVariant.Dimension] = AnalyseDimension.ThreeDimension
+                    fem_db.Geom.x[:, ii] = [node_line[2], node_line[3], node_line[4]]
+                    fem_db.Geom.x0[:, ii] = [node_line[2], node_line[3], node_line[4]]
                 elif len(node_line) == 4:
-                    node.coord = np.asarray([node_line[2], node_line[3]], dtype=float)
-                    GlobalInfor[GlobalVariant.Dimension] = AnalyseDimension.TwoDimension
+                    fem_db.Geom.x0[:, ii] = [node_line[2], node_line[3]]
                 else:
                     raise InputTextFormat(node_line)
-                fem_db.Geom.AddNode(node, nodeId)
-            tmp = np.arange(1, fem_db.Dimension * fem_db.Geom.node_count + 1)
-            fem_db.Mesh.dof_nodes = tmp.reshape(fem_db.Dimension, -1)
+
+            tmp = np.arange(1, dim * fem_db.Geom.node_count + 1)
+            fem_db.Mesh.dof_nodes = tmp.reshape(dim, -1)
 
             """
             读取单元信息, 依次是单元编号、材料编号以及包含节点ID(connectivity)
@@ -74,13 +73,15 @@ class FlagSHyPParser(object):
             group = ElementGroup(ele_type)
             for ii in range(fem_db.Mesh.nelem):
                 ele, ele_node_count = ElementFactory.CreateElement(ele_type)
-                # ele.ngauss = ElementFactory.GetElementNGauss(ele_type)
                 ele_line = dat_file.readline().strip().split()
                 ele.id = int(ele_line[0])
                 ele.mat_id = int(ele_line[1])
-                ele.node_ids = np.asarray(ele_line[2:], dtype=float)
+                ele.node_ids = np.asarray(ele_line[2:], dtype=np.int32)
+                ele.search_node_ids = np.asarray([fem_db.Geom.NdId2ListIdx[nd]
+                                                  for nd in ele.node_ids], dtype=np.int32)
                 ele.e_type = ele_type
                 group.AppendElement(ele)
+
             """
             FlagSHyP只支持一种单元类型
             """

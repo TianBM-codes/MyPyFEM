@@ -214,8 +214,7 @@ def GetDomainDimension():
         return 3
     elif GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.TwoDimension:
         return 2
-    else:
-        raise NoSupportDimension(GlobalInfor[GlobalVariant.Dimension])
+    raise NoSupportDimension(GlobalInfor[GlobalVariant.Dimension])
 
 # 全局变量, 用于存储分析类型、导入文件类型等信息
 class GlobalVariant(Enum):

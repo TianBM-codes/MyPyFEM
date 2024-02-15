@@ -108,6 +108,11 @@ def HyperElasticPlasticInPrincipalEModulus(PLAST_element:PlasticDeformationState
                                 sum_ += muab_choice(lambda_a, lambda_b, sigma_a, sigma_b, J, mu) * \
                                         (T[i, alpha] * T[j, beta] * (
                                                 T[k, alpha] * T[l, beta] + T[k, beta] * T[l, alpha]))
-                    c[i, j, k, l] += sum_
+                    # c[i, j, k, l] += sum_
+                    try:
+                        c[i, j, k, l] += sum_
+                        print(f"c[{i},{j},{k},{l}] = {sum_}, type(sum_):{type(sum_)}")
+                    except ValueError as e:
+                        print(f"c[{i},{j},{k},{l}] = {sum_}, type(sum_):{type(sum_)}")
 
     return c

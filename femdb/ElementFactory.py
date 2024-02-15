@@ -18,16 +18,15 @@ from element.Hexa import *
 from utils.CustomException import *
 
 
-def GetAnalyseDimension(e_type):
+def SetAnalyseDimension(e_type):
     """
     获取分析的维度，是2D还是3D
     @return:
     """
-    if e_type in ["CPS4", ]:
-        return 1
-    elif e_type in ["S3"]:
-        return 2
-    return 3
+    if e_type in ["S3"]:
+        GlobalInfor[GlobalVariant.Dimension] = AnalyseDimension.TwoDimension
+
+    GlobalInfor[GlobalVariant.Dimension] = AnalyseDimension.ThreeDimension
 
 
 class ElementFactory:

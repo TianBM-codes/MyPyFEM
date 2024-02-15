@@ -3,23 +3,21 @@
 
 from femdb.NLFEMDataBase import NLFEMDataBase
 from utils.GlobalEnum import *
-from femdb.NLDomain import NLDomain
+from femdb.ElementGroup import ElementGroup
 import numpy as np
 from scipy.sparse import coo_matrix
 
 """
 Single instance mode, convenient for programming, Connect Database
 """
-nl_domain = NLDomain()
-PLAST = nl_domain.plastics
-KINEMATICS = nl_domain.kinematics
+fem_db = NLFEMDataBase()
+KINEMATICS = fem_db.kinematics
 dim = GlobalInfor[GlobalVariant.Dimension]
-element_indexi = nl_domain.global_k.indexi
-element_indexj = nl_domain.global_k.indexj
-GLOBAL_K = nl_domain.global_k
-AUX = nl_domain.aux_variant
-T_int = nl_domain.right_hand_item.T_int
-RightHand = nl_domain.right_hand_item
+element_indexi = fem_db.global_k.indexi
+element_indexj = fem_db.global_k.indexj
+GLOBAL_K = fem_db.global_k
+T_int = fem_db.right_hand_item.T_int
+RightHand = fem_db.right_hand_item
 
 fem_db = NLFEMDataBase()
 MAT = fem_db.Material.Mat
@@ -28,7 +26,7 @@ CON = fem_db.SolveControl
 LOAD_CASE = fem_db.LoadCase
 
 
-def PressureLoadAndStiffnessAssembly():
+def PressureLoadAndStiffnessAssembly(grp:ElementGroup):
     """
     Update nodal forces and stiffness matrix due to external pressure
     boundary face (line) contributions.
@@ -42,7 +40,7 @@ def PressureLoadAndStiffnessAssembly():
     Number of components of the vectors indexi, indexj and data.
     Initialise counter for storing sparse information into the tangent stiffness matrix.
     """
-    n_components = AUX.n_face_dofs_elem ** 2 * AUX.ngauss * LOAD_CASE.n_pressure_loads
+    n_components = grp.element_info.n_face_dofs_elem ** 2 * grp.quadrature.boundary_ngauss* LOAD_CASE.n_pressure_loads
     indexi = np.zeros(n_components)
     indexj = np.zeros(n_components)
     stiffness = np.zeros(n_components)

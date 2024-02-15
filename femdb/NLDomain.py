@@ -42,31 +42,21 @@ class NLDomain(object):
         Initialise external force vector contribution due to pressure
         (nominal value prior to load increment).
         
-        Welcomes the user and determines whether the problem is being
-        restarted or a data file is to be read. 
+        Determines whether the problem is being restarted or a data file is to be read. 
         Reads all necessary input data.
         Initialises kinematic variables and internal variables.
         Compute initial tangent matrix and equivalent force vector, excluding
         pressure component.
         """
-        self.fem_db.Geom.InitX()
         self.fem_db.right_hand_item.Init(self.fem_db.Mesh.n_dofs)
 
         """
         Initialisation of kinematics.
         """
-        if GlobalInfor[GlobalVariant.InputFileSuffix] == InputFileType.FlagSHyP:
-            for _, grp in self.fem_db.ElementGroupHash.items():
-                self.fem_db.aux_variant.ngauss = grp.element_info.ngauss
-                self.fem_db.aux_variant.n_dofs_elem = grp.element_info.n_dofs_elem
-                self.fem_db.aux_variant.n_nodes_element = grp.element_info.nodes_count
-                self.fem_db.aux_variant.n_face_dofs_elem = grp.element_info.n_face_dofs_elem
-                self.fem_db.aux_variant.boundary_ngauss = grp.quadrature.boundary_ngauss
-                break
-
+        grp_ele_info = self.fem_db.ElementGroupHash[0].element_info
         self.fem_db.kinematics.Init(GetDomainDimension(),
-                                    self.fem_db.aux_variant.n_nodes_element,
-                                    self.fem_db.aux_variant.ngauss
+                                    grp_ele_info.n_nodes_elem,
+                                    grp_ele_info.ngauss
                                     )
 
         """

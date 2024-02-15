@@ -33,7 +33,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         """
         self.id = eid
         self.id_key = None  # 用来重新排列后在map中的key值, self.id为value
-        self.node_ids = np.asarray([])  # Node list of the element
+        self.node_ids = np.asarray([], dtype=np.int32)  # Node list of the element
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
         self.vtp_type = None
@@ -258,9 +258,9 @@ class DNDrCalculator:
         self.DKTShell = None
         self.DKQShell = None
 
-    def GetElementDNDchi(self, ele_type):
-        if ele_type in ["hexa"]:
-            return self.C3D8
+    # def GetElementDNDchi(self, ele_type):
+    #     if ele_type in ["hexa"]:
+    #         return self.C3D8
 
 
-AllEleTypeDNDrAtGaussianPoint = DNDrCalculator()
+# AllEleTypeDNDrAtGaussianPoint = DNDrCalculator()
