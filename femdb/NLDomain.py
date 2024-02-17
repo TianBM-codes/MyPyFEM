@@ -22,7 +22,6 @@ class NLDomain(object):
     def initialisation(self):
         """
         初始化变量, 为求解做准备
-        TODO: 线性的也变成这样
         @return:
         """
         """

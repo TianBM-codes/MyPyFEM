@@ -81,7 +81,7 @@ class Kinematics(object):
             current coordinates
             """
             Dx_Dchi = np.matmul(xlocal, DN_Dchi[:, :, igauss].T)
-            DN_Dx = np.matmul(np.linalg.inv(Dx_Dchi.T),DN_Dchi[:, :, igauss])
+            DN_Dx = np.matmul(np.linalg.inv(Dx_Dchi.T), DN_Dchi[:, :, igauss])
             """
             Compute various strain measures
             """
@@ -96,7 +96,7 @@ class Kinematics(object):
             self.Jx_chi[igauss] = np.abs(np.linalg.det(Dx_Dchi))
             self.F[:, :, igauss] = F
             self.J[igauss] = J
-            self.b[:,:, igauss] = b
+            self.b[:, :, igauss] = b
             self.Ib[igauss] = np.trace(b)
             self.lambda_[:, igauss] = np.sqrt(np.diag(D))
             self.n[:, :, igauss] = V

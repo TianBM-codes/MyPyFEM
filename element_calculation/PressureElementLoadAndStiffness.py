@@ -1,18 +1,19 @@
 # !/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
 
+
+import sys
+import numpy as np
 from femdb.NLFEMDataBase import NLFEMDataBase
 from femdb.ElementGroup import ElementGroup
 from utils.GlobalEnum import *
 from femdb.NLDomain import NLDomain
-import numpy as np
 
 """
 Single instance mode, convenient for programming, Connect Database
 """
 nl_domain = NLDomain()
-dim = GlobalInfor[GlobalVariant.Dimension]
+dim = GetDomainDimension()
 
 fem_db = NLFEMDataBase()
 MAT = fem_db.Material.Mat
@@ -51,9 +52,8 @@ def PressureElementLoadAndStiffness(grp: ElementGroup, global_nodes,
             # For 2D elements, calculate the tangent vector and use it to compute the normal vector.
             dx_eta = np.dot(xlocal_boundary, DN_chi.T)
             dx_eta = np.append(dx_eta, 0)  # Append 0 to make it a 3D vector for cross product.
-            k = np.array([0, 0, 1])
-            normal_vector = np.cross(dx_eta, k)
-            normal_vector = normal_vector[:-1]  # Remove the last component to make it a 2D vector.
+            k = np.asarray([0, 0, 1])
+            normal_vector = np.cross(dx_eta, k)[:-1]  # Remove the last component to make it a 2D vector.
         elif dim == 3:
             # For 3D elements, directly calculate the normal vector using the cross product of two tangent vectors.
             dx_chi = np.dot(xlocal_boundary, DN_chi.T)

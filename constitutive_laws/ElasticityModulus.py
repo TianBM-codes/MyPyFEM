@@ -111,7 +111,7 @@ def HyperElasticPlasticInPrincipalEModulus(PLAST_element:PlasticDeformationState
                     # c[i, j, k, l] += sum_
                     try:
                         c[i, j, k, l] += sum_
-                        print(f"c[{i},{j},{k},{l}] = {sum_}, type(sum_):{type(sum_)}")
+                        # print(f"c[{i},{j},{k},{l}] = {sum_}, type(sum_):{type(sum_)}")
                     except ValueError as e:
                         print(f"c[{i},{j},{k},{l}] = {sum_}, type(sum_):{type(sum_)}")
 

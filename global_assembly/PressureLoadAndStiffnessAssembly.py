@@ -26,7 +26,7 @@ CON = fem_db.SolveControl
 LOAD_CASE = fem_db.LoadCase
 
 
-def PressureLoadAndStiffnessAssembly(grp:ElementGroup):
+def PressureLoadAndStiffnessAssembly(grp: ElementGroup):
     """
     Update nodal forces and stiffness matrix due to external pressure
     boundary face (line) contributions.
@@ -40,7 +40,7 @@ def PressureLoadAndStiffnessAssembly(grp:ElementGroup):
     Number of components of the vectors indexi, indexj and data.
     Initialise counter for storing sparse information into the tangent stiffness matrix.
     """
-    n_components = grp.element_info.n_face_dofs_elem ** 2 * grp.quadrature.boundary_ngauss* LOAD_CASE.n_pressure_loads
+    n_components = grp.element_info.n_face_dofs_elem ** 2 * grp.quadrature.boundary_ngauss * LOAD_CASE.n_pressure_loads
     indexi = np.zeros(n_components)
     indexj = np.zeros(n_components)
     stiffness = np.zeros(n_components)

@@ -22,7 +22,7 @@ class Interpolation:
         self.element_N = np.zeros((ele_info.n_nodes_elem, ele_info.ngauss))
         self.element_DN_chi = np.zeros((dim, ele_info.n_nodes_elem, ele_info.ngauss))
         self.boundary_N = np.zeros((ele_info.n_face_nodes_elem, ele_info.boundary_ngauss))
-        self.boundary_DN_chi = np.zeros((dim - 1, ele_info.n_face_dofs_elem, ele_info.boundary_ngauss))
+        self.boundary_DN_chi = np.zeros((dim - 1, ele_info.n_face_nodes_elem, ele_info.boundary_ngauss))
         self.quadrature = Quadrature(e_type)
         self.init_variant()
 
@@ -30,9 +30,9 @@ class Interpolation:
         for ii in range(self.ele_info.ngauss):
             N, DN_chi = shape_functions_library(self.quadrature.element_chi[ii], self.e_type)
             self.element_N[:, ii] = N
-            self.element_DN_chi[:, ii] = DN_chi
+            self.element_DN_chi[:, :, ii] = DN_chi
 
         for ii in range(self.ele_info.boundary_ngauss):
             N, DN_chi = shape_functions_library_boundary(self.quadrature.boundary_chi[ii], self.e_type)
             self.boundary_N[:, ii] = N
-            self.boundary_DN_chi[:, ii] = DN_chi
+            self.boundary_DN_chi[:, :, ii] = DN_chi
