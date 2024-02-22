@@ -6,7 +6,7 @@ from femdb.Material import Material
 from femdb.ElementGroup import *
 from femdb.Mesh import Mesh
 from femdb.Geom import Geom
-from typing import Dict
+from typing import Dict, Optional
 from femdb.Boundary import BoundaryBase
 from femdb.SolveControl import SolveControl
 from femdb.Kinematics import Kinematics
@@ -28,8 +28,8 @@ class IdentityTensor(object):
 
     def InitVariant(self, dimension):
         self.I = np.eye(dimension)
-        self.c1 = np.zeros((dimension, dimension, dimension, dimension))
-        self.c2 = np.zeros((dimension, dimension, dimension, dimension))
+        self.c1 = np.zeros((dimension, dimension, dimension, dimension), dtype=float)
+        self.c2 = np.zeros((dimension, dimension, dimension, dimension), dtype=float)
         for l in range(dimension):
             for k in range(dimension):
                 for j in range(dimension):
@@ -53,10 +53,10 @@ class AuxVariant(object):
 
 class GlobalK(object):
     def __init__(self):
-        self.indexi = None
-        self.indexj = None
+        self.indexi: Optional[np.ndarray] = None
+        self.indexj: Optional[np.ndarray] = None
         self.counter = None
-        self.stiffness = None
+        self.stiffness: np.array({}, dtype=float) = None
 
 
 class NLFEMDataBase(object):

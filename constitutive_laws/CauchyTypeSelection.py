@@ -6,6 +6,7 @@ from utils.GlobalEnum import *
 from femdb.Plasticity import *
 from femdb.Material import HyperElasticPlasticInPrincipal, MaterialBase
 from utils.CustomException import *
+from scipy import linalg
 import numpy as np
 
 """
@@ -23,10 +24,14 @@ def CauchyTypeSelection(PLAST_element: PlasticDeformationState, gauss_index: int
         raise NoImplSuchMaterialStress(mat.GetName())
 
 
-def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState, igauss: int, mat:MaterialBase):
+def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState, igauss: int, mat: MaterialBase):
     """
     Box 7.1 Algorithm for Rate-Independent Von Mises Plasticity with Isotropic Hardening
+    Reference:
+    1. scipy.linalg.eig return complex:
+        https://stackoverflow.com/questions/8765310/scipy-linalg-eig-return-complex-eigenvalues-for-covariance-matrix
     """
+    # TODO: prove invCp is symmetric
     dim = GetDomainDimension()
 
     PLAST_gauss = PlasticityGauss()
@@ -38,15 +43,15 @@ def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState,
     """
     Trial stage
     """
-    be_trial = np.matmul(kinematics.F[:,:,igauss],
-                         np.matmul(invCp, kinematics.F[:,:,igauss].T))
-    D, V = np.linalg.eig(be_trial)
+    be_trial = np.matmul(kinematics.F[:, :, igauss],
+                         np.matmul(invCp, kinematics.F[:, :, igauss].T))
+    D, V = linalg.eigh(be_trial)
     lambdae_trial = np.sqrt(D)
     na_trial = V
     mu = mat.value_dict[MaterialKey.Niu]
     tauaa_trial = (2 * mu) * np.log(lambdae_trial) - \
-                  (2 * mu / 3) * np.log(np.linalg.det(kinematics.F[:,:,igauss]))
-    tau_trial = np.zeros(dim)
+                  (2 * mu / 3) * np.log(np.linalg.det(kinematics.F[:, :, igauss]))
+    tau_trial = np.zeros(dim, dtype=float)
     for ii in range(dim):
         tau_trial = tau_trial + tauaa_trial[ii] * np.outer(na_trial[:, ii], na_trial[:, ii])
 
@@ -71,8 +76,8 @@ def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState,
         norm_tauaa_trial = np.linalg.norm(tauaa_trial, 'fro')  # 计算 tauaa_trial 的 Frobenius 范数
         lambdae = np.exp(np.log(lambdae_trial) - Dgamma * nu_a)
         tauaa = (1 - 2 * mu * Dgamma / (np.sqrt(2 / 3) * norm_tauaa_trial)) * tauaa_trial
-        tau = np.zeros((dim, dim))
-        be = np.zeros((dim, dim))
+        tau = np.zeros((dim, dim), dtype=float)
+        be = np.zeros((dim, dim), dtype=float)
         for ii in range(dim):
             tau += tauaa[ii] * np.outer(na_trial[:dim, ii], na_trial[:dim, ii])
             be += lambdae[ii] ** 2 * np.outer(na_trial[:dim, ii], na_trial[:dim, ii])
@@ -81,19 +86,19 @@ def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState,
         tau = tau_trial[:dim, :dim]
         tauaa = tauaa_trial[:dim]
         Dgamma = 0
-        nu_a = np.zeros(dim)
+        nu_a = np.zeros(dim, dtype=float)
         be = be_trial[:dim, :dim]
 
     """
     Obtain the Cauchy stress tensor
     """
-    PLAST_gauss.stress.Cauchy = tau / kinematics.J[igauss]
-    PLAST_gauss.stress.Cauchyaa = tauaa / kinematics.J[igauss]
+    PLAST_gauss.stress.Cauchy = np.asarray(tau / kinematics.J[igauss], dtype=float)
+    PLAST_gauss.stress.Cauchyaa = np.asarray(tauaa / kinematics.J[igauss], dtype=float)
 
     """
     Update plasticity variables. 
     """
-    invF = np.linalg.inv(kinematics.F[:,:,igauss])
+    invF = np.linalg.inv(kinematics.F[:, :, igauss])
     PLAST_gauss.update.invCp = np.dot(invF, np.dot(be, invF.T))
     PLAST_gauss.update.epbar = epbar + Dgamma
 
@@ -115,7 +120,7 @@ def HyperElasticPlasticInPrincipalStress(PLAST_element: PlasticDeformationState,
     Update the value of the internal variables at a Gauss point 
     (not for trusses).
     """
-    PLAST_element.invCp[:,:,igauss] = PLAST_gauss.update.invCp
+    PLAST_element.invCp[:, :, igauss] = PLAST_gauss.update.invCp
     PLAST_element.epbar[igauss] = PLAST_gauss.update.epbar
 
     return PLAST_gauss.stress.Cauchy, PLAST_gauss

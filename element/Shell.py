@@ -83,7 +83,7 @@ class DKTShell(ElementBaseClass, ABC):
 
         self.K = k_mtx_m_g + k_mtx_p_g
 
-        global_t_matrix = np.zeros((18, 18))
+        global_t_matrix = np.zeros((18, 18), dtype=float)
         global_t_matrix[0:3, 0:3] = T_matrix
         global_t_matrix[3:6, 3:6] = T_matrix
         global_t_matrix[6:9, 6:9] = T_matrix
@@ -108,7 +108,7 @@ class DKQShell(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 4 nodes
         self._vtp_type = "quad"
-        self.K = np.zeros((24, 24))
+        self.K = np.zeros((24, 24), dtype=float)
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
 
@@ -192,7 +192,7 @@ class DKQShell(ElementBaseClass, ABC):
         # except np.linalg.LinAlgError:
         #     print("mem ", self.id)
         #
-        global_t_matrix = np.zeros((24, 24))
+        global_t_matrix = np.zeros((24, 24), dtype=float)
         global_t_matrix[0:3, 0:3] = T_matrix
         global_t_matrix[3:6, 3:6] = T_matrix
         global_t_matrix[6:9, 6:9] = T_matrix

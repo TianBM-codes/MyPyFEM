@@ -39,7 +39,7 @@ def Levi_civita_contraction_vector(vector, dim_p):
 
 def PressureElementLoadAndStiffness(grp: ElementGroup, global_nodes,
                                     ele_indexi, ele_indexj, ele_stiffness, counter):
-    R_pressure = np.zeros((grp.element_info.n_face_dofs_elem, 1))
+    R_pressure = np.zeros((grp.element_info.n_face_dofs_elem, 1), dtype=float)
     for ii in range(grp.quadrature.boundary_ngauss):
         N = grp.interpolation.boundary_N[:, ii]
         DN_chi = grp.interpolation.boundary_DN_chi[:, :, ii]

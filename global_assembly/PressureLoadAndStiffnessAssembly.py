@@ -31,9 +31,9 @@ def PressureLoadAndStiffnessAssembly(grp: ElementGroup):
     Update nodal forces and stiffness matrix due to external pressure
     boundary face (line) contributions.
     """
-    RightHand.nominal_press = np.zeros((MESH.n_dofs, 1))
-    RightHand.R_pressure = np.zeros((MESH.n_dofs, 1))
-    RightHand.K_pressure = coo_matrix((MESH.n_dofs, MESH.n_dofs))
+    RightHand.nominal_press = np.zeros((MESH.n_dofs, 1), dtype=float)
+    RightHand.R_pressure = np.zeros((MESH.n_dofs, 1), dtype=float)
+    RightHand.K_pressure = coo_matrix((MESH.n_dofs, MESH.n_dofs), dtype=float)
 
     """
     Pre-allocation of memory for subsequent sparse assembly.
@@ -41,10 +41,10 @@ def PressureLoadAndStiffnessAssembly(grp: ElementGroup):
     Initialise counter for storing sparse information into the tangent stiffness matrix.
     """
     n_components = grp.element_info.n_face_dofs_elem ** 2 * grp.quadrature.boundary_ngauss * LOAD_CASE.n_pressure_loads
-    indexi = np.zeros(n_components)
-    indexj = np.zeros(n_components)
-    stiffness = np.zeros(n_components)
-    counter = 1
+    indexi = np.zeros(n_components, dtype=np.uint32)
+    indexj = np.zeros(n_components, dtype=np.uint32)
+    stiffness = np.zeros(n_components, dtype=float)
+    counter = 0
 
     """
     Loop over all boundary (pressure load) elements.

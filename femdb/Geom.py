@@ -27,7 +27,7 @@ class Geom(object):
         """
         from femdb.NLFEMDataBase import NLFEMDataBase
         fem_db = NLFEMDataBase()
-        self.V_ele = np.zeros((fem_db.Mesh.nelem, 1))
+        self.V_ele = np.zeros((fem_db.Mesh.nelem, 1), dtype=float)
         self.V_total = 0
         for _, ele_grp in fem_db.ElementGroupHash.items():
             eles = ele_grp.eles

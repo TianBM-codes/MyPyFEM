@@ -45,7 +45,7 @@ class FlagSHyPParser(object):
             """
             fem_db.Geom.node_count = int(dat_file.readline())
             fem_db.Mesh.n_dofs = dim * fem_db.Geom.node_count
-            fem_db.BC.icode = np.zeros(fem_db.Geom.node_count)
+            fem_db.BC.icode = np.zeros(fem_db.Geom.node_count, dtype=np.uint8)
             fem_db.Geom.x = np.zeros((GetDomainDimension(), fem_db.Geom.node_count), dtype=float)
             fem_db.Geom.x0 = np.zeros((GetDomainDimension(), fem_db.Geom.node_count), dtype=float)
             for ii in range(fem_db.Geom.node_count):
@@ -63,8 +63,8 @@ class FlagSHyPParser(object):
                 else:
                     raise InputTextFormat(node_line)
 
-            tmp = np.arange(1, dim * fem_db.Geom.node_count + 1)
-            fem_db.Mesh.dof_nodes = tmp.reshape(dim, -1)
+            tmp = np.arange(dim * fem_db.Geom.node_count)
+            fem_db.Mesh.dof_nodes = tmp.reshape((dim,fem_db.Geom.node_count), order='F')
 
             """
             读取单元信息, 依次是单元编号、材料编号以及包含节点ID(connectivity)
@@ -76,10 +76,11 @@ class FlagSHyPParser(object):
                 ele_line = dat_file.readline().strip().split()
                 ele.id = int(ele_line[0])
                 ele.mat_id = int(ele_line[1])
-                ele.node_ids = np.asarray(ele_line[2:], dtype=np.int32)
+                ele.node_ids = np.asarray(ele_line[2:], dtype=np.uint32)
                 ele.search_node_ids = np.asarray([fem_db.Geom.NdId2ListIdx[nd]
-                                                  for nd in ele.node_ids], dtype=np.int32)
+                                                  for nd in ele.node_ids], dtype=np.uint32)
                 ele.e_type = ele_type
+                ele.search_ele_idx = ii
                 group.AppendElement(ele)
 
             """

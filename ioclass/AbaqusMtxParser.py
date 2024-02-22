@@ -31,7 +31,7 @@ def mtx2mat(mtx_path: str, debug: bool = True):
         print(f"Total number of nodes = {node_count}")
         print(f"Total number of DOFs = {total_dof_count}")
 
-    matrix = np.zeros([total_dof_count, total_dof_count])
+    matrix = np.zeros([total_dof_count, total_dof_count], dtype=float)
     for mtx_row in mtx_data:
         mat_row = int(dof_per_node_count * (mtx_row[0] - 1) + (mtx_row[1] - 1))
         mat_col = int(dof_per_node_count * (mtx_row[2] - 1) + (mtx_row[3] - 1))

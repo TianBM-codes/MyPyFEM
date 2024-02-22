@@ -240,8 +240,8 @@ class RightHandItem(object):
         self.reactions = None
 
     def Init(self, n_dof):
-        self.nominal_external_load = np.zeros((n_dof, 1))
-        self.residual = np.zeros((n_dof, 1))
-        self.external_load = np.zeros((n_dof, 1))
-        self.nominal_press = np.zeros((n_dof, 1))
-        self.T_int = np.zeros((n_dof, 1))
+        self.nominal_external_load = np.zeros((n_dof, 1), dtype=float)
+        self.residual = np.zeros((n_dof, 1), dtype=float)
+        self.external_load = np.zeros((n_dof, 1), dtype=float)
+        self.nominal_press = np.zeros((n_dof, 1), dtype=float)
+        self.T_int = np.zeros((n_dof, 1), dtype=float)

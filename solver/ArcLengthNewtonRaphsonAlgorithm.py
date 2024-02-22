@@ -65,11 +65,11 @@ def arclen(displ, dispf):
 
     # For the first iteration set up
     if CON.Arclen.xincr is None:
-        CON.Arclen.xincr = np.zeros(displ.shape)
+        CON.Arclen.xincr = np.zeros(displ.shape, dtype=float)
     ufdx = np.dot(dispf.T, CON.Arclen.xincr)
     if CON.niter == 1:
-        CON.Arclen.xincr = np.zeros(displ.shape)
-        displ = np.zeros(displ.shape)
+        CON.Arclen.xincr = np.zeros(displ.shape, dtype=float)
+        displ = np.zeros(displ.shape, dtype=float)
     else:
         urdx = np.dot(displ.T, CON.Arclen.xincr)
         dxdx = np.dot(CON.Arclen.xincr.T, CON.Arclen.xincr)

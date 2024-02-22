@@ -52,11 +52,12 @@ class NLDomain(object):
         """
         Initialisation of kinematics.
         """
-        grp_ele_info = self.fem_db.ElementGroupHash[0].element_info
-        self.fem_db.kinematics.Init(GetDomainDimension(),
-                                    grp_ele_info.n_nodes_elem,
-                                    grp_ele_info.ngauss
-                                    )
+        for _, grp in self.fem_db.ElementGroupHash.items():
+            grp_ele_info = grp.element_info
+            self.fem_db.kinematics.Init(GetDomainDimension(),
+                                        grp_ele_info.n_nodes_elem,
+                                        grp_ele_info.ngauss
+                                        )
 
         """
         Calculate initial volume for data checking. 
@@ -70,7 +71,8 @@ class NLDomain(object):
         (external contributions will be added later on). 
         """
         from global_assembly.ResidualAndStiffnessAssembly import ResidualAndStiffnessAssembly
-        ResidualAndStiffnessAssembly()
+        for _, grp in self.fem_db.ElementGroupHash.items():
+            ResidualAndStiffnessAssembly(grp)
 
     def ChooseIncrementalAlgorithm(self):
         from solver.NewtonRaphsonAlgorithm import NewtonRaphsonAlgorithm

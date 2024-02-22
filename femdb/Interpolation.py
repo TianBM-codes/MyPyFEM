@@ -19,10 +19,10 @@ class Interpolation:
         dim = GetDomainDimension()
         self.ele_info = ele_info
         self.e_type = e_type
-        self.element_N = np.zeros((ele_info.n_nodes_elem, ele_info.ngauss))
-        self.element_DN_chi = np.zeros((dim, ele_info.n_nodes_elem, ele_info.ngauss))
-        self.boundary_N = np.zeros((ele_info.n_face_nodes_elem, ele_info.boundary_ngauss))
-        self.boundary_DN_chi = np.zeros((dim - 1, ele_info.n_face_nodes_elem, ele_info.boundary_ngauss))
+        self.element_N = np.zeros((ele_info.n_nodes_elem, ele_info.ngauss), dtype=float)
+        self.element_DN_chi = np.zeros((dim, ele_info.n_nodes_elem, ele_info.ngauss), dtype=float)
+        self.boundary_N = np.zeros((ele_info.n_face_nodes_elem, ele_info.boundary_ngauss), dtype=float)
+        self.boundary_DN_chi = np.zeros((dim - 1, ele_info.n_face_nodes_elem, ele_info.boundary_ngauss), dtype=float)
         self.quadrature = Quadrature(e_type)
         self.init_variant()
 

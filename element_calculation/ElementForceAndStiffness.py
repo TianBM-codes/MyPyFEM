@@ -15,9 +15,10 @@ Single instance mode, convenient for programming, Connect Database
 fem_db = NLFEMDataBase()
 KINEMATICS = fem_db.kinematics
 dim = GetDomainDimension()
-element_indexi = fem_db.global_k.indexi
-element_indexj = fem_db.global_k.indexj
-element_stiffness = fem_db.global_k.stiffness
+global_k = fem_db.global_k
+element_indexi = global_k.indexi
+element_indexj = global_k.indexj
+element_stiffness = global_k.stiffness
 IDENTITY_TENSOR = fem_db.identity_tensor
 MESH = fem_db.Mesh
 
@@ -33,7 +34,7 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
     @return:
     """
     grp_ele_info = grp.element_info
-    T_internal = np.zeros((grp_ele_info.n_dofs_elem, 1))
+    T_internal = np.zeros((grp_ele_info.n_dofs_elem, 1), dtype=float)
     KINEMATICS.ComputeGradients(xlocal, Xlocal, grp.interpolation.element_DN_chi)
     mat = fem_db.Material.Mat[mat_id]
 
@@ -41,17 +42,17 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
     Computes element mean dilatation kinematics, pressure and bulk modulus.
     """
     if isinstance(mat, HyperElasticPlasticInPrincipal):
-        DN_x_mean = np.zeros((GetDomainDimension(), grp_ele_info.n_nodes_elem))
+        DN_x_mean = np.zeros((GetDomainDimension(), grp_ele_info.n_nodes_elem), dtype=float)
         ve = 0
-        for ii in range(grp_ele_info.ngauss):
+        for igauss in range(grp_ele_info.ngauss):
             """
             Gauss contribution to the elemental deformed volume.
             Elemental averaged shape functions.
             """
-            JW = KINEMATICS.Jx_chi[ii] * grp.quadrature.element_w[ii]
+            JW = KINEMATICS.Jx_chi[igauss] * grp.quadrature.element_w[igauss]
             ve += JW
-            DN_x_mean += grp.interpolation.element_DN_chi[:, :, ii] * JW
-        DN_x_mean = DN_x_mean / ve
+            DN_x_mean += KINEMATICS.DN_Dx[:, :, igauss] * JW
+        DN_x_mean /= ve
         Jbar = ve / Ve
 
         """
@@ -104,7 +105,7 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
         Compute equivalent (internal) force vector.
         """
         T = np.matmul(Cauchy, KINEMATICS.DN_Dx[:, :, igauss])
-        T_internal += T.T.reshape(T.size, 1)
+        T_internal += T.reshape((T.size, 1), order='F') * JW
 
         """
         Compute contribution (and extract relevant information for subsequent
@@ -126,28 +127,26 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
     Compute contribution (and extract relevant information for subsequent
     assembly) of the mean dilatation term (Kk) of the stiffness matrix.
     """
-    counter = fem_db.global_k.counter
     if isinstance(mat, HyperElasticPlasticInPrincipal):
         for bnode in range(grp_ele_info.n_nodes_elem):
             for anode in range(grp_ele_info.n_nodes_elem):
                 DN_x_meana_DN_x_meanb = np.outer(DN_x_mean[:, anode], DN_x_mean[:, bnode])
 
-                indexi = MESH.dof_nodes[:, ele.node_ids[anode] - 1]
-                indexi = np.tile(indexi, (1, dim))
+                indexi = MESH.dof_nodes[:, ele.search_node_ids[anode]]
+                indexi = np.tile(indexi, (dim, 1))
 
-                indexj = MESH.dof_nodes[:, ele.node_ids[bnode] - 1]
-                indexj = np.tile(indexj, (1, dim))
-                indexj = indexj.T
+                indexj = MESH.dof_nodes[:, ele.search_node_ids[bnode]]
+                indexj = np.tile(indexj, (dim, 1))
 
                 # Index for row identification.
-                element_indexi[counter:counter + dim ** 2, 0] = indexi.flatten()
+                element_indexi[global_k.counter:global_k.counter + dim ** 2] = indexi.flatten('F')
 
                 # Index for column identification.
-                element_indexj[counter:counter + dim ** 2, 0] = indexj.flatten()
+                element_indexj[global_k.counter:global_k.counter + dim ** 2] = indexj.flatten()
 
                 # Mean dilatation stiffness matrix contribution.
-                element_stiffness[counter:counter + dim ** 2, 0] = kappa_bar * ve * DN_x_meana_DN_x_meanb.flatten()
+                element_stiffness[global_k.counter:global_k.counter + dim ** 2] = kappa_bar * ve * DN_x_meana_DN_x_meanb.flatten('F')
 
-                counter += dim ** 2
+                global_k.counter += dim ** 2
 
     return T_internal, PLAST_element

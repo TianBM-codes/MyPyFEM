@@ -46,10 +46,10 @@ def ElasticityModulusSelection(PLAST_element: PlasticDeformationState,
         raise NoImplSuchElasticityModulus(mat.GetName())
 
 
-def HyperElasticPlasticInPrincipalEModulus(PLAST_element:PlasticDeformationState,
-                                           PLAST_gauss:PlasticityGauss,
-                                           igauss:int,
-                                           mat_id:int):
+def HyperElasticPlasticInPrincipalEModulus(PLAST_element: PlasticDeformationState,
+                                           PLAST_gauss: PlasticityGauss,
+                                           igauss: int,
+                                           mat_id: int):
     """
     P212 BOX 7.2: Tangent Modulus
     """
@@ -57,7 +57,7 @@ def HyperElasticPlasticInPrincipalEModulus(PLAST_element:PlasticDeformationState
     H = MAT[mat_id].value_dict[MaterialKey.Harden]
     J = fem_db.kinematics.J[igauss]
 
-    PLAST_gauss.old.invCp = PLAST_element.invCp[:,:,igauss]
+    PLAST_gauss.old.invCp = PLAST_element.invCp[:, :, igauss]
     PLAST_gauss.old.epbar = PLAST_element.epbar[igauss]
 
     lambdae_trial = PLAST_gauss.trial.lambdae
@@ -88,7 +88,11 @@ def HyperElasticPlasticInPrincipalEModulus(PLAST_element:PlasticDeformationState
     else:
         c_alphabeta = 2 * mu * np.eye(dim) - 2 / 3 * mu * np.ones((dim, dim))
 
-    c = np.zeros((dim, dim, dim, dim))
+    c = np.zeros((dim, dim, dim, dim), dtype=float)
+
+    # T = np.asarray([[0.538280250409507, 0.648466455599791, -0.538280250409507],
+    #                 [0.458535028126617, -0.761243230486711, -0.458535028126617],
+    #                 [0.707106781186548, 0, 0.707106781186548]], dtype=float)
 
     for l in range(dim):
         for k in range(dim):
@@ -108,11 +112,11 @@ def HyperElasticPlasticInPrincipalEModulus(PLAST_element:PlasticDeformationState
                                 sum_ += muab_choice(lambda_a, lambda_b, sigma_a, sigma_b, J, mu) * \
                                         (T[i, alpha] * T[j, beta] * (
                                                 T[k, alpha] * T[l, beta] + T[k, beta] * T[l, alpha]))
-                    # c[i, j, k, l] += sum_
-                    try:
-                        c[i, j, k, l] += sum_
-                        # print(f"c[{i},{j},{k},{l}] = {sum_}, type(sum_):{type(sum_)}")
-                    except ValueError as e:
-                        print(f"c[{i},{j},{k},{l}] = {sum_}, type(sum_):{type(sum_)}")
+                    # try: if abs(sum_.imag) > 1e13:
+                    c[i, j, k, l] += sum_
+                    # if isinstance(sum_, complex):
+                    #     c[i, j, k, l] += sum_.real
+                    # else:
+                    #     c[i, j, k, l] += sum_
 
     return c

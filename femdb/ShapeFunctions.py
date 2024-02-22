@@ -20,14 +20,16 @@ def shape_functions_library(Chi, e_type):
                            [-1, 0, 1]])
 
     elif e_type == 'tria6':
-        N_ = [(chi + eta - 0.5) * (2 * chi + 2 * eta - 2), -4 * chi * (chi + eta - 1), 2 * chi * (chi - 0.5), -4 * eta * (chi + eta - 1), 4 * chi * eta, 2 * eta * (eta - 0.5)]
+        N_ = [(chi + eta - 0.5) * (2 * chi + 2 * eta - 2), -4 * chi * (chi + eta - 1), 2 * chi * (chi - 0.5),
+              -4 * eta * (chi + eta - 1), 4 * chi * eta, 2 * eta * (eta - 0.5)]
         DN_chi_ = np.array([[4 * chi + 4 * eta - 3, 4 - 4 * eta - 8 * chi, 4 * chi - 1, -4 * eta, 4 * eta, 0],
                             [4 * chi + 4 * eta - 3, -4 * chi, 0, 4 - 8 * eta - 4 * chi, 4 * chi, 4 * eta - 1]])
         N = [N_[i] for i in [0, 1, 2, 4, 5, 3]]
         DN_chi = DN_chi_[:, [0, 1, 2, 4, 5, 3]]
 
     elif e_type == 'quad4':
-        N_ = [((chi - 1) * (eta - 1)) / 4, -((chi + 1) * (eta - 1)) / 4, ((chi + 1) * (eta + 1)) / 4, -((chi - 1) * (eta + 1)) / 4]
+        N_ = [((chi - 1) * (eta - 1)) / 4, -((chi + 1) * (eta - 1)) / 4, ((chi + 1) * (eta + 1)) / 4,
+              -((chi - 1) * (eta + 1)) / 4]
         DN_chi_ = np.array([[eta / 4 - 0.25, 0.25 - eta / 4, -eta / 4 - 0.25, eta / 4 + 0.25],
                             [chi / 4 - 0.25, -chi / 4 - 0.25, chi / 4 + 0.25, 0.25 - chi / 4]])
         N = [N_[i] for i in [0, 1, 3, 2]]
@@ -67,12 +69,18 @@ def shape_functions_library(Chi, e_type):
 
         # Derivatives of the shape functions
         DN_chi_ = np.array([
-            [-(eta - 1) * (iota - 1) / 8, (eta - 1) * (iota - 1) / 8, (eta + 1) * (iota - 1) / 8, -(eta + 1) * (iota - 1) / 8,
-             (eta - 1) * (iota + 1) / 8, -(eta - 1) * (iota + 1) / 8, -(eta + 1) * (iota + 1) / 8, (eta + 1) * (iota + 1) / 8],
-            [-(chi - 1) * (iota - 1) / 8, (chi + 1) * (iota - 1) / 8, (chi - 1) * (iota - 1) / 8, -(chi + 1) * (iota - 1) / 8,
-             (chi - 1) * (iota + 1) / 8, -(chi + 1) * (iota + 1) / 8, -(chi - 1) * (iota + 1) / 8, (chi + 1) * (iota + 1) / 8],
-            [-(chi - 1) * (eta - 1) / 8, (chi + 1) * (eta - 1) / 8, (chi - 1) * (eta + 1) / 8, -(chi + 1) * (eta + 1) / 8,
-             (chi - 1) * (eta - 1) / 8, -(chi + 1) * (eta - 1) / 8, -(chi - 1) * (eta + 1) / 8, (chi + 1) * (eta + 1) / 8]
+            [-(eta - 1) * (iota - 1) / 8, (eta - 1) * (iota - 1) / 8, (eta + 1) * (iota - 1) / 8,
+             -(eta + 1) * (iota - 1) / 8,
+             (eta - 1) * (iota + 1) / 8, -(eta - 1) * (iota + 1) / 8, -(eta + 1) * (iota + 1) / 8,
+             (eta + 1) * (iota + 1) / 8],
+            [-(chi - 1) * (iota - 1) / 8, (chi + 1) * (iota - 1) / 8, (chi - 1) * (iota - 1) / 8,
+             -(chi + 1) * (iota - 1) / 8,
+             (chi - 1) * (iota + 1) / 8, -(chi + 1) * (iota + 1) / 8, -(chi - 1) * (iota + 1) / 8,
+             (chi + 1) * (iota + 1) / 8],
+            [-(chi - 1) * (eta - 1) / 8, (chi + 1) * (eta - 1) / 8, (chi - 1) * (eta + 1) / 8,
+             -(chi + 1) * (eta + 1) / 8,
+             (chi - 1) * (eta - 1) / 8, -(chi + 1) * (eta - 1) / 8, -(chi - 1) * (eta + 1) / 8,
+             (chi + 1) * (eta + 1) / 8]
         ])
 
         N = N_[[0, 1, 3, 2, 4, 5, 7, 6]]

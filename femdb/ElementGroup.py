@@ -180,6 +180,6 @@ class ElementGroup:
         Global Plasticity
         """
         self.global_plasticity.epbar = np.zeros((self.element_info.ngauss,
-                                                 len(self.eles)))
+                                                 len(self.eles)), dtype=float)
         self.global_plasticity.invCp = np.reshape(np.repeat(np.eye(GetDomainDimension()), self.element_info.ngauss * len(self.eles)),
                                                   (GetDomainDimension(), GetDomainDimension(), self.element_info.ngauss, len(self.eles)))

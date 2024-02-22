@@ -47,14 +47,14 @@ class Kinematics(object):
         @param ngauss: number of gaussian integration
         @return:
         """
-        self.DN_Dx = np.zeros((ndim, n_nodes_elem, ngauss))
-        self.Jx_chi = np.zeros((ngauss, 1))
-        self.F = np.zeros((ndim, ndim, ngauss))
-        self.J = np.zeros((ngauss, 1))
-        self.b = np.zeros((ndim, ndim, ngauss))
-        self.Ib = np.zeros((ngauss, 1))
-        self.lambda_ = np.zeros((ndim, ngauss))
-        self.n = np.zeros((ndim, ndim, ngauss))
+        self.DN_Dx = np.zeros((ndim, n_nodes_elem, ngauss), dtype=float)
+        self.Jx_chi = np.zeros((ngauss, 1), dtype=float)
+        self.F = np.zeros((ndim, ndim, ngauss), dtype=float)
+        self.J = np.zeros((ngauss, 1), dtype=float)
+        self.b = np.zeros((ndim, ndim, ngauss), dtype=float)
+        self.Ib = np.zeros((ngauss, 1), dtype=float)
+        self.lambda_ = np.zeros((ndim, ngauss), dtype=float)
+        self.n = np.zeros((ndim, ndim, ngauss), dtype=float)
         self.ngauss = ngauss
         self.ndim = ndim
         self.n_nodes_elem = n_nodes_elem
@@ -77,18 +77,22 @@ class Kinematics(object):
             """
             DX_Dchi = np.matmul(Xlocal, DN_Dchi[:, :, igauss].T)
             DN_DX = np.matmul(np.linalg.inv(DX_Dchi.T), DN_Dchi[:, :, igauss])
+
             """
             current coordinates
             """
             Dx_Dchi = np.matmul(xlocal, DN_Dchi[:, :, igauss].T)
             DN_Dx = np.matmul(np.linalg.inv(Dx_Dchi.T), DN_Dchi[:, :, igauss])
+
             """
-            Compute various strain measures
+            Compute various strain measures,  Return the eigenvalues and eigenvectors of a 
+            complex Hermitian (conjugate symmetric) or a real symmetric matrix.
             """
             F = np.matmul(xlocal, DN_DX.T)
             J = np.linalg.det(F)
             b = np.matmul(F, F.T)
-            V, D = np.linalg.eig(b)
+            V, D = np.linalg.eigh(b)
+
             """
             Storage of variables
             """
@@ -98,8 +102,8 @@ class Kinematics(object):
             self.J[igauss] = J
             self.b[:, :, igauss] = b
             self.Ib[igauss] = np.trace(b)
-            self.lambda_[:, igauss] = np.sqrt(np.diag(D))
-            self.n[:, :, igauss] = V
+            self.lambda_[:, igauss] = np.sqrt(V)
+            self.n[:, :, igauss] = D
 
     def PrintVariables(self):
         print(f"F({self.F.shape}):\n", self.F)

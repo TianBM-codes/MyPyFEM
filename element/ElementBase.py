@@ -32,8 +32,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         必须要实例的成员, 因为都是流程必备的变量
         """
         self.id = eid
-        self.id_key = None  # 用来重新排列后在map中的key值, self.id为value
-        self.node_ids = np.asarray([], dtype=np.int32)  # Node list of the element
+        self.search_ele_idx = None  # 用来重新排列后在map中的key值, self.id为value
+        self.node_ids = np.asarray([], dtype=np.uint32)  # Node list of the element
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
         self.vtp_type = None
@@ -155,7 +155,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
 def CalculateC3D8():
     """
     Reference:
-    1. B Bar method: <<The Finite Element Method Linear Static and Dynamic Finite Element Analysis(Thomas J.R.Hughes)>> P232
+    1. B Bar method: <<The Finite Element Method Linear Static and Dynamic Finite Element Analysis(Thomas J.R.Hughes)>>
+     P232
     2. <<有限元法>> Bath P323
 
     注意节点编号规则(逆时针,右手螺旋向z正向), 即参数坐标对应具体哪个真实节点
@@ -261,6 +262,5 @@ class DNDrCalculator:
     # def GetElementDNDchi(self, ele_type):
     #     if ele_type in ["hexa"]:
     #         return self.C3D8
-
 
 # AllEleTypeDNDrAtGaussianPoint = DNDrCalculator()
