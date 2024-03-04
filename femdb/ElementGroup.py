@@ -43,12 +43,16 @@ def GetElementNodeDofCount(e_type):
 def GetElementNGauss(e_type):
     if e_type in ["hexa8"]:
         return 8
+    if e_type in ["truss2"]:
+        return 1
     raise NotImplementedError(e_type)
 
 
 def GetNGauss(e_type):
     if e_type in ["hexa8"]:
         return 8
+    if e_type in ["truss2"]:
+        return 1
 
     raise NoImplSuchElement(e_type)
 
@@ -56,37 +60,55 @@ def GetNGauss(e_type):
 def GetNDofsElem(e_type):
     if e_type in ["hexa8"]:
         return 3 * 8
+    if e_type in ["truss2"]:
+        return 3 * 2
     raise NoImplSuchElement(e_type)
 
 
 def GetNNodesElem(e_type):
     if e_type in ["hexa8"]:
         return 8
+    if e_type in ["truss2"]:
+        return 2
     raise NoImplSuchElement(e_type)
 
 
 def GetNFaceDofsElem(e_type):
     if e_type in ["hexa8"]:
         return 12
+    if e_type in ["truss2"]:
+        return 1
     raise NoImplSuchElement(e_type)
 
 
 def GetNodesCount(e_type):
     if e_type in ["hexa8"]:
         return 8
+    if e_type in ["truss2"]:
+        return 2
     raise NoImplSuchElement(e_type)
 
 
 def GetBoundaryNGauss(e_type):
     if e_type in ["hexa8"]:
         return 4
+    if e_type in ["truss2"]:
+        return 1
     raise NoImplSuchElement(e_type)
 
 
 def GetNFaceNodesElem(e_type):
     if e_type in ["hexa8"]:
         return 4
+    if e_type in ["truss2"]:
+        return 2
     raise NoImplSuchElement(e_type)
+
+
+def GetUNVCode(e_type):
+    if e_type in ['truss2']:
+        return '20200'
+    raise ElementNoUNV(e_type)
 
 
 class ElementInfo:
@@ -98,6 +120,7 @@ class ElementInfo:
         self.n_face_nodes_elem = GetNFaceNodesElem(e_type)
         self.nodes_count = GetNodesCount(e_type)
         self.boundary_ngauss = GetBoundaryNGauss(e_type)
+        self.unv_code = GetUNVCode(e_type)
 
 
 class ElementGroup:

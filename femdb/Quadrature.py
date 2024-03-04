@@ -7,8 +7,8 @@ from utils.CustomException import *
 
 class Quadrature:
     def __init__(self, e_type):
-        self.element_chi:np.array = None
-        self.element_w:np.array = None
+        self.element_chi: np.array = None
+        self.element_w: np.array = None
         self.element_ngauss = None
         self.boundary_chi = None
         self.boundary_w = None
@@ -20,6 +20,12 @@ class Quadrature:
         if element_type == 'tria3':
             self.element_chi = np.array([[1 / 3, 1 / 3]])
             self.element_w = np.array([0.5])
+
+        elif element_type == 'truss2':
+            self.element_chi = np.array([
+                [-0.577350269189626, -0.577350269189626],
+            ])
+            self.element_w = np.array([1, 1, 1, 1])
 
         elif element_type == 'quad4':
             self.element_chi = np.array([
@@ -58,6 +64,9 @@ class Quadrature:
             ])
             self.element_w = np.array([1, 1, 1, 1, 1, 1, 1, 1])
 
+        else:
+            raise NoImplSuchElement(element_type)
+
         # Set the number of integration points.
         self.element_ngauss = len(self.element_w)
 
@@ -68,6 +77,9 @@ class Quadrature:
         if e_type in ['quad4', 'tria3']:
             self.boundary_chi = np.array([[-0.577350269189626], [0.577350269189626]])
             self.boundary_w = np.array([1, 1])
+        elif e_type == 'truss2':
+            self.boundary_chi = np.array([[0.774596669241483], [0], [-0.774596669241483]])
+            self.boundary_w = np.array([0.555555555555554, 0.888888888888889, 0.555555555555554])
         elif e_type == 'tria6':
             self.boundary_chi = np.array([[0.774596669241483], [0], [-0.774596669241483]])
             self.boundary_w = np.array([0.555555555555554, 0.888888888888889, 0.555555555555554])

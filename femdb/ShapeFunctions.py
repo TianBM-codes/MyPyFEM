@@ -17,13 +17,18 @@ def shape_functions_library(Chi, e_type):
     if e_type == 'tria3':
         N = [1 - eta - chi, chi, eta]
         DN_chi = np.array([[-1, 1, 0],
-                           [-1, 0, 1]])
+                           [-1, 0, 1]], dtype=float)
+
+    elif e_type == 'truss2':
+        N = [1 - eta - chi, chi, eta]
+        DN_chi = np.array([[-1, 1, 0],
+                           [-1, 0, 1]], dtype=float)
 
     elif e_type == 'tria6':
         N_ = [(chi + eta - 0.5) * (2 * chi + 2 * eta - 2), -4 * chi * (chi + eta - 1), 2 * chi * (chi - 0.5),
               -4 * eta * (chi + eta - 1), 4 * chi * eta, 2 * eta * (eta - 0.5)]
         DN_chi_ = np.array([[4 * chi + 4 * eta - 3, 4 - 4 * eta - 8 * chi, 4 * chi - 1, -4 * eta, 4 * eta, 0],
-                            [4 * chi + 4 * eta - 3, -4 * chi, 0, 4 - 8 * eta - 4 * chi, 4 * chi, 4 * eta - 1]])
+                            [4 * chi + 4 * eta - 3, -4 * chi, 0, 4 - 8 * eta - 4 * chi, 4 * chi, 4 * eta - 1]], dtype=float)
         N = [N_[i] for i in [0, 1, 2, 4, 5, 3]]
         DN_chi = DN_chi_[:, [0, 1, 2, 4, 5, 3]]
 
@@ -31,7 +36,7 @@ def shape_functions_library(Chi, e_type):
         N_ = [((chi - 1) * (eta - 1)) / 4, -((chi + 1) * (eta - 1)) / 4, ((chi + 1) * (eta + 1)) / 4,
               -((chi - 1) * (eta + 1)) / 4]
         DN_chi_ = np.array([[eta / 4 - 0.25, 0.25 - eta / 4, -eta / 4 - 0.25, eta / 4 + 0.25],
-                            [chi / 4 - 0.25, -chi / 4 - 0.25, chi / 4 + 0.25, 0.25 - chi / 4]])
+                            [chi / 4 - 0.25, -chi / 4 - 0.25, chi / 4 + 0.25, 0.25 - chi / 4]], dtype=float)
         N = [N_[i] for i in [0, 1, 3, 2]]
         DN_chi = DN_chi_[:, [0, 1, 3, 2]]
 
@@ -40,7 +45,7 @@ def shape_functions_library(Chi, e_type):
         N = [1 - eta - iota - chi, chi, eta, iota]
         DN_chi = np.array([[-1, 1, 0, 0],
                            [-1, 0, 1, 0],
-                           [-1, 0, 0, 1]])
+                           [-1, 0, 0, 1]], dtype=float)
 
     elif e_type == 'tetr10':
         iota = Chi[2]
@@ -52,7 +57,7 @@ def shape_functions_library(Chi, e_type):
                            [4 * chi + 4 * eta + 4 * iota - 3, -4 * chi, 0, 4 - 8 * eta - 4 * iota - 4 * chi,
                             4 * chi, 4 * eta - 1, -4 * iota, 0, 4 * iota, 0],
                            [4 * chi + 4 * eta + 4 * iota - 3, -4 * chi, 0, -4 * eta, 0, 0,
-                            4 - 4 * eta - 8 * iota - 4 * chi, 4 * chi, 4 * eta, 4 * iota - 1]])
+                            4 - 4 * eta - 8 * iota - 4 * chi, 4 * chi, 4 * eta, 4 * iota - 1]], dtype=float)
 
     elif e_type == 'hexa8':
         iota = Chi[2]
@@ -65,7 +70,7 @@ def shape_functions_library(Chi, e_type):
             -((chi + 1) * (eta - 1) * (iota + 1)) / 8,
             -((chi - 1) * (eta + 1) * (iota + 1)) / 8,
             ((chi + 1) * (eta + 1) * (iota + 1)) / 8,
-        ])
+        ], dtype=float)
 
         # Derivatives of the shape functions
         DN_chi_ = np.array([
@@ -81,7 +86,7 @@ def shape_functions_library(Chi, e_type):
              -(chi + 1) * (eta + 1) / 8,
              (chi - 1) * (eta - 1) / 8, -(chi + 1) * (eta - 1) / 8, -(chi - 1) * (eta + 1) / 8,
              (chi + 1) * (eta + 1) / 8]
-        ])
+        ], dtype=float)
 
         N = N_[[0, 1, 3, 2, 4, 5, 7, 6]]
         DN_chi = DN_chi_[:, [0, 1, 3, 2, 4, 5, 7, 6]]
@@ -111,7 +116,7 @@ def shape_functions_library_boundary(Chi, e_type):
         DN_chi = np.array([[4 * chi + 4 * eta - 3, 4 - 4 * eta - 8 * chi, 4 * chi - 1,
                             -4 * eta, 4 * eta, 0],
                            [4 * chi + 4 * eta - 3, -4 * chi, 0, 4 - 8 * eta - 4 * chi,
-                            4 * chi, 4 * eta - 1]])
+                            4 * chi, 4 * eta - 1]], dtype=float)
         boundary_N = [N[0], N[1], N[2], N[4], N[5], N[3]]
         boundary_DN_chi = DN_chi[:, [0, 1, 2, 4, 5, 3]]
 

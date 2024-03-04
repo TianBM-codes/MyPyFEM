@@ -26,6 +26,14 @@ class NoImplSuchElement(Exception):
         return f"未实现该类型的单元:\n{self.err_msg}"
 
 
+class ElementNoUNV(Exception):
+    def __init__(self, err_msg):
+        self.err_msg = err_msg
+
+    def __str__(self):
+        return f"这类单元没有UNV对应格式:\n{self.err_msg}"
+
+
 class NoImplSuchMaterialStress(Exception):
     def __init__(self, err_msg):
         self.err_msg = err_msg

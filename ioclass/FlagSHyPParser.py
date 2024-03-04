@@ -15,6 +15,7 @@ class FlagSHyPParser(object):
     """
     这里需要节点排好，对应关系另外存储，不要每次都查询dict, 只有在读取输入文件和写结果的时候初始化各种dict
     """
+
     def __init__(self, input_path):
         self.fem_database = NLFEMDataBase()
         self.dat_path = input_path
@@ -64,7 +65,7 @@ class FlagSHyPParser(object):
                     raise InputTextFormat(node_line)
 
             tmp = np.arange(dim * fem_db.Geom.node_count)
-            fem_db.Mesh.dof_nodes = tmp.reshape((dim,fem_db.Geom.node_count), order='F')
+            fem_db.Mesh.dof_nodes = tmp.reshape((dim, fem_db.Geom.node_count), order='F')
 
             """
             读取单元信息, 依次是单元编号、材料编号以及包含节点ID(connectivity)
@@ -149,6 +150,27 @@ class FlagSHyPParser(object):
         @param output_path:
         @return:
         """
+        fem_db = self.fem_database
+        node_count = fem_db.Geom.node_count
+        with open(output_path, 'w', encoding='utf-8') as pf:
+            pf.write('{ header;\n( "Static Analyse",3.0,1;)\n}//End of Block\n{ node;\n')
+            pf.write(f'(     {node_count};)\n')
+            for ii in range(node_count):
+                x = fem_db.Geom.x0[0, ii]
+                y = fem_db.Geom.x0[1, ii]
+                z = fem_db.Geom.x0[2, ii]
+                pf.write(f'( {fem_db.Geom.ListIdx2NdId[ii]}, {x}, {y}, {z},0)\n')
+            pf.write('}\n{Element\n')
+            ele_count = fem_db.Mesh.nelem
+            pf.write(f'( {ele_count} )\n')
+            group = fem_db.ElementGroupHash[0]
+            eles = group.Elements()
+            unv_code = group.element_info.unv_code
+            for ii in range(len(eles)):
+                ele = eles[ii]
+                node_str = ', '.join([str(n_id) for n_id in eles[ii].node_ids])
+                pf.write(f'( {ele.id}, {unv_code}, 1, 1, 0, {node_str})\n')
+            pf.write('}\n')
 
     def Convert2Paraview(self, output_path):
         """
@@ -159,5 +181,6 @@ class FlagSHyPParser(object):
 
 
 if __name__ == "__main__":
-    kkt = FlagSHyPParser("../NumericalCases/TwistingColumn/twisting_column.dat")
+    kkt = FlagSHyPParser("../NumericalCases/FlagSHyP/inclined_axial_rod_elastic.dat")
     kkt.ParseFileAndInitFEMDB()
+    kkt.Convert2UNV("../NumericalCases/FlagSHyP/res/inclined_rod.unv")

@@ -3,6 +3,7 @@
 __pycache__
 /docs
 /to_assemble_code
+/NumericalCases
 
 __init__.py
 
