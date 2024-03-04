@@ -47,7 +47,7 @@ class ElementFactory:
         ######################################################
         # 1D Element
         ######################################################
-        if e_type in ["T3D2"]:
+        if e_type in ["T3D2", "truss2"]:
             return T3D2(e_id), 2
         elif e_type in ["B31", 188]:
             return Beam188(e_id), 2

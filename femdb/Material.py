@@ -88,5 +88,7 @@ class MaterialFactory(object):
             return CompressibleNeoHookean(mat_type)
         elif mat_type in [17]:
             return HyperElasticPlasticInPrincipal(mat_type)
+        elif mat_type in [2]:
+            return CompressibleNeoHookean(mat_type)
         else:
             raise NoImplSuchMaterial(mat_type)

@@ -93,6 +93,7 @@ class FlagSHyPParser(object):
             Obtain fixed and free degree of freedom numbers (dofs).
             """
             fem_db.BC.FindFixedAndFreeDofs()
+            return
 
             """
             Read the number of materials and material properties. 
@@ -179,8 +180,18 @@ class FlagSHyPParser(object):
         @return:
         """
 
+def WriteShallowTrussDome():
+    """
+    P93第三题, 是一个验算题
+    """
+    for ii in range(6):
+        x = np.cos((ii*60+30)/180*np.pi)
+        y = np.sin((ii*60+30)/180*np.pi)
+        z = 0
+        print(f'*createnode ')
+
 
 if __name__ == "__main__":
-    kkt = FlagSHyPParser("../NumericalCases/FlagSHyP/inclined_axial_rod_elastic.dat")
+    kkt = FlagSHyPParser("../NumericalCases/FlagSHyP/trussed_frame_elastic.dat")
     kkt.ParseFileAndInitFEMDB()
-    kkt.Convert2UNV("../NumericalCases/FlagSHyP/res/inclined_rod.unv")
+    kkt.Convert2UNV("../NumericalCases/FlagSHyP/res/trussed_frame.unv")

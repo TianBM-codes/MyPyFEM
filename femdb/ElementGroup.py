@@ -142,8 +142,8 @@ class ElementGroup:
         faces (3D) or edges (2D).
         """
         self.element_info = ElementInfo(e_type)
-        self.interpolation = Interpolation(self.e_type, self.element_info)
-        self.quadrature = self.interpolation.quadrature
+        # self.interpolation = Interpolation(self.e_type, self.element_info)
+        # self.quadrature = self.interpolation.quadrature
 
         """
         Plasticity variant
