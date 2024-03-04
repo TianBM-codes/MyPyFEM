@@ -13,7 +13,7 @@ from femdb.SolveControl import FlagSHyPSolveControl
 
 class FlagSHyPParser(object):
     """
-    # TODO 这里需要节点排好，对应关系另外存储，不要每次都查询dict, 只有在读取输入文件和写结果的时候初始化各种dict
+    这里需要节点排好，对应关系另外存储，不要每次都查询dict, 只有在读取输入文件和写结果的时候初始化各种dict
     """
     def __init__(self, input_path):
         self.fem_database = NLFEMDataBase()
@@ -142,6 +142,20 @@ class FlagSHyPParser(object):
             solve_control = FlagSHyPSolveControl()
             solve_control.InitWithTextLine(dat_file.readline())
             fem_db.SolveControl = solve_control
+
+    def Convert2UNV(self, output_path):
+        """
+        将FlagSHyP类型文件转为UNV格式文件，为了可视化模型
+        @param output_path:
+        @return:
+        """
+
+    def Convert2Paraview(self, output_path):
+        """
+        将FlagSHyP类型文件转为Paraview格式文件，为了可视化模型
+        @param output_path:
+        @return:
+        """
 
 
 if __name__ == "__main__":
