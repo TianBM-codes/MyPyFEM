@@ -12,15 +12,6 @@ import numpy as np
 """
 Single instance mode, convenient for programming, Connect Database
 """
-fem_db = NLFEMDataBase()
-KINEMATICS = fem_db.kinematics
-dim = GetDomainDimension()
-global_k = fem_db.global_k
-element_indexi = global_k.indexi
-element_indexj = global_k.indexj
-element_stiffness = global_k.stiffness
-IDENTITY_TENSOR = fem_db.identity_tensor
-MESH = fem_db.Mesh
 
 
 def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
@@ -33,6 +24,15 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
     stiffness matrix.
     @return:
     """
+    fem_db = NLFEMDataBase()
+    KINEMATICS = fem_db.kinematics
+    dim = GetDomainDimension()
+    global_k = fem_db.global_k
+    element_indexi = global_k.indexi
+    element_indexj = global_k.indexj
+    element_stiffness = global_k.stiffness
+    IDENTITY_TENSOR = fem_db.identity_tensor
+    MESH = fem_db.Mesh
     grp_ele_info = grp.element_info
     T_internal = np.zeros((grp_ele_info.n_dofs_elem, 1), dtype=float)
     KINEMATICS.ComputeGradients(xlocal, Xlocal, grp.interpolation.element_DN_chi)
@@ -167,11 +167,15 @@ def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id, Ve,
     @param ele_idx:
     @return:
     """
+    fem_db = NLFEMDataBase()
+    global_k = fem_db.global_k
+    MESH = fem_db.Mesh
     mat = fem_db.Material.Mat[mat_id]
     area = mat.value_dict[MaterialKey.Area]
     E = mat.value_dict[MaterialKey.E]
     ty0 = mat.value_dict[MaterialKey.TauY]
     H = mat.value_dict[MaterialKey.Harden]
+    dim = GetDomainDimension()
     if isinstance(mat, StretchBasedHyperelasticPlastic):
         PLAST_element = PlasticDeformationState()
         PLAST_element.epbar = grp.global_plasticity.epbar[ele_idx]
@@ -232,13 +236,27 @@ def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id, Ve,
     Kbb = k * np.outer(n, n) + (T / l) * np.eye(3)
     K_internal = np.block([[Kbb, -Kbb], [-Kbb, Kbb]])
 
-    # Sparse assembly of the stiffness matrix and other parts would need to be defined based on specific application
+    """
+    Sparse assembly of the stiffness matrix.
+    """
+    tmp = MESH.dof_nodes[:, ele.search_node_ids]
+    element_indexj = np.tile(tmp.reshape((tmp.size,), order='F'), (tmp.size, 1))
+    element_indexi = element_indexj.T
+    n_dofs_elem = (grp.element_info.n_nodes_elem * dim) ** 2
+    aux_vector = np.asarray(range(global_k.counter, global_k.counter + n_dofs_elem))
+    global_k.indexi[aux_vector] = element_indexi.flatten(order='F')
+    global_k.indexj[aux_vector] = element_indexj.flatten(order='F')
+    global_k.stiffness[aux_vector] = K_internal.flatten(order='F')
 
-    # Storage of plastic variables is already done by directly updating PLAST_element object
+    """
+    Global index for sparse assembly.
+    """
+    global_k.counter += n_dofs_elem
 
-    # Storage of stress for postprocessing purposes
+    """
+    Storage of stress for postprocessing purposes
+    """
     J = lambda_ ** (1 - 2 * mat.value_dict[MaterialKey.PoissonRatio])
     Cauchy = tau / J
 
-
-
+    return T_internal, PLAST_element
