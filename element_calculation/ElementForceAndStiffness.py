@@ -150,3 +150,95 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
                 global_k.counter += dim ** 2
 
     return T_internal, PLAST_element
+
+
+def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id, Ve,
+                                  ele: ElementBaseClass,
+                                  grp: ElementGroup,
+                                  ele_idx: int):
+    """
+
+    @param xlocal:
+    @param Xlocal:
+    @param mat_id:
+    @param Ve:
+    @param ele:
+    @param grp:
+    @param ele_idx:
+    @return:
+    """
+    mat = fem_db.Material.Mat[mat_id]
+    area = mat.value_dict[MaterialKey.Area]
+    E = mat.value_dict[MaterialKey.E]
+    ty0 = mat.value_dict[MaterialKey.TauY]
+    H = mat.value_dict[MaterialKey.Harden]
+    if isinstance(mat, StretchBasedHyperelasticPlastic):
+        PLAST_element = PlasticDeformationState()
+        PLAST_element.epbar = grp.global_plasticity.epbar[ele_idx]
+        PLAST_element.ep = grp.global_plasticity.ep[ele_idx]
+
+    else:
+        raise WrongMaterialType(mat.name)
+
+    """
+    Temporary variables
+    """
+
+    L = np.linalg.norm(Xlocal[:, 1] - Xlocal[:, 0])
+    dx = xlocal[:, 1] - xlocal[:, 0]
+    l = np.linalg.norm(dx)
+    n = dx / l
+    V = area * L
+    lambda_ = l / L
+    epsilon = np.log(lambda_)
+
+    """
+    Trial stage
+    """
+    epsilon_trial = epsilon - PLAST_element.ep
+    tau_trial = E * epsilon_trial
+
+    """
+    Check yield criterion
+    """
+    f = abs(tau_trial) - (ty0 + H * PLAST_element.epbar)
+
+    """
+    Return mapping algorithm
+    """
+    if f > 0:
+        Dgamma = f / (E + H)
+        E_computational = E * H / (E + H)
+    else:
+        Dgamma = 0
+        E_computational = E
+
+    Dep = Dgamma * np.sign(tau_trial)
+    tau = tau_trial - E * Dep
+    PLAST_element.ep += Dep
+    PLAST_element.epbar += Dgamma
+
+    """
+    Computation of the internal force vector
+    """
+    T = tau * V / l
+    Tb = T * n
+    T_internal = np.concatenate((-Tb, Tb), axis=None)
+
+    """
+    Computation of the stiffness matrix
+    """
+    k = (V / l ** 2) * (E_computational - 2 * tau)
+    Kbb = k * np.outer(n, n) + (T / l) * np.eye(3)
+    K_internal = np.block([[Kbb, -Kbb], [-Kbb, Kbb]])
+
+    # Sparse assembly of the stiffness matrix and other parts would need to be defined based on specific application
+
+    # Storage of plastic variables is already done by directly updating PLAST_element object
+
+    # Storage of stress for postprocessing purposes
+    J = lambda_ ** (1 - 2 * mat.value_dict[MaterialKey.PoissonRatio])
+    Cauchy = tau / J
+
+
+

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 # 配置logging, handler可以添加控制台, 即可实现控制台和文件同时输出
 logging.basicConfig(level=logging.DEBUG)
-handler = logging.FileHandler(r"/analyse_output.log", encoding="utf-8", mode="a")
+handler = logging.FileHandler(r"./analyse_output.log", encoding="utf-8", mode="a")
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(module)s - %(funcName)s - %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 handler.setFormatter(formatter)
 
@@ -133,6 +133,8 @@ class MaterialKey(Enum):
     Kappa = 6
     TauY = 7
     Harden = 8
+    PoissonRatio = 9
+    Area = 10  # truss only
 
 
 class PropertyKey(Enum):
@@ -209,12 +211,14 @@ class BeamSectionType(Enum):
     Rectangle = 3
     CircleTube = 4
 
+
 def GetDomainDimension():
     if GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.ThreeDimension:
         return 3
     elif GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.TwoDimension:
         return 2
     raise NoSupportDimension(GlobalInfor[GlobalVariant.Dimension])
+
 
 # 全局变量, 用于存储分析类型、导入文件类型等信息
 class GlobalVariant(Enum):

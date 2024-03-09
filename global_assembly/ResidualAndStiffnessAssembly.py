@@ -33,10 +33,14 @@ def ResidualAndStiffnessAssembly(grp: ElementGroup):
     Pre-allocation memory to indexi, indexj and data for sparse assembly of
     the stiffness matrix.
     """
-    n_components_mean_dilatation = fem_db.Material.n_nearly_incompressible * np.square(n_dofs_elem)
-    n_components_displacement_based = (MESH.nelem * np.square(n_dofs_elem) * ngauss
-                                       + MESH.nelem * np.square(n_nodes_elem) * ndim * ngauss)
-    n_components = n_components_mean_dilatation + n_components_displacement_based
+    if grp.e_type in ['truss2']:
+        n_components = MESH.nelem * n_dofs_elem ** 2
+
+    else:
+        n_components_mean_dilatation = fem_db.Material.n_nearly_incompressible * np.square(n_dofs_elem)
+        n_components_displacement_based = (MESH.nelem * np.square(n_dofs_elem) * ngauss
+                                           + MESH.nelem * np.square(n_nodes_elem) * ndim * ngauss)
+        n_components = n_components_mean_dilatation + n_components_displacement_based
 
     """
     Initialise counter for storing sparse information into 
@@ -61,14 +65,22 @@ def ResidualAndStiffnessAssembly(grp: ElementGroup):
                 plasticity_element = PlasticDeformationState()
                 plasticity_element.epbar = grp.global_plasticity.epbar[:, ele_id]
                 plasticity_element.invCp = grp.global_plasticity.invCp[:, :, :, ele_id]
+
+            elif isinstance(mat, StretchBasedHyperelasticPlastic):
+                plasticity_element = PlasticDeformationState()
+                plasticity_element.epbar = grp.global_plasticity.epbar[ele_id]
+
             else:
                 raise NoImplSuchMaterial(mat.GetName())
 
             xlocal = fem_db.Geom.x[:, node_ids]
             x0local = fem_db.Geom.x0[:, node_ids]
             Ve = fem_db.Geom.V_ele[ele_idx]
-            from element_calculation.ElementForceAndStiffness import ElementForceAndStiffness
-            T_internal, PLAST_element = ElementForceAndStiffness(xlocal, x0local, mat_id, Ve, ele, grp, ele_idx)
+            from element_calculation.ElementForceAndStiffness import ElementForceAndStiffness, ElementForceAndStiffnessTruss
+            if grp.e_type in ['truss2']:
+                T_internal, PLAST_element = ElementForceAndStiffnessTruss(xlocal, x0local, mat_id, Ve, ele, grp, ele_idx)
+            else:
+                T_internal, PLAST_element = ElementForceAndStiffness(xlocal, x0local, mat_id, Ve, ele, grp, ele_idx)
 
             """
             Assemble element contribution into global internal force vector. 

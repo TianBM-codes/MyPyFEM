@@ -93,7 +93,6 @@ class FlagSHyPParser(object):
             Obtain fixed and free degree of freedom numbers (dofs).
             """
             fem_db.BC.FindFixedAndFreeDofs()
-            return
 
             """
             Read the number of materials and material properties. 
@@ -180,18 +179,39 @@ class FlagSHyPParser(object):
         @return:
         """
 
+
 def WriteShallowTrussDome():
     """
     P93第三题, 是一个验算题
     """
     for ii in range(6):
-        x = np.cos((ii*60+30)/180*np.pi)
-        y = np.sin((ii*60+30)/180*np.pi)
+        x = 50 * np.cos((ii * 60 + 30) / 180 * np.pi)
+        y = 50 * np.sin((ii * 60 + 30) / 180 * np.pi)
         z = 0
-        print(f'*createnode ')
+        print(f'n,{ii + 1},{x},{y},{z}')
+
+    for ii in range(6):
+        x = 25 * np.cos((ii * 60) / 180 * np.pi)
+        y = 25 * np.sin((ii * 60) / 180 * np.pi)
+        z = 6.216
+        print(f'n,{ii + 7},{x},{y},{z}')
+
+    print(f'n,13,0,0,0')
+
+    for ii in range(5):
+        print(f'e, {ii + 1}, {ii + 7}')
+        print(f'e, {ii + 1}, {ii + 8}')
+        print(f'e, {ii + 7}, {ii + 8}')
+        print(f'e, {ii + 7}, 13')
+
+    print(f'e, 6, 7')
+    print(f'e, 6, 12')
+    print(f'e, 7, 12')
+    print(f'e, 13, 12')
 
 
 if __name__ == "__main__":
-    kkt = FlagSHyPParser("../NumericalCases/FlagSHyP/trussed_frame_elastic.dat")
-    kkt.ParseFileAndInitFEMDB()
-    kkt.Convert2UNV("../NumericalCases/FlagSHyP/res/trussed_frame.unv")
+    # kkt = FlagSHyPParser("../NumericalCases/FlagSHyP/trussed_frame_elastic.dat")
+    # kkt.ParseFileAndInitFEMDB()
+    # kkt.Convert2UNV("../NumericalCases/FlagSHyP/res/trussed_frame.unv")
+    WriteShallowTrussDome()

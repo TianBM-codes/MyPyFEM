@@ -7,14 +7,18 @@ from utils.CustomException import *
 
 class Quadrature:
     def __init__(self, e_type):
-        self.element_chi: np.array = None
-        self.element_w: np.array = None
-        self.element_ngauss = None
-        self.boundary_chi = None
-        self.boundary_w = None
-        self.boundary_ngauss = None
-        self.set_quadrature_rules(e_type)
-        self.set_edge_boundary_rules(e_type)
+        if e_type != 'truss2':
+            self.element_chi: np.array = None
+            self.element_w: np.array = None
+            self.element_ngauss = None
+            self.boundary_chi = None
+            self.boundary_w = None
+            self.boundary_ngauss = None
+            self.set_quadrature_rules(e_type)
+            self.set_edge_boundary_rules(e_type)
+        else:
+            self.element = []
+            self.boundary = []
 
     def set_quadrature_rules(self, element_type):
         if element_type == 'tria3':

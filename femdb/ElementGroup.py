@@ -142,8 +142,8 @@ class ElementGroup:
         faces (3D) or edges (2D).
         """
         self.element_info = ElementInfo(e_type)
-        # self.interpolation = Interpolation(self.e_type, self.element_info)
-        # self.quadrature = self.interpolation.quadrature
+        self.interpolation = Interpolation(self.e_type, self.element_info)
+        self.quadrature = self.interpolation.quadrature
 
         """
         Plasticity variant
@@ -202,7 +202,11 @@ class ElementGroup:
         """
         Global Plasticity
         """
-        self.global_plasticity.epbar = np.zeros((self.element_info.ngauss,
-                                                 len(self.eles)), dtype=float)
-        self.global_plasticity.invCp = np.reshape(np.repeat(np.eye(GetDomainDimension()), self.element_info.ngauss * len(self.eles)),
-                                                  (GetDomainDimension(), GetDomainDimension(), self.element_info.ngauss, len(self.eles)))
+        if self.e_type in ['truss2']:
+            self.global_plasticity.epbar = np.zeros(len(self.eles), dtype=float)
+            self.global_plasticity.ep = np.zeros(len(self.eles), dtype=float)
+        else:
+            self.global_plasticity.epbar = np.zeros((self.element_info.ngauss,
+                                                     len(self.eles)), dtype=float)
+            self.global_plasticity.invCp = np.reshape(np.repeat(np.eye(GetDomainDimension()), self.element_info.ngauss * len(self.eles)),
+                                                      (GetDomainDimension(), GetDomainDimension(), self.element_info.ngauss, len(self.eles)))

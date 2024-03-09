@@ -56,6 +56,24 @@ class CompressibleNeoHookean(MaterialBase, ABC):
         super().__init__(name)
 
 
+class StretchBasedHyperelasticPlastic(MaterialBase, ABC):
+    """
+    one-dimensional stretch-based hyperelastic plastic (truss2 only)
+    """
+
+    def __init__(self, name):
+        super().__init__(name)
+
+    def InitByFlagSHyPFormat(self, line):
+        lineSplit = line.split()
+        self.value_dict[MaterialKey.Density] = float(lineSplit[0])
+        self.value_dict[MaterialKey.E] = float(lineSplit[1])
+        self.value_dict[MaterialKey.PoissonRatio] = float(lineSplit[2])
+        self.value_dict[MaterialKey.Area] = float(lineSplit[3])
+        self.value_dict[MaterialKey.TauY] = float(lineSplit[4])
+        self.value_dict[MaterialKey.Harden] = float(lineSplit[5])
+
+
 class HyperElasticPlasticInPrincipal(MaterialBase, ABC):
     """
     plane strain or three-dimensional nearly incompressible hyperelastic
@@ -80,7 +98,7 @@ class MaterialFactory(object):
     @staticmethod
     def CreateMaterial(mat_type: int):
         """
-
+        <<Nonlinear Solid Mechanics for Finite Element Analysis: Statics>> P266 Note3
         @param mat_type:
         @return:
         """
@@ -89,6 +107,6 @@ class MaterialFactory(object):
         elif mat_type in [17]:
             return HyperElasticPlasticInPrincipal(mat_type)
         elif mat_type in [2]:
-            return CompressibleNeoHookean(mat_type)
+            return StretchBasedHyperelasticPlastic(mat_type)
         else:
             raise NoImplSuchMaterial(mat_type)

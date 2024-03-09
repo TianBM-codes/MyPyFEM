@@ -26,6 +26,7 @@ class PlasticDeformationState:
     def __init__(self):
         self.epbar = None
         self.invCp = None
+        self.ep = None
 
 
 class PlasticityGauss(object):

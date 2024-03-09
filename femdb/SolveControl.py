@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 from utils.CustomException import *
 
+
 class ARCLEN:
     def __init__(self):
         self.arcln = None
@@ -11,11 +12,13 @@ class ARCLEN:
         self.itarget = None
         self.iter_old = None
 
+
 class Output:
     def __init__(self):
         self.inc_out = None
         self.nwant = None
         self.iwant = None
+
 
 class SolveControl(object):
     def __init__(self):
@@ -31,7 +34,6 @@ class SolveControl(object):
         self.niter = 0
         self.Arclen = ARCLEN()
         self.Output = Output()
-
 
 
 class FlagSHyPSolveControl(SolveControl, object):
@@ -67,7 +69,7 @@ class FlagSHyPSolveControl(SolveControl, object):
     def InitWithTextLine(self, line):
         split_line = line.split()
         self.nincr = int(split_line[0])
-        self.xlmax = int(split_line[1])
+        self.xlmax = float(split_line[1])
         self.dlamb = float(split_line[2])
         self.miter = int(split_line[3])
         self.cnorm = float(split_line[4])
