@@ -40,17 +40,6 @@ class IdentityTensor(object):
                                                self.I[i, l] * self.I[j, k])
 
 
-class AuxVariant(object):
-    def __init__(self):
-        self.ngauss = None
-        self.n_dofs_elem = None
-        self.weight = None
-        self.DN_Dchi = None
-        self.n_nodes_element = None
-        self.n_face_dofs_elem = None
-        self.boundary_ngauss = None
-
-
 class GlobalK(object):
     def __init__(self):
         self.indexi: Optional[np.ndarray] = None

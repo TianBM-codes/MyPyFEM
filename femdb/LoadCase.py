@@ -82,7 +82,10 @@ class NastranBoundary:
 
 class ConcentratedLoad(object):
     def __init__(self):
-        pass
+        self.direction = None
+        self.node_id = None
+        self.value = None
+        self.set_name = None
 
 
 class InpConcentratedLoad(ConcentratedLoad):
@@ -106,7 +109,6 @@ class CdbConcentratedLoad(ConcentratedLoad):
 
     def __init__(self):
         super().__init__()
-        self.direction, self.node, self.value = None, None, None
         self.force_type = {"FX": 0, "FY": 1, "FZ": 2}
 
     def SetCForce(self, node: int, direction: str, value: float):
@@ -117,7 +119,7 @@ class CdbConcentratedLoad(ConcentratedLoad):
         :param direction: 方向
         :param value: 大小
         """
-        self.node = node
+        self.node_id = node
         if self.force_type.__contains__(direction):
             self.direction = self.force_type[direction]
         else:
@@ -137,12 +139,27 @@ class FlagSHyPCLoad(ConcentratedLoad):
         force_y = float(line_split[2])
         if len(line_split) == 3:
             if GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.ThreeDimension:
-                self.c_force = [force_x, force_y, 0]
+                norm = np.linalg.norm([force_x, force_y])
+                self.direction = np.array([force_x, force_y, 0]) / norm
+                self.value = norm
             else:
-                self.c_force = [force_x, force_y]
+                norm = np.linalg.norm([force_x, force_y])
+                self.direction = np.array([force_x, force_y]) / norm
+                self.value = norm
+
         elif len(line_split) == 4:
             if GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.TwoDimension:
-                self.c_force = [force_x, force_y]
+                norm = np.linalg.norm([force_x, force_y])
+                self.direction = np.array([force_x, force_y]) / norm
+                self.value = norm
+            elif GlobalInfor[GlobalVariant.Dimension] == AnalyseDimension.ThreeDimension:
+                force_z = float(line_split[3])
+                norm = np.linalg.norm([force_x, force_y, force_z])
+                self.direction = np.array([force_x, force_y, force_z]) / norm
+                self.value = norm
+            else:
+                raise NoSupportDimension(GlobalInfor[GlobalVariant.Dimension])
+
         else:
             mlogger.fatal(f"Wrong CLoad FlagSHyP Format{line}")
             sys.exit(1)
@@ -175,7 +192,7 @@ class LoadCase(object):
         self.p_loads: List[PressLoad] = []
         self.gravity = None
         self.n_pressure_loads = None
-        self.n_prescribed_displacements = None
+        self.n_prescribed_displacements = 0
 
     def __str__(self):
         self.case_ = "\n  Here is LoadCase:\n"
@@ -211,10 +228,18 @@ class LoadCase(object):
         cf.SetCForce(node, direction, value)
         self.c_loads.append(cf)
 
-    def AddFlagSHyPCLoad(self, line):
+    def AddFlagSHyPCLoad(self, c_load: ConcentratedLoad):
         """
         @return:
         """
+        from femdb.NLFEMDataBase import NLFEMDataBase
+        fem_db = NLFEMDataBase()
+        f_tmp = c_load.direction * c_load.value
+        force = np.reshape(np.array(f_tmp), (f_tmp.size,1))
+        dofs_tmp = fem_db.Mesh.dof_nodes[:, fem_db.Geom.NdId2ListIdx[c_load.node_id]]
+        global_dofs = np.reshape(dofs_tmp, (dofs_tmp.size, ), order='f')
+        fem_db.right_hand_item.nominal_external_load[global_dofs] = force
+        self.c_loads.append(c_load)
 
     def AddFlagSHyPPressLoad(self, p_load: FlagSHyPPressLoad):
         self.p_loads.append(p_load)
@@ -232,10 +257,15 @@ class LoadCase(object):
 
 class RightHandItem(object):
     def __init__(self):
+        """
+        external_load         : Current load vector
+        nominal_external_load : Nominal external load (without pressure)
+        nominal_pressure      : Equivalent nodal force due to pressure
+        """
         self.nominal_external_load = None
         self.residual = None
         self.external_load = None
-        self.nominal_press = None
+        self.nominal_pressure = None
         self.T_int = None
         self.reactions = None
 
@@ -243,5 +273,5 @@ class RightHandItem(object):
         self.nominal_external_load = np.zeros((n_dof, 1), dtype=float)
         self.residual = np.zeros((n_dof, 1), dtype=float)
         self.external_load = np.zeros((n_dof, 1), dtype=float)
-        self.nominal_press = np.zeros((n_dof, 1), dtype=float)
+        self.nominal_pressure = np.zeros((n_dof, 1), dtype=float)
         self.T_int = np.zeros((n_dof, 1), dtype=float)

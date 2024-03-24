@@ -6,9 +6,9 @@ from utils.CustomException import *
 class ARCLEN:
     def __init__(self):
         self.arcln = None
-        self.farcl = None
+        self.farcl = 0
         self.xincr = None
-        self.afail = None
+        self.afail = 0
         self.itarget = None
         self.iter_old = None
 
@@ -30,7 +30,7 @@ class SolveControl(object):
         self.searc = None
         self.msearch = None
         self.incrm = 0
-        self.xlamb = None
+        self.xlamb = 0
         self.niter = 0
         self.Arclen = ARCLEN()
         self.Output = Output()
@@ -75,11 +75,18 @@ class FlagSHyPSolveControl(SolveControl, object):
         self.cnorm = float(split_line[4])
         self.searc = float(split_line[5])
         self.Arclen.arcln = float(split_line[6])
-        self.Output.inc_out = int(split_line[7])
         self.Arclen.itarget = float(split_line[8])
-        self.Arclen.iter_old = self.Arclen.itarget
+        self.Arclen.iterold = self.Arclen.itarget
+        self.Output.inc_out = int(split_line[7])
         self.Output.nwant = int(split_line[9])
         self.Output.iwant = int(split_line[10])
         if abs(self.searc * abs(self.Arclen.arcln)):
             raise OtherException("Error reading solution control parameters.\n"
                                  "Line search and arc length methods cannot be both activated.\n")
+        if not self.searc:
+            self.searc = 1e5
+        self.msearch = 5
+        self.incrm = 0
+
+        if self.Arclen.arcln < 1e-20:
+            self.Arclen.farcl = 1

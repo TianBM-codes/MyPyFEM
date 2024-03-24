@@ -10,6 +10,14 @@ class NoSupportDimension(Exception):
         return f"不支持的分析维度:\n{self.err_msg}"
 
 
+class NoSupportLoadCase(Exception):
+    def __init__(self, err_msg):
+        self.err_msg = err_msg
+
+    def __str__(self):
+        return f"不支持的载荷工况:\n{self.err_msg}"
+
+
 class InputTextFormat(Exception):
     def __init__(self, err_msg):
         self.err_msg = err_msg

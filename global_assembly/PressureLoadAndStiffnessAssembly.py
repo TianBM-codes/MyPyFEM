@@ -31,7 +31,7 @@ def PressureLoadAndStiffnessAssembly(grp: ElementGroup):
     Update nodal forces and stiffness matrix due to external pressure
     boundary face (line) contributions.
     """
-    RightHand.nominal_press = np.zeros((MESH.n_dofs, 1), dtype=float)
+    RightHand.nominal_pressure = np.zeros((MESH.n_dofs, 1), dtype=float)
     RightHand.R_pressure = np.zeros((MESH.n_dofs, 1), dtype=float)
     RightHand.K_pressure = coo_matrix((MESH.n_dofs, MESH.n_dofs), dtype=float)
 
@@ -74,13 +74,13 @@ def PressureLoadAndStiffnessAssembly(grp: ElementGroup):
         Compute boundary (NOMINAL pressure load) force vector contribution 
         for a boundary (NOMINAL pressure load) element.
         """
-        nominal_press = R_pressure_0 * LOAD_CASE.p_loads[ipressure]
+        nominal_pressure = R_pressure_0 * LOAD_CASE.p_loads[ipressure]
 
         """
         Assemble boundary (NOMINAL pressure load) element force vector 
         contribution into global force vector. 
         """
-        RightHand.nominal_press += nominal_press
+        RightHand.nominal_pressure += nominal_pressure
 
         """
         Compute boundary (CURRENT pressure load) element stiffness matrix 
@@ -97,7 +97,7 @@ def PressureLoadAndStiffnessAssembly(grp: ElementGroup):
     Add boundary (CURRENT pressure load) global force vector contribution 
     into Residual.
     """
-    RightHand.residual += CON.dlamb * RightHand.nominal_press
+    RightHand.residual += CON.dlamb * RightHand.nominal_pressure
 
     """
     Subtract (opposite to outward normal) boundary (CURRENT pressure load) 

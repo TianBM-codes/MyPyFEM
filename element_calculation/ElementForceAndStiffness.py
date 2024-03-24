@@ -227,14 +227,17 @@ def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id, Ve,
     """
     T = tau * V / l
     Tb = T * n
-    T_internal = np.concatenate((-Tb, Tb), axis=None)
+    T_internal = np.reshape(np.concatenate((-Tb, Tb), axis=None), (Tb.size*2, 1))
 
     """
     Computation of the stiffness matrix
     """
     k = (V / l ** 2) * (E_computational - 2 * tau)
-    Kbb = k * np.outer(n, n) + (T / l) * np.eye(3)
-    K_internal = np.block([[Kbb, -Kbb], [-Kbb, Kbb]])
+    Kbb = np.array(k * np.outer(n, n) + (T / l) * np.eye(3), dtype=float)
+
+    top_row = np.hstack([Kbb, -Kbb])
+    bottom_row = np.hstack([-Kbb, Kbb])
+    K_internal = np.vstack([top_row, bottom_row])
 
     """
     Sparse assembly of the stiffness matrix.

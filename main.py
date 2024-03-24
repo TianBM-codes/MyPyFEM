@@ -142,7 +142,8 @@ class MyPyFEM:
 
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.NLStatic:
             nl_domain = NLDomain()
-            nl_domain.initialisation()
+            nl_domain.Initialisation()
+            nl_domain.ChooseIncrementalAlgorithm()
 
         else:
             mlogger.fatal(f"UnSupport Analyse Type:{GlobalInfor[GlobalVariant.AnaType]}")

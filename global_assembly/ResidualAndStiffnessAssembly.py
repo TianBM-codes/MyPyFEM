@@ -27,7 +27,7 @@ def ResidualAndStiffnessAssembly(grp: ElementGroup):
     ndim = GetDomainDimension()
     T_int = fem_db.right_hand_item.T_int
 
-    right_hand_item.external_load = fem_db.SolveControl.xlmax * right_hand_item.nominal_external_load
+    right_hand_item.external_load = fem_db.SolveControl.xlamb * right_hand_item.nominal_external_load
 
     """
     Pre-allocation memory to indexi, indexj and data for sparse assembly of
@@ -93,8 +93,13 @@ def ResidualAndStiffnessAssembly(grp: ElementGroup):
             """
             Storage of updated value of the internal variables.
             """
-            grp.global_plasticity.invCp[:, :, :, ele_idx] = PLAST_element.invCp
-            grp.global_plasticity.epbar[:, ele_idx] = PLAST_element.epbar
+            if isinstance(fem_db.Material[ele.mat_id], StretchBasedHyperelasticPlastic):
+                grp.global_plasticity.epbar[ele_idx] = PLAST_element.epbar
+                grp.global_plasticity.ep[ele_idx] = PLAST_element.ep
+
+            elif isinstance(fem_db.Material[ele.mat_id], HyperElasticPlasticInPrincipal):
+                grp.global_plasticity.invCp[:, :, :, ele_idx] = PLAST_element.invCp
+                grp.global_plasticity.epbar[:, ele_idx] = PLAST_element.epbar
 
     """
     Global tangent stiffness matrix sparse assembly except pressure contributions. 

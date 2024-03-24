@@ -3,6 +3,7 @@
 
 import numpy as np
 from femdb.NLFEMDataBase import NLFEMDataBase
+from Boundary import FlagSHyPBoundary
 from utils.GlobalEnum import *
 from femdb.ElementFactory import ElementFactory, SetAnalyseDimension
 from femdb.ElementGroup import ElementGroup
@@ -18,6 +19,7 @@ class FlagSHyPParser(object):
 
     def __init__(self, input_path):
         self.fem_database = NLFEMDataBase()
+        self.fem_database.BC = FlagSHyPBoundary()
         self.dat_path = input_path
         self.iter_line = None
         self.et_hash = {}
@@ -26,6 +28,16 @@ class FlagSHyPParser(object):
 
     def ParseFileAndInitFEMDB(self):
         """
+        Initialise un-deformed geometry and initial residual and external forces.
+        Initialise external force vector contribution due to pressure
+        (nominal value prior to load increment).
+
+        Determines whether the problem is being restarted or a data file is to be read.
+        Reads all necessary input data.
+        Initialises kinematic variables and internal variables.
+        Compute initial tangent matrix and equivalent force vector, excluding
+        pressure component.
+
         文件格式：
         Javier Book P263
         :return:
@@ -46,6 +58,7 @@ class FlagSHyPParser(object):
             """
             fem_db.Geom.node_count = int(dat_file.readline())
             fem_db.Mesh.n_dofs = dim * fem_db.Geom.node_count
+            fem_db.right_hand_item.Init(fem_db.Mesh.n_dofs)
             fem_db.BC.icode = np.zeros(fem_db.Geom.node_count, dtype=np.uint8)
             fem_db.Geom.x = np.zeros((GetDomainDimension(), fem_db.Geom.node_count), dtype=float)
             fem_db.Geom.x0 = np.zeros((GetDomainDimension(), fem_db.Geom.node_count), dtype=float)
@@ -131,7 +144,7 @@ class FlagSHyPParser(object):
                 fem_db.LoadCase.AddFlagSHyPCLoad(c_load)
 
             for ii in range(prescribed_dis_count):
-                pass
+                raise NoSupportLoadCase("prescribed_dis_count")
 
             for ii in range(fem_db.LoadCase.n_pressure_loads):
                 p_load = FlagSHyPPressLoad(dat_file.readline())

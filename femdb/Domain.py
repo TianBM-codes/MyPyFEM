@@ -295,7 +295,7 @@ class Domain(object):
         # Ansys格式的集中力是一个自由度一个自由度添加的
         elif suffix == InputFileType.CDB:
             for c_load in self.femdb.load_case.GetConcentratedLoads():
-                cnode = self.femdb.node_list[self.femdb.node_hash[c_load.node]]
+                cnode = self.femdb.node_list[self.femdb.node_hash[c_load.node_id]]
                 f_eq_num = cnode.GetEquationNumbers()[c_load.direction]
                 self.Ra[f_eq_num] = c_load.value
 

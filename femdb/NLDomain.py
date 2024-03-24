@@ -19,7 +19,7 @@ class NLDomain(object):
             self.fem_db = NLFEMDataBase()
             self._initialized = True
 
-    def initialisation(self):
+    def Initialisation(self):
         """
         初始化变量, 为求解做准备
         @return:
@@ -35,19 +35,6 @@ class NLDomain(object):
             # FlagSHyP only support one type element
             group = self.fem_db.ElementGroupHash[0]
             group.InitGlobalPlasticity()
-
-        """
-        Initialise un-deformed geometry and initial residual and external forces. 
-        Initialise external force vector contribution due to pressure
-        (nominal value prior to load increment).
-        
-        Determines whether the problem is being restarted or a data file is to be read. 
-        Reads all necessary input data.
-        Initialises kinematic variables and internal variables.
-        Compute initial tangent matrix and equivalent force vector, excluding
-        pressure component.
-        """
-        self.fem_db.right_hand_item.Init(self.fem_db.Mesh.n_dofs)
 
         """
         Initialisation of kinematics.
@@ -79,7 +66,7 @@ class NLDomain(object):
         from solver.LineSearchNewtonRaphsonAlgorithm import LineSearchNewtonRaphsonAlgorithm
         from solver.ArcLengthNewtonRaphsonAlgorithm import ArcLengthNewtonRaphsonAlgorithm
         CON = self.fem_db.SolveControl
-        if abs(CON.arcln) == 0:
+        if abs(CON.Arclen.arcln) == 0:
             if not CON.searc:
                 NewtonRaphsonAlgorithm()
             else:

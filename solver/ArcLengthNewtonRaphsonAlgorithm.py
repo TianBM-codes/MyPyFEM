@@ -3,6 +3,7 @@
 
 from femdb.NLFEMDataBase import NLFEMDataBase
 from utils.GlobalEnum import *
+from scipy.sparse.linalg import spsolve
 import numpy as np
 
 """
@@ -21,30 +22,27 @@ RightHand = fem_db.right_hand_item
 
 def linear_solver(K, F, fixed_dof):
     """
-    Solve the linear system Ku = F for iterative displacements,
-    excluding the degrees of freedom with Dirichlet boundary conditions.
-
-    Parameters:
-    K -- Stiffness matrix.
-    F -- Force vector.
-    fixed_dof -- Indices of degrees of freedom with Dirichlet boundary conditions.
-
-    Returns:
-    u -- Solution vector for displacements.
-    rtu -- Dot product of the solution vector and the force vector.
+    Solve for iterative displacements.
+    # TODO: 需要注意的是，这些操作虽然有效，但可能不是最高效的，尤其是对于非常大的稀疏矩阵。每次这样的操作都可能涉及到底层数据的复制。如果可能的话，最好在稀疏矩阵最终形成之前，或者在转换为稠密矩阵后进行行列的删除操作。
     """
-    # 将 fixed_dof 从 1 基索引转换为 0 基索引（如果从 MATLAB 转换而来）
-    fixed_dof = np.array(fixed_dof) - 1
+    fixed_dof = np.array(fixed_dof)
 
-    # 从 K 和 F 中移除 Dirichlet 边界条件的自由度
-    K = np.delete(K, fixed_dof, axis=0)
-    K = np.delete(K, fixed_dof, axis=1)
+    """
+    Remove from K and Residual the rows (and columns for K) associated to
+    degrees of freedom with Dirichlet boundary conditions.
+    """
+    all_rows = np.arange(K.shape[0])
+    rows_to_keep = np.isin(all_rows, fixed_dof, invert=True)
+    K = K[rows_to_keep]
+    K_csc = K.tocsc()
+    all_cols = np.arange(K_csc.shape[1])
+    cols_to_keep = np.isin(all_cols, fixed_dof, invert=True)
+    K_filtered_cols = K_csc[:, cols_to_keep]
+    K = K_filtered_cols.tocsr()
+
     F = np.delete(F, fixed_dof, axis=0)
 
-    # 解线性系统 Ku = F
-    u = np.linalg.solve(K, F)
-
-    # 计算 u 和 F 的点积
+    u = spsolve(K, F)
     rtu = np.dot(u.T, F)
 
     return u, rtu
@@ -116,6 +114,7 @@ def arclen(displ, dispf):
 
     return displ
 
+
 def CheckResidualNorm():
     """
     Check for equilibrium convergence.
@@ -124,23 +123,24 @@ def CheckResidualNorm():
     Obtain the reactions
     """
     BC = fem_db.BC
-    RightHand.reactions = RightHand.residual[BC.fixed_dof] + \
-                          RightHand.external_load[BC.fixed_dof]
+    RightHand.reactions = (RightHand.residual[BC.fixed_dof] +
+                           RightHand.external_load[BC.fixed_dof])
     CON = fem_db.SolveControl
 
     r_norm = np.dot(RightHand.residual[BC.free_dof].T, RightHand.residual[BC.free_dof])
 
     # 计算外部载荷范数
     f_norm = np.dot((RightHand.nominal_external_load[BC.free_dof] - RightHand.nominal_pressure[BC.free_dof]).T,
-                   (RightHand.nominal_external_load[BC.free_dof] - RightHand.nominal_pressure[BC.free_dof]))
+                    (RightHand.nominal_external_load[BC.free_dof] - RightHand.nominal_pressure[BC.free_dof]))
     f_norm = f_norm * CON.xlamb ** 2
 
     # 计算反应力范数
-    e_norm = np.dot(RightHand.Reactions.T, RightHand.Reactions)
+    e_norm = np.dot(RightHand.reactions.T, RightHand.reactions)
 
     # 计算最终范数
     r_norm = np.sqrt(r_norm / (f_norm + e_norm))
     return r_norm
+
 
 def ArcLengthNewtonRaphsonAlgorithm():
     from global_assembly.ResidualAndStiffnessAssembly import ResidualAndStiffnessAssembly
@@ -152,15 +152,14 @@ def ArcLengthNewtonRaphsonAlgorithm():
     arcln = CON.Arclen.arcln
     LOAD_CASE = fem_db.LoadCase
 
-    while CON.xlmax < CON.xlmax and CON.incrm < CON.nincr:
+    while CON.xlamb < CON.xlmax and CON.incrm < CON.nincr:
         CON.incrm += 1
         """
         Update the load factor. The radius is adjusted to achieve target 
         iterations per increment arbitrarily dampened by a factor of 0.7.
         """
-        if not afail and not CON.fracl:
-            CON.arcln = CON.arcln * (CON.itarget / CON.iterold) ** 0.7
-            arcln = CON.arcln
+        if not afail and not CON.Arclen.farcl:
+            arcln = arcln * (CON.Arclen.itarget / CON.Arclen.iterold) ** 0.7
 
         """
         Update nodal forces (excluding pressure) and gravity. 
@@ -176,7 +175,7 @@ def ArcLengthNewtonRaphsonAlgorithm():
         """
         if LOAD_CASE.n_pressure_loads > 0:
             from global_assembly.PressureLoadAndStiffnessAssembly import PressureLoadAndStiffnessAssembly
-            PressureLoadAndStiffnessAssembly()
+            PressureLoadAndStiffnessAssembly(fem_db.ElementGroupHash[0])
 
         """
         For the case of prescribed geometry update coordinates.
@@ -194,39 +193,51 @@ def ArcLengthNewtonRaphsonAlgorithm():
         CON.niter = 0
         rnorm = 2 * CON.cnorm
         while rnorm > CON.cnorm and CON.niter < CON.miter:
-            CON.niter += 1
             # Solve for iterative displacements.
-            displ, _ = linear_solver(fem_db.global_k.stiffness, -RightHand.residual, BC.fixdof)
+            CON.niter += 1
+            displ, _ = linear_solver(fem_db.global_k.stiffness, -RightHand.residual, BC.fixed_dof)
+
             # Solve for displacements (for a nominal load).
             dispf, _ = linear_solver(fem_db.global_k.stiffness,
-                                  RightHand.nominal_external_load - RightHand.nominal_pressure,
-                                  BC.fixdof)
+                                     RightHand.nominal_external_load - RightHand.nominal_pressure,
+                                     BC.fixed_dof)
             displ = arclen(displ, dispf)
-            # Update coordinates.
-            GEOM.x[BC.free_dof] += displ
-            ResidualAndStiffnessAssembly()
+
+            """
+            %----------------------------------------------------------------
+            % Update coordinates.
+            % -Recompute equivalent nodal forces and assembles residual force, 
+            %  excluding pressure contributions.
+            % -Recompute and assembles tangent stiffness matrix components, 
+            %  excluding pressure contributions.
+            %----------------------------------------------------------------
+            """
+            GEOM.x.flatten()[BC.free_dof] += displ
+            ResidualAndStiffnessAssembly(fem_db.ElementGroupHash[0])
 
             # Update nodal forces due to pressure.
             if LOAD_CASE.n_pressure_loads:
-                PressureLoadAndStiffnessAssembly()
+                PressureLoadAndStiffnessAssembly(fem_db.ElementGroupHash[0])
 
             # Check for equilibrium convergence.
-            rnorm, GLOBAL = CheckResidualNorm()
+            rnorm = CheckResidualNorm()
+
             # Break iteration before residual gets unrealistic (e.g., NaN).
             if abs(rnorm) > 1e7 or np.isnan(rnorm):
-                CON.ARCLEN.afail = 1
+                CON.Arclen.afail = 1
                 break
+
             # Update value of the old iteration number.
-            CON.ARCLEN.iter_old = CON.niter
+            CON.Arclen.iter_old = CON.niter
 
         # If convergence not achieved opt to restart from previous results or terminate.
-        afail = CON.ARCLEN.afail
-        if CON.niter >= CON.miter or CON.ARCLEN.afail:
+        afail = CON.Arclen.afail
+        if CON.niter >= CON.miter or CON.Arclen.afail:
             terminate = input('Solution not converged. Do you want to terminate the program (y/n) ?: ')
             if terminate.lower() == 'n':
                 # Restart from previous step by decreasing the fixed arclength radius to half its initially fixed value.
                 print('Restart from previous step by decreasing the fixed arclength radius to half its initially fixed value.')
-                CON.ARCLEN.arcln /= 2
+                CON.Arclen.arcln /= 2
             else:
                 afail = 1
         else:
@@ -236,4 +247,4 @@ def ArcLengthNewtonRaphsonAlgorithm():
 
         # If a failure occurs in the arc-length function, reduce the value of the radius in the arc-length to a 10th of the previous value and automatically restart.
         if afail:
-            CON.ARCLEN.arcln /= 10
+            CON.Arclen.arcln /= 10

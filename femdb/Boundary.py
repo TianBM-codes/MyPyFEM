@@ -55,7 +55,7 @@ class FlagSHyPBoundary(BoundaryBase):
         from femdb.NLFEMDataBase import NLFEMDataBase
         fem_db = NLFEMDataBase()
         n_dofs = fem_db.Mesh.n_dofs
-        dim = GlobalInfor[GlobalVariant.Dimension]
+        dim = GetDomainDimension()
         npoin = fem_db.Geom.node_count
 
         self.free_dof = np.arange(1, n_dofs + 1)  # 使用从 1 开始的索引
@@ -65,6 +65,9 @@ class FlagSHyPBoundary(BoundaryBase):
             fixed_dofs = flagshyp_boundary_codes(self.icode[inode], dim)
             self.fixed_dof[(inode * dim):(inode * dim + dim)] = fixed_dofs
 
+        """
+        减1是因为Matlab的index对应从1开始, Python是从0开始
+        """
         self.fixed_dof = self.fixed_dof * self.free_dof
-        self.fixed_dof = self.fixed_dof[self.fixed_dof > 0]
-        self.free_dof = np.delete(self.free_dof, self.fixed_dof - 1)
+        self.fixed_dof = self.fixed_dof[self.fixed_dof > 0] - 1
+        self.free_dof = np.delete(self.free_dof, self.fixed_dof - 1) - 1
