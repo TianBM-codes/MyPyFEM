@@ -70,4 +70,4 @@ class FlagSHyPBoundary(BoundaryBase):
         """
         self.fixed_dof = self.fixed_dof * self.free_dof
         self.fixed_dof = self.fixed_dof[self.fixed_dof > 0] - 1
-        self.free_dof = np.delete(self.free_dof, self.fixed_dof - 1) - 1
+        self.free_dof = np.delete(self.free_dof, self.fixed_dof - 1)

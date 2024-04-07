@@ -88,7 +88,7 @@ def ResidualAndStiffnessAssembly(grp: ElementGroup):
             global force vector. 
             """
             global_dofs = MESH.dof_nodes[:, ele.search_node_ids]
-            T_int[global_dofs.flatten()] = T_int[global_dofs.flatten()] + T_internal
+            T_int[global_dofs.flatten('F')] = T_int[global_dofs.flatten('F')] + T_internal
 
             """
             Storage of updated value of the internal variables.

@@ -138,7 +138,9 @@ def CheckResidualNorm():
     e_norm = np.dot(RightHand.reactions.T, RightHand.reactions)
 
     # 计算最终范数
-    r_norm = np.sqrt(r_norm / (f_norm + e_norm))
+    r_norm = np.sqrt(r_norm / (f_norm + e_norm)).flatten()[0]
+
+    print(f"Step: {CON.incrm:3} iteration: {CON.niter:3} residual: {r_norm:10.7g}")
     return r_norm
 
 
@@ -212,7 +214,10 @@ def ArcLengthNewtonRaphsonAlgorithm():
             %  excluding pressure contributions.
             %----------------------------------------------------------------
             """
-            GEOM.x.flatten()[BC.free_dof] += displ
+            row_count, col_count = GEOM.x.shape
+            x1 = GEOM.x.flatten(order='f')
+            x1[BC.free_dof] = x1[BC.free_dof] + displ
+            GEOM.x = x1.reshape((row_count, col_count), order='f')
             ResidualAndStiffnessAssembly(fem_db.ElementGroupHash[0])
 
             # Update nodal forces due to pressure.

@@ -142,7 +142,7 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
                 element_indexi[global_k.counter:global_k.counter + dim ** 2] = indexi.flatten('F')
 
                 # Index for column identification.
-                element_indexj[global_k.counter:global_k.counter + dim ** 2] = indexj.flatten()
+                element_indexj[global_k.counter:global_k.counter + dim ** 2] = indexj.flatten('F')
 
                 # Mean dilatation stiffness matrix contribution.
                 element_stiffness[global_k.counter:global_k.counter + dim ** 2] = kappa_bar * ve * DN_x_meana_DN_x_meanb.flatten('F')
