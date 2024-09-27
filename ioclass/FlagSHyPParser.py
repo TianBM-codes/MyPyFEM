@@ -38,7 +38,7 @@ class FlagSHyPParser(object):
         Compute initial tangent matrix and equivalent force vector, excluding
         pressure component.
 
-        文件格式：
+        input file format：
         Javier Book P263
         :return:
         """

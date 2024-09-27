@@ -15,7 +15,7 @@ dim = GlobalInfor[GlobalVariant.Dimension]
 element_indexi = fem_db.global_k.indexi
 element_indexj = fem_db.global_k.indexj
 element_stiffness = fem_db.global_k.stiffness
-IDENTITY_TENSOR = fem_db.identity_tensor
+IDENTITY_TENSOR = fem_db.IdentityTensor
 T_int = fem_db.right_hand_item.T_int
 RightHand = fem_db.right_hand_item
 

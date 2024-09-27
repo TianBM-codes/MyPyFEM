@@ -135,13 +135,12 @@ class ResultsWriter(object):
                     uf.write(ele_line)
 
             """
-            写入位移结果
+            写入位移结果, 节点无需保存幅值, SiPESC平台自动计算
             """
             uf.write('}\n'
                      '{ ResultSet\n'
                      '( name="Static Displacement", target="NodeResult", type="Vector", varlabels="X|Y|Z", subcase=0)\n')
 
-            # 节点无需保存幅值, SiPESC平台自动计算
             for ii in range(len(self.femdb.node_list)):
                 node = self.femdb.node_list[ii]
                 node_id = node.id

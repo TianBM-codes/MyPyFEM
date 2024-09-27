@@ -36,7 +36,7 @@ class Geom(object):
                     ele = eles[jj]
                     x_local = fem_db.Geom.x[:, ele.search_node_ids]
                     area = fem_db.Material[ele.mat_id].value_dict[MaterialKey.Area]
-                    L = np.linalg.norm(x_local[:,1]-x_local[:,0])
+                    L = np.linalg.norm(x_local[:, 1] - x_local[:, 0])
                     self.V_ele[jj] = area * L
                     self.V_total += self.V_ele[jj]
             else:

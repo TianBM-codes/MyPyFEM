@@ -74,7 +74,7 @@ class NLFEMDataBase(object):
             self.Dimension = AnalyseDimension.NoAssign
             self.SolveControl = SolveControl()
             self.ElementGroupHash: Dict[int, ElementGroup] = {}
-            self.identity_tensor = IdentityTensor()
+            self.IdentityTensor = IdentityTensor()
 
             self.right_hand_item = RightHandItem()
             self.kinematics = Kinematics()
@@ -84,6 +84,6 @@ class NLFEMDataBase(object):
 
     def SetDimensionVariant(self, dimension: int):
         if dimension in [2, 3]:
-            self.identity_tensor.InitVariant(dimension)
+            self.IdentityTensor.InitVariant(dimension)
         else:
             raise NoSupportDimension(dimension)

@@ -31,7 +31,7 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
     element_indexi = global_k.indexi
     element_indexj = global_k.indexj
     element_stiffness = global_k.stiffness
-    IDENTITY_TENSOR = fem_db.identity_tensor
+    IDENTITY_TENSOR = fem_db.IdentityTensor
     MESH = fem_db.Mesh
     grp_ele_info = grp.element_info
     T_internal = np.zeros((grp_ele_info.n_dofs_elem, 1), dtype=float)
@@ -90,7 +90,8 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
         c = ElasticityModulusSelection(PLAST_element, PLAST_gauss, igauss, mat_id)
 
         """
-        Add pressure contribution to stresses and elasticity tensor.
+        Add pressure contribution to stresses and elasticity tensor. 
+        P251 (9.54) P252 (9.56) P166 (6.39)
         """
         Cauchy = Cauchy + press * IDENTITY_TENSOR.I
         c = c + press * (IDENTITY_TENSOR.c1 - IDENTITY_TENSOR.c2)
@@ -152,7 +153,7 @@ def ElementForceAndStiffness(xlocal, Xlocal, mat_id, Ve,
     return T_internal, PLAST_element
 
 
-def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id, Ve,
+def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id,
                                   ele: ElementBaseClass,
                                   grp: ElementGroup,
                                   ele_idx: int):
@@ -161,7 +162,6 @@ def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id, Ve,
     @param xlocal:
     @param Xlocal:
     @param mat_id:
-    @param Ve:
     @param ele:
     @param grp:
     @param ele_idx:
@@ -259,7 +259,7 @@ def ElementForceAndStiffnessTruss(xlocal, Xlocal, mat_id, Ve,
     """
     Storage of stress for postprocessing purposes
     """
-    J = lambda_ ** (1 - 2 * mat.value_dict[MaterialKey.PoissonRatio])
-    Cauchy = tau / J
+    # J = lambda_ ** (1 - 2 * mat.value_dict[MaterialKey.PoissonRatio])
+    # Cauchy = tau / J
 
     return T_internal, PLAST_element

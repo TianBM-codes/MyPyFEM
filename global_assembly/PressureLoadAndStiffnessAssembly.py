@@ -30,6 +30,9 @@ def PressureLoadAndStiffnessAssembly(grp: ElementGroup):
     """
     Update nodal forces and stiffness matrix due to external pressure
     boundary face (line) contributions.
+    Javier Bonet P248
+    @param grp:
+    @return:
     """
     RightHand.nominal_pressure = np.zeros((MESH.n_dofs, 1), dtype=float)
     RightHand.R_pressure = np.zeros((MESH.n_dofs, 1), dtype=float)

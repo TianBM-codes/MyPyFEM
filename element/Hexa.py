@@ -50,7 +50,9 @@ class C3D8(ElementBaseClass, ABC):
         assert self.node_coords.shape == (8, 3)
 
         # 在8个高斯点上积分, 这里还有么有再优化的空间?
-        dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D8
+        # dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D8
+        dNdrs = []
+        weights = []
         for ii in range(self.gs_count):
             J = np.matmul(dNdrs[ii], self.node_coords)
             det_J = np.linalg.det(J)

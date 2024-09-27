@@ -119,5 +119,6 @@ if __name__ == "__main__":
     X = np.asarray([[0, 4, 0], [0, 0, 3]], dtype=float)
     x = np.asarray([[2, 10, 10], [3, 3, 9]], dtype=float)
     kine = Kinematics()
+    kine.Init(None, None, None)
     kine.ComputeGradients(xlocal=x, Xlocal=X, DN_Dchi=np.asarray([[-1, -1], [1, 0], [0, 1]], dtype=float))
     kine.PrintVariables()

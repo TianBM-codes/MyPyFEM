@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import sys
 
 # 1D Elements
 from element.Truss import *
@@ -95,4 +94,3 @@ class ElementFactory:
                 raise NoImplSuchElement(e_type)
 
         raise NoImplSuchElement(e_type)
-

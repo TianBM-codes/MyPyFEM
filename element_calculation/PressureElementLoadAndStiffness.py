@@ -23,6 +23,13 @@ LOAD_CASE = fem_db.LoadCase
 
 
 def Levi_civita_contraction_vector(vector, dim_p):
+    """
+    third-order alternating tensor
+    P248 <<Nonlinear Solid Mechanics for Finite Element Analysis: Statics>>
+    @param vector:
+    @param dim_p:
+    @return:
+    """
     if dim_p == 2:
         matrix = np.array([[0, vector[2]], [-vector[2], 0]])
     elif dim_p == 3:
@@ -78,6 +85,8 @@ def PressureElementLoadAndStiffness(grp: ElementGroup, global_nodes,
         0.5*k*(DN_etaa*Nb - Na*DN_etab).
         -For 3D problems:
         0.5*(dx_chi*(DN_etaa*Nb-Na*DN_etab)-dx_eta*(DN_chia*Nb-Na*DN_chib). 
+        
+        @todo: 不乘以面积吗？
         """
         for bnode in range(grp.element_info.n_face_dofs_elem):
             for anode in range(grp.element_info.n_face_dofs_elem):

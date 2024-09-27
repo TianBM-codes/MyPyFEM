@@ -20,6 +20,7 @@ MESH = fem_db.Mesh
 """
 Compute contribution (and extract relevant information for subsequent
 assembly) of the geometric term of the stiffness matrix.
+P247 EQUATION 9.44c
 """
 
 

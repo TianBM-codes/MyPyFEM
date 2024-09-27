@@ -18,12 +18,6 @@ element_indexi = fem_db.global_k.indexi
 element_indexj = fem_db.global_k.indexj
 element_stiffness = fem_db.global_k.stiffness
 
-"""
-Compute contribution (and extract relevant information for subsequent
-assembly) of the constitutive term of the stiffness matrix.
-EQUATION (9.35)
-"""
-
 
 def ConstitutiveMatrix(grp: ElementGroup,
                        ele: ElementBaseClass,
@@ -31,6 +25,9 @@ def ConstitutiveMatrix(grp: ElementGroup,
                        c,
                        JW):
     """
+    Compute contribution (and extract relevant information for subsequent
+    assembly) of the constitutive term of the stiffness matrix.
+    EQUATION (9.35)  Indicial Form
     @param grp:
     @param ele:
     @param i_gauss:

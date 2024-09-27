@@ -78,7 +78,7 @@ def ResidualAndStiffnessAssembly(grp: ElementGroup):
             Ve = fem_db.Geom.V_ele[ele_idx]
             from element_calculation.ElementForceAndStiffness import ElementForceAndStiffness, ElementForceAndStiffnessTruss
             if grp.e_type in ['truss2']:
-                T_internal, PLAST_element = ElementForceAndStiffnessTruss(xlocal, x0local, mat_id, Ve, ele, grp, ele_idx)
+                T_internal, PLAST_element = ElementForceAndStiffnessTruss(xlocal, x0local, mat_id, ele, grp, ele_idx)
             else:
                 T_internal, PLAST_element = ElementForceAndStiffness(xlocal, x0local, mat_id, Ve, ele, grp, ele_idx)
 
