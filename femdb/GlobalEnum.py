@@ -110,11 +110,15 @@ Ansys2VTKType = {
     # trusses
     # solid
     45: "hexahedron",
+    "185_4": "tetra",
+    "185_6": "wedge",
+    "185_8": "hexahedron",
     # beams
     188: "line",
     189: "line3",
     # shell
-    181: "quad",
+    "181_3": "triangle",
+    "181_4": "quad"
 }
 
 """

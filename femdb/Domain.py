@@ -329,14 +329,14 @@ class Domain(object):
                     ele_displacement.append(node.dof_disp)
 
                 # 根据节点位移, 以单元为计算单位, 计算单元节点应力
-                stress = iter_ele.ElementStress(np.asarray(ele_displacement))
-                for idx in range(iter_ele.nodes_count):
-                    nid = search_node_ids[idx]
-                    node = self.femdb.GetNodeBySearchId(nid)
-                    node.AppendStressResult(stress[idx,:])
+                # stress = iter_ele.ElementStress(np.asarray(ele_displacement))
+                # for idx in range(iter_ele.nodes_count):
+                #     nid = search_node_ids[idx]
+                #     node = self.femdb.GetNodeBySearchId(nid)
+                #     node.AppendStressResult(stress[idx,:])
 
-        for node in self.femdb.node_list:
-            node.AverageStress()
+        # for node in self.femdb.node_list:
+        #     node.AverageStress()
 
     """ 
     以下的函数为计算输出部分, 后处理部分

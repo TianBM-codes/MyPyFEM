@@ -103,7 +103,7 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
-        return np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳,
+        return T.T @ self.K @ T * self.cha_dict["RealConst"] # 只适用于等厚度的壳
 
     def ElementStress(self, displacement):
         """
@@ -234,7 +234,7 @@ class CPM8(ElementBaseClass, ABC):
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
 
-        return np.matmul(np.matmul(T.T, self.K), T) * self.cha_dict["RealConst"][0]  # 只适用于等厚度的壳
+        return T.T @ self.K @ T * self.cha_dict["RealConst"] # 只适用于等厚度的壳
 
     def ElementStress(self, displacement):
         """

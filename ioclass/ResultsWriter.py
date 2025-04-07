@@ -69,23 +69,22 @@ class ResultsWriter(object):
         # 模型部分
         coords = np.asarray([node.coord for node in self.femdb.node_list])
         all_eles = {}
+
         for key, ele_grp in self.femdb.ele_grp_hash.items():
             eles = ele_grp.Elements()
             ele_count = len(eles)
-            ele_node_count = eles[0].nodes_count
-            relations = np.zeros([ele_count, ele_node_count], dtype=int)
             for i in range(ele_count):
-                relations[i] = eles[i].GetNodeSearchIndex()[:ele_node_count]
+                ele_node_count = eles[i].nodes_count
+                iter_relation = eles[i].GetNodeSearchIndex()[:ele_node_count].tolist()
+                key2 = str(self.femdb.et_hash[key]) + "_" + str(ele_node_count)
+                if all_eles.__contains__(Ansys2VTKType[key2]):
+                    all_eles[Ansys2VTKType[key2]].append(iter_relation)
+                else:
+                    all_eles[Ansys2VTKType[key2]] = [iter_relation]
 
-            suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
-            if suffix == InputFileType.CDB:
-                key = self.femdb.et_hash[key]
-                all_eles[Ansys2VTKType[key]] = relations
-            elif suffix == InputFileType.INP:
-                all_eles[Abaqus2VTKType[key]] = relations
 
         # 位移结果
-        dis_value = np.asarray([node.displacement for node in self.femdb.node_list])
+        dis_value = np.asarray([node.dof_disp[:3] for node in self.femdb.node_list])
         displacement = {"displacement": dis_value}
         meshio.write_points_cells(
             filename=path,
@@ -145,22 +144,22 @@ class ResultsWriter(object):
             for ii in range(len(self.femdb.node_list)):
                 node = self.femdb.node_list[ii]
                 node_id = node.id
-                displacement = node.dof_disp
+                displacement = node.dof_disp[:3]
                 uf.write("( {}, {:.6}, {:.6}, {:.6})\n".format(node_id, displacement[0], displacement[1], displacement[2]))
 
-            uf.write('}\n')
+            # uf.write('}\n')
 
             """
             写入应力结果
             """
-            uf.write('{ StaticStrs;\n')
-            uf.write('( 1, {};)\n'.format(len(self.femdb.node_list)))
-            uf.write('{ StaticStrsSet;\n')
-            uf.write('( 1, "Stress", 2;)\n')
-            for ii in range(len(self.femdb.node_list)):
-                node = self.femdb.node_list[ii]
-                xx, yy, zz, xy, yz, xz = node.average_stress
-                uf.write("( {}, {:.6}, {:.6}, {:.6}, {:.6}, {:.6},{:.6})\n".format(node.id, xx, yy, zz, xy, yz, xz))
-
-            uf.write('}\n')  # 应力结果结束
+            # uf.write('{ StaticStrs;\n')
+            # uf.write('( 1, {};)\n'.format(len(self.femdb.node_list)))
+            # uf.write('{ StaticStrsSet;\n')
+            # uf.write('( 1, "Stress", 2;)\n')
+            # for ii in range(len(self.femdb.node_list)):
+            #     node = self.femdb.node_list[ii]
+            #     xx, yy, zz, xy, yz, xz = node.average_stress
+            #     uf.write("( {}, {:.6}, {:.6}, {:.6}, {:.6}, {:.6},{:.6})\n".format(node.id, xx, yy, zz, xy, yz, xz))
+            #
+            # uf.write('}\n')  # 应力结果结束
             uf.write('}\n')  # 整个文件结束

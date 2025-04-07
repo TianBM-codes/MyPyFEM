@@ -34,11 +34,15 @@ class DKTShell(ElementBaseClass, ABC):
         """
         TODO: 转轴要不要加小量
         """
-        # 由膜单元和板单元构成
+        """
+        由膜单元和板单元构成
+        """
         plate = DKTPlate(-1)
         membrane = CPM6(-1)
 
-        # 先转换到局部坐标
+        """
+        先转换到局部坐标
+        """
         T_matrix = GetGlobal2LocalTransMatrix(self.node_coords)
         local_coord = np.matmul(self.node_coords, T_matrix)
         m_coords = local_coord[:, :2]
@@ -46,19 +50,25 @@ class DKTShell(ElementBaseClass, ABC):
                                (local_coord[1, :] + local_coord[2, :]) * 0.5,
                                (local_coord[2, :] + local_coord[0, :]) * 0.5], dtype=float)[:, :2]
 
-        # 设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
+        """
+        设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
+        """
         membrane.node_coords = np.append(m_coords, mid_node, axis=0)
         membrane.T_matrix = T_matrix
         plate.node_coords = m_coords
         plate.T_matrix = T_matrix
 
-        # 设置膜单元和版单元的材料
+        """
+        设置膜单元和版单元的材料
+        """
         membrane.cha_dict = self.cha_dict
         plate.cha_dict = self.cha_dict
         membrane.CalElementDMatrix()
         plate.CalElementDMatrix()
 
-        # Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
+        """
+        Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
+        """
         # e = 10e-8
         k_mtx_m = membrane.ElementStiffness()
         k_mtx_p = plate.ElementStiffness()
@@ -91,7 +101,7 @@ class DKTShell(ElementBaseClass, ABC):
         global_t_matrix[12:15, 12:15] = T_matrix
         global_t_matrix[15:18, 15:18] = T_matrix
 
-        self.K = np.matmul(np.matmul(global_t_matrix.T, self.K), global_t_matrix)
+        self.K = global_t_matrix.T @ self.K @ global_t_matrix
 
         return self.K
 
@@ -133,7 +143,9 @@ class DKQShell(ElementBaseClass, ABC):
         plate = DKQPlate(self.id)
         membrane = CPM8(self.id)
 
-        # 先转换到局部坐标
+        """
+        先转换到局部坐标
+        """
         T_matrix = GetGlobal2LocalTransMatrix(self.node_coords)
         local_coord = np.matmul(self.node_coords, T_matrix)
         m_coords = local_coord[:, :2]
@@ -142,19 +154,25 @@ class DKQShell(ElementBaseClass, ABC):
                                (local_coord[2, :] + local_coord[3, :]) * 0.5,
                                (local_coord[3, :] + local_coord[0, :]) * 0.5], dtype=float)[:, :2]
 
-        # 设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
+        """
+        设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
+        """
         membrane.node_coords = np.append(m_coords, mid_node, axis=0)
         membrane.T_matrix = T_matrix
         plate.node_coords = m_coords
         plate.T_matrix = T_matrix
 
-        # 设置膜单元和版单元的材料
+        """
+        设置膜单元和版单元的材料
+        """
         membrane.cha_dict = self.cha_dict
         plate.cha_dict = self.cha_dict
         membrane.CalElementDMatrix()
         plate.CalElementDMatrix()
 
-        # Assembly Stiffness Matrix, membrane: u,v,theta_z, plate: omega, theta_x, theta_y
+        """
+        Assembly Stiffness Matrix, membrane: u,v,theta_z, plate: omega, theta_x, theta_y
+        """
         # e = 10e-8
         k_mtx_m = membrane.ElementStiffness()
         k_mtx_p = plate.ElementStiffness()
@@ -202,7 +220,7 @@ class DKQShell(ElementBaseClass, ABC):
         global_t_matrix[18:21, 18:21] = T_matrix
         global_t_matrix[21:24, 21:24] = T_matrix
 
-        self.K = np.matmul(np.matmul(global_t_matrix.T, self.K), global_t_matrix)
+        self.K = global_t_matrix.T @ self.K @ global_t_matrix
 
         return self.K
 

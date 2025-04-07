@@ -103,7 +103,7 @@ class MyPyFEM:
             time_7 = time.time()
 
             writer = ResultsWriter()
-            # writer.WriteVTPFile(output_paths[0])
+            writer.WriteVTPFile(self.output_files[0])
             writer.WriteUNVFile(self.output_files[1])
             p_end = time.time()
 
@@ -128,7 +128,7 @@ class MyPyFEM:
             mlogger.debug(time_format.format("Assemble Stiffness", time_5 - time_4))
             mlogger.debug(time_format.format("Solve Displacement", time_6 - time_5))
             mlogger.debug(time_format.format("Calculate Stress", time_7 - time_6))
-            mlogger.debug(time_format.format("Write Output File", p_end - time_6))
+            mlogger.debug(time_format.format("Write Output File", p_end - time_7))
             mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
             mlogger.debug(" " + "-" * 40)
             mlogger.debug(" Finish Analysis\n")

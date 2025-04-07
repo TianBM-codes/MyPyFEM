@@ -263,7 +263,7 @@ class DKTPlate(ElementBaseClass, ABC):
         单元的坐标是通过Shell单元给的, 不是在读取cdb文件时候给的
         """
         assert self.node_coords.shape == (3, 2)
-        self.thickness = self.cha_dict["RealConst"][0]  # TODO 暂时支持各个点的厚度是一样的情形
+        self.thickness = self.cha_dict["RealConst"]  # TODO 暂时支持各个点的厚度是一样的情形
 
         # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
@@ -338,7 +338,7 @@ class DKTPlate(ElementBaseClass, ABC):
                             j21 * pHyps + j22 * pHypr,
                             j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
 
-            self.K += np.matmul(np.matmul(B.T, self.D), B) * weight[ii] * detJ
+            self.K += B.T @ self.D @ B * weight[ii] * detJ
 
         # self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
         return self.K * self.thickness
@@ -389,7 +389,7 @@ class DKQPlate(ElementBaseClass, ABC):
         形函数与膜单元(CPM8)类似, 为8节点四边形单元
         """
         assert self.node_coords.shape == (4, 2)
-        self.thickness = self.cha_dict["RealConst"][0]
+        self.thickness = self.cha_dict["RealConst"]
 
         # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
@@ -498,7 +498,7 @@ class DKQPlate(ElementBaseClass, ABC):
                                 j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
 
                 # 这里不会约分掉det_J
-                self.K += np.matmul(np.matmul(B.T, self.D), B) * weight[si] * detJ
+                self.K += B.T @ self.D @ B * weight[si] * detJ
 
         # self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
         return self.K * self.thickness
