@@ -1,6 +1,7 @@
 /.idea
 .pytest_cache
 __pycache__
+.sipesc/
 /docs
 /to_assemble_code
 
@@ -12,6 +13,7 @@ RunExample.py
 *.docx
 *.vsdx
 *.unv
+*.dat
 *.vtp
 *.full
 *.jpg
