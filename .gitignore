@@ -14,7 +14,7 @@ RunExample.py
 *.vsdx
 *.unv
 *.dat
-*.vtp
+*.vtu
 *.full
 *.jpg
 /.VSCodeCounter

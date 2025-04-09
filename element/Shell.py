@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 from element.Plate import *
 from element.Membrane import *
 
@@ -13,7 +12,7 @@ class DKTShell(ElementBaseClass, ABC):
         self.nodes_count = 3  # Each element has 3 nodes
         self._nodes = [None for _ in range(self.nodes_count)]
         self._vtp_type = "triangle"
-        self.K = None
+        self.K = np.zeros((18,18), dtype=float)
         self.unv_code = 30500
 
     def CalElementDMatrix(self, an_type=None):
@@ -73,25 +72,40 @@ class DKTShell(ElementBaseClass, ABC):
         k_mtx_m = membrane.ElementStiffness()
         k_mtx_p = plate.ElementStiffness()
 
-        k_mtx_m_g = np.insert(k_mtx_m, 2, [[0] * 9] * 3, axis=0)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 9] * 3, axis=0)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 9] * 3, axis=0)
+        index_m_g = [(0, 1), (5, 7), (11, 13)]
+        index_m = [(0, 1), (2, 4), (5, 7)]
+        index_p_g = [(2, 4), (8, 10), (14, 16)]
+        index_p = [(0, 2), (3, 5), (6, 8)]
+        for ii in range(3):
+            m_row_s = index_m[ii][0]
+            m_row_e = index_m[ii][1] + 1
+            m_row_g_s = index_m_g[ii][0]
+            m_row_g_e = index_m_g[ii][1] + 1
 
-        k_mtx_m_g = np.insert(k_mtx_m_g, 2, [[0] * 18] * 3, axis=1)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 18] * 3, axis=1)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 18] * 3, axis=1)
+            p_row_s = index_p[ii][0]
+            p_row_e = index_p[ii][1] + 1
+            p_row_g_s = index_p_g[ii][0]
+            p_row_g_e = index_p_g[ii][1] + 1
+            for jj in range(3):
+                m_col_s = index_m[jj][0]
+                m_col_e = index_m[jj][1] + 1
 
-        k_mtx_p_g = np.insert(k_mtx_p, 0, [[0] * 9] * 2, axis=0)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 9] * 3, axis=0)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 9] * 3, axis=0)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [0] * 9, axis=0)
+                m_col_g_s = index_m_g[jj][0]
+                m_col_g_e = index_m_g[jj][1] + 1
+                self.K[m_row_g_s:m_row_g_e, m_col_g_s:m_col_g_e] = k_mtx_m[m_row_s:m_row_e, m_col_s:m_col_e]
 
-        k_mtx_p_g = np.insert(k_mtx_p_g, 0, [[0] * 18] * 2, axis=1)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 18] * 3, axis=1)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 18] * 3, axis=1)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [0] * 18, axis=1)
+                p_col_s = index_p[jj][0]
+                p_col_e = index_p[jj][1] + 1
 
-        self.K = k_mtx_m_g + k_mtx_p_g
+                p_col_g_s = index_p_g[jj][0]
+                p_col_g_e = index_p_g[jj][1] + 1
+
+                self.K[p_row_g_s:p_row_g_e, p_col_g_s:p_col_g_e] = k_mtx_p[p_row_s:p_row_e, p_col_s:p_col_e]
+
+            self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
+            self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
+
+        self.K[-1,-1] = k_mtx_m[-1,-1]
 
         global_t_matrix = np.zeros((18, 18))
         global_t_matrix[0:3, 0:3] = T_matrix
@@ -177,29 +191,42 @@ class DKQShell(ElementBaseClass, ABC):
         k_mtx_m = membrane.ElementStiffness()
         k_mtx_p = plate.ElementStiffness()
 
-        k_mtx_m_g = np.insert(k_mtx_m, 2, [[0] * 12] * 3, axis=0)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 12] * 3, axis=0)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 12] * 3, axis=0)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 20, [[0] * 12] * 3, axis=0)
+        index_m_g = [(0, 1), (5, 7), (11, 13), (17, 19)]
+        index_m = [(0, 1), (2, 4), (5, 7), (8, 10)]
+        index_p_g = [(2, 4), (8, 10), (14, 16), (20, 22)]
+        index_p = [(0, 2), (3, 5), (6, 8), (9, 11)]
 
-        k_mtx_m_g = np.insert(k_mtx_m_g, 2, [[0] * 24] * 3, axis=1)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 8, [[0] * 24] * 3, axis=1)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 14, [[0] * 24] * 3, axis=1)
-        k_mtx_m_g = np.insert(k_mtx_m_g, 20, [[0] * 24] * 3, axis=1)
+        for ii in range(4):
+            m_row_s = index_m[ii][0]
+            m_row_e = index_m[ii][1] + 1
+            m_row_g_s = index_m_g[ii][0]
+            m_row_g_e = index_m_g[ii][1] + 1
 
-        k_mtx_p_g = np.insert(k_mtx_p, 0, [[0] * 12] * 2, axis=0)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 12] * 3, axis=0)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 12] * 3, axis=0)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [[0] * 12] * 3, axis=0)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 23, [0] * 12, axis=0)
+            p_row_s = index_p[ii][0]
+            p_row_e = index_p[ii][1] + 1
+            p_row_g_s = index_p_g[ii][0]
+            p_row_g_e = index_p_g[ii][1] + 1
+            for jj in range(4):
+                m_col_s = index_m[jj][0]
+                m_col_e = index_m[jj][1] + 1
 
-        k_mtx_p_g = np.insert(k_mtx_p_g, 0, [[0] * 24] * 2, axis=1)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 5, [[0] * 24] * 3, axis=1)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 11, [[0] * 24] * 3, axis=1)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 17, [[0] * 24] * 3, axis=1)
-        k_mtx_p_g = np.insert(k_mtx_p_g, 23, [0] * 24, axis=1)
+                m_col_g_s = index_m_g[jj][0]
+                m_col_g_e = index_m_g[jj][1] + 1
+                self.K[m_row_g_s:m_row_g_e, m_col_g_s:m_col_g_e] = k_mtx_m[m_row_s:m_row_e, m_col_s:m_col_e]
 
-        self.K = k_mtx_m_g + k_mtx_p_g
+                p_col_s = index_p[jj][0]
+                p_col_e = index_p[jj][1] + 1
+
+                p_col_g_s = index_p_g[jj][0]
+                p_col_g_e = index_p_g[jj][1] + 1
+
+                self.K[p_row_g_s:p_row_g_e, p_col_g_s:p_col_g_e] = k_mtx_p[p_row_s:p_row_e, p_col_s:p_col_e]
+
+            self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
+            self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
+
+        self.K[-1,-1] = k_mtx_m[-1,-1]
+
         # try:
         #     np.linalg.inv(k_mtx_p_g)
         # except np.linalg.LinAlgError:
@@ -225,6 +252,9 @@ class DKQShell(ElementBaseClass, ABC):
         return self.K
 
     def ElementStress(self, displacement):
-        """
-        Calculate element stress
-        """
+            """
+            Calculate element stress
+            """
+
+
+
