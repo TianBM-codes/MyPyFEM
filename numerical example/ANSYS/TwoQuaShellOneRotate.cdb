@@ -1,0 +1,149 @@
+:NEUTRAL
+/COM, *** ANSYS GEOMETRY NEUTRAL FILE ***
+/NOPR
+FINISH
+/PREP7
+FINISH
+/AUX15
+MANF,ZERO
+MANF,DEF
+FINI
+:CDWRITE      ! START OF CDWRITE DATA
+/COM,ANSYS RELEASE Release 19.2      BUILD 19.2      UP20180808       22:32:18
+/PREP7
+/NOPR
+/TITLE,                                                                        
+ANTYPE, 0
+*IF,_CDRDOFF,EQ,1,THEN     !if solid model was read in
+_CDRDOFF=             !reset flag, numoffs already performed
+*ELSE              !offset database for the following FE model
+NUMOFF,NODE,        8
+NUMOFF,ELEM,        2
+NUMOFF,MAT ,        1
+NUMOFF,REAL,        1
+NUMOFF,TYPE,        1
+*ENDIF
+*SET,_BUTTON ,  0.000000000000    
+*SET,_GUI_CLR_BG,' systemButtonFace               '
+*SET,_GUI_CLR_FG,' systemButtonText               '
+*SET,_GUI_CLR_INFOBG,' systemInfoBackground           '
+*SET,_GUI_CLR_SEL,' systemHighlight                '
+*SET,_GUI_CLR_SELBG,' systemHighlight                '
+*SET,_GUI_CLR_SELFG,' systemHighlightText            '
+*SET,_GUI_CLR_WIN,' systemWindow                   '
+*SET,_GUI_FNT_FMLY,'宋体                          '
+*SET,_GUI_FNT_PXLS,  24.00000000000    
+*SET,_GUI_FNT_SLNT,'r                               '
+*SET,_GUI_FNT_WEGT,'medium                          '
+*SET,_RETURN ,  0.000000000000    
+*SET,_STATUS ,  0.000000000000    
+*SET,_UIQR   ,  1.000000000000    
+*SET,_Z1     ,  0.000000000000    
+*SET,_Z10    ,  0.000000000000    
+*SET,_Z11    ,  0.000000000000    
+*SET,_Z12    ,  0.000000000000    
+*SET,_Z13    ,  0.000000000000    
+*SET,_Z14    ,  0.000000000000    
+*SET,_Z15    ,  0.000000000000    
+*SET,_Z16    ,  0.000000000000    
+*SET,_Z17    ,  0.000000000000    
+*SET,_Z18    ,  0.000000000000    
+*SET,_Z19    ,  0.000000000000    
+*SET,_Z2     ,  0.000000000000    
+*SET,_Z20    ,  0.000000000000    
+*SET,_Z21    ,  0.000000000000    
+*SET,_Z30    ,  0.000000000000    
+*SET,_Z31    ,  0.000000000000    
+*SET,_Z32    ,  0.000000000000    
+ET,        1,181
+RLBLOCK,       1,       1,      12,       7
+(2i8,6g16.9)
+(7g16.9)
+       1       6 0.200000000     0.200000000     0.200000000     0.200000000      0.00000000      0.00000000    
+NBLOCK,6,SOLID,         8,         6
+(3i9,6e21.13e3)
+        3        0        0 2.4330127018922E+001 0.0000000000000E+000-2.5000000000000E+000
+        4        0        0 2.4330127018922E+001 5.0000000000000E+000-2.5000000000000E+000
+        5        0        0 2.0000000000000E+001 5.0000000000000E+000
+        6        0        0 2.0000000000000E+001
+        7        0        0 1.5000000000000E+001
+        8        0        0 1.5000048251495E+001 5.0018535912916E+000
+N,R5.3,LOC,       -1,
+N,R5.1,LOC,       -1,
+EBLOCK,19,SOLID,         2,         2
+(19i10)
+         1         1         1         0         0         0         0         0         4         0         1         8         5         6         7
+         1         1         1         0         0         0         0         0         4         0         2         5         4         3         6
+        -1
+EN,R5.5,ATTR,       -1,
+CMBLOCK,TYPE1-REAL1-MAT1,ELEM,       2  ! users element component definition
+(8i10)
+         1        -2
+CMBLOCK,_ANF__ELEM__,ELEM,       2  ! users element component definition
+(8i10)
+         1        -2
+CMBLOCK,_ANF__NODE__,NODE,       2  ! users node component definition
+(8i10)
+         3        -8
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,EX  ,       1, 1, 2.100000000E+11,
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,NUXY,       1, 1, 0.300000000    ,
+EXTOPT,ATTR,      0,      0,      0
+EXTOPT,ESIZE,  0,  0.0000    
+EXTOPT,ACLEAR,     0
+TREF,  0.00000000
+IRLF,  0
+BFUNIF,TEMP,_TINY
+ACEL,  0.00000000    ,  0.00000000    ,  0.00000000
+OMEGA,  0.00000000    ,  0.00000000    ,  0.00000000,     0
+DOMEGA,  0.00000000    ,  0.00000000    ,  0.00000000
+CGLOC,  0.00000000    ,  0.00000000    ,  0.00000000
+CGOMEGA,  0.00000000    ,  0.00000000    ,  0.00000000
+DCGOMG,  0.00000000    ,  0.00000000    ,  0.00000000
+
+KUSE,     0
+TIME,  0.00000000
+ALPHAD,  0.00000000
+BETAD,  0.00000000
+DMPRAT,  0.00000000
+DMPSTR,  0.00000000
+
+CRPLIM, 0.100000000    ,   0
+CRPLIM,  0.00000000    ,   1
+NCNV,     1,  0.00000000    ,     0,  0.00000000    ,  0.00000000
+
+NEQIT,     0
+
+ERESX,DEFA
+D,      7,UX  ,  0.00000000    ,  0.00000000    
+D,      7,UY  ,  0.00000000    ,  0.00000000    
+D,      7,UZ  ,  0.00000000    ,  0.00000000    
+D,      7,ROTX,  0.00000000    ,  0.00000000    
+D,      7,ROTY,  0.00000000    ,  0.00000000    
+D,      7,ROTZ,  0.00000000    ,  0.00000000    
+D,      8,UX  ,  0.00000000    ,  0.00000000    
+D,      8,UY  ,  0.00000000    ,  0.00000000    
+D,      8,UZ  ,  0.00000000    ,  0.00000000    
+D,      8,ROTX,  0.00000000    ,  0.00000000    
+D,      8,ROTY,  0.00000000    ,  0.00000000    
+D,      8,ROTZ,  0.00000000    ,  0.00000000    
+F,      3,FZ  ,  1000.00000    ,  0.00000000    
+F,      4,FZ  ,  1000.00000    ,  0.00000000    
+FINISH
+/AUX15
+FINISH
+/PREP7
+CMBLOCK,_ANF__NODE__,NODE,       2  ! component definition
+(8i10)
+         3        -8
+CMSEL,S,_ANF__NODE__                    
+CMDEL,_ANF__NODE__                    
+CMBLOCK,_ANF__ELEM__,ELEM,       2  ! component definition
+(8i10)
+         1        -2
+CMSEL,S,_ANF__ELEM__                    
+CMDEL,_ANF__ELEM__                    
+CMSEL,ALL,,,,,NO
+/GO
+FINISH
