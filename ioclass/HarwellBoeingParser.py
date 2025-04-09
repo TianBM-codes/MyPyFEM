@@ -421,9 +421,9 @@ class RutherfordBoeingData(HarwellBoeingMatrix):
             if self.patternOnly: return
 
             # Read values
-            dataType = np.float
+            dataType = np.float32
             if numerf == 'c':
-                dataType = np.complex
+                dataType = np.complex64
             elif numerf == 'i':
                 dataType = int
             if self.dattyp != 'rhs': self.nauxd = m * nvec
@@ -515,7 +515,7 @@ def fortranWriteArray(data, chunk_size, stream, fformat):
     nelts = len(data)
     nelts_per_line = nelts / chunk_size
     # print 'Writing %d elements %d per line...' % (nelts, chunk_size)
-    for k in range(nelts_per_line):
+    for k in range(int(nelts_per_line)):
         chunk = data[k * chunk_size:(k + 1) * chunk_size]
         fortranWriteLine(chunk, stream, fformat)
     if nelts_per_line * chunk_size < nelts:
@@ -748,7 +748,7 @@ if __name__ == '__main__':
     import sys
 
     fname = sys.argv[1]
-    plot = False
+    plot = True
 
     np.set_printoptions(precision=8,
                         threshold=10,

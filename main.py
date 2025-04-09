@@ -13,6 +13,7 @@ from ioclass.FlagSHyPParser import FlagSHyPParser
 from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
 from femdb.NLDomain import NLDomain
+
 sys.path.insert(0, "./femdb")
 sys.path.insert(0, "../NumericalCases")
 
@@ -150,9 +151,75 @@ class MyPyFEM:
             sys.exit(1)
 
 
+def check_symmetry(matrix, percentage_tol=0.1):
+    # 将百分比容差转换为小数形式
+    tol = percentage_tol / 100.0
+
+    # 标记是否对称
+    is_symmetric = True
+
+    # 创建字典存储 (i, j) -> value
+    matrix_dict = {(i, j): v for i, j, v in zip(matrix.row, matrix.col, matrix.data)}
+
+    # 遍历所有非零元素
+    for i, j, v in zip(matrix.row, matrix.col, matrix.data):
+        # 检查对应的 (j, i) 元素
+        if (j, i) in matrix_dict:
+            corresponding_value = matrix_dict[(j, i)]
+            # 计算相对误差
+            relative_error = abs(v - corresponding_value) / max(abs(v), abs(corresponding_value), 1e-10)
+            absolute_error = abs(v - corresponding_value)
+
+            # 检查相对误差和绝对误差
+            if relative_error > tol and absolute_error > 1e-4:
+                print(f"Matrix element ({i}, {j}) = {v} is not approximately equal to ({j}, {i}) = {corresponding_value} "
+                      f"with a relative error of {relative_error:.5f} and an absolute error of {absolute_error:.5e}")
+                is_symmetric = False
+        else:
+            print(f"Matrix element ({i}, {j}) = {v} has no corresponding symmetric element at ({j}, {i})")
+            is_symmetric = False
+
+    if is_symmetric:
+        print("The matrix is symmetric within the given tolerance.")
+    else:
+        print("The matrix is not symmetric within the given tolerance.")
+
+    return is_symmetric
+
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        mlogger.fatal(" No Input File Assign")
-        sys.exit(1)
-    input_file = sys.argv[1]
-    MyPyFEM(pathlib.Path(input_file))
+    # if len(sys.argv) == 1:
+    #     mlogger.fatal(" No Input File Assign")
+    #     sys.exit(1)
+    # input_file = sys.argv[1]
+    # MyPyFEM(pathlib.Path(input_file))
+    import numpy as np
+    import matplotlib.pyplot as plt
+    import scipy.sparse
+
+    # 加载CSV文件
+    # 假设CSV文件格式是三列：[row_index, col_index, value]
+    data = np.loadtxt('GLOBAL_K_2.csv', delimiter=',')
+
+    # 获取行索引、列索引和值
+    rows = data[:, 0].astype(int) - 1  # 将索引转换为0-based
+    cols = data[:, 1].astype(int) - 1  # 将索引转换为0-based
+    values = data[:, 2]
+
+    # 获取矩阵的大小
+    matrix_size = max(max(rows), max(cols)) + 1
+
+    # 创建一个稀疏矩阵
+    sparse_matrix = scipy.sparse.coo_matrix((values, (rows, cols)), shape=(matrix_size, matrix_size))
+
+    # 将稀疏矩阵转换为稠密格式
+    dense_matrix = sparse_matrix.toarray()
+    print("Is symmetric:", check_symmetry(sparse_matrix))
+
+    # 可视化矩阵
+    plt.figure(figsize=(10, 10))
+    plt.imshow(dense_matrix, cmap='viridis', interpolation='none')
+    plt.colorbar(label='Matrix Values')
+    plt.title('Visualization of GLOBAL.K Matrix')
+    plt.xlabel('Column Index')
+    plt.ylabel('Row Index')
+    plt.show()
