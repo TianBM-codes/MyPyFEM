@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-from tensorboard.compat.tensorflow_stub.tensor_shape import vector
 
 
 def GetShellGlobal2LocalTransMatrix(nodes: np.array):
