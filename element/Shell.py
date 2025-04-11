@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import numpy as np
+
 from element.Plate import *
 from element.Membrane import *
 
 
 class DKTShell(ElementBaseClass, ABC):
-    """ DKTShell Element class """
+    """
+    DKTShell Element class
+    """
 
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
         self._nodes = [None for _ in range(self.nodes_count)]
         self._vtp_type = "triangle"
-        self.K = np.zeros((18,18), dtype=float)
+        self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
 
     def CalElementDMatrix(self, an_type=None):
@@ -42,8 +46,8 @@ class DKTShell(ElementBaseClass, ABC):
         """
         先转换到局部坐标
         """
-        T_matrix = GetGlobal2LocalTransMatrix(self.node_coords)
-        local_coord = np.matmul(self.node_coords, T_matrix)
+        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
         m_coords = local_coord[:, :2]
         mid_node = np.asarray([(local_coord[0, :] + local_coord[1, :]) * 0.5,
                                (local_coord[1, :] + local_coord[2, :]) * 0.5,
@@ -105,7 +109,7 @@ class DKTShell(ElementBaseClass, ABC):
             self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
             self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
 
-        self.K[-1,-1] = k_mtx_m[-1,-1]
+        self.K[-1, -1] = k_mtx_m[-1, -1]
 
         global_t_matrix = np.zeros((18, 18))
         global_t_matrix[0:3, 0:3] = T_matrix
@@ -126,7 +130,9 @@ class DKTShell(ElementBaseClass, ABC):
 
 
 class DKQShell(ElementBaseClass, ABC):
-    """ DKQShell Element class """
+    """
+    DKQShell Element class
+    """
 
     def __init__(self, eid=None):
         super().__init__(eid)
@@ -160,8 +166,8 @@ class DKQShell(ElementBaseClass, ABC):
         """
         先转换到局部坐标
         """
-        T_matrix = GetGlobal2LocalTransMatrix(self.node_coords)
-        local_coord = np.matmul(self.node_coords, T_matrix)
+        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
         m_coords = local_coord[:, :2]
         mid_node = np.asarray([(local_coord[0, :] + local_coord[1, :]) * 0.5,
                                (local_coord[1, :] + local_coord[2, :]) * 0.5,
@@ -225,18 +231,8 @@ class DKQShell(ElementBaseClass, ABC):
             self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
             self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
 
-        self.K[-1,-1] = k_mtx_m[-1,-1]
+        self.K[-1, -1] = k_mtx_m[-1, -1]
 
-        # try:
-        #     np.linalg.inv(k_mtx_p_g)
-        # except np.linalg.LinAlgError:
-        #     print(self.id)
-        #
-        # try:
-        #     np.linalg.inv(k_mtx_m_g)
-        # except np.linalg.LinAlgError:
-        #     print("mem ", self.id)
-        #
         global_t_matrix = np.zeros((24, 24))
         global_t_matrix[0:3, 0:3] = T_matrix
         global_t_matrix[3:6, 3:6] = T_matrix
@@ -252,9 +248,6 @@ class DKQShell(ElementBaseClass, ABC):
         return self.K
 
     def ElementStress(self, displacement):
-            """
-            Calculate element stress
-            """
-
-
-
+        """
+        Calculate element stress
+        """

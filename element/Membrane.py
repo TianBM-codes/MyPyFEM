@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from element.ElementBase import *
-import numpy as np
 from abc import ABC
+
+import numpy as np
+
+from element.ElementBase import *
 
 
 class CPM6(ElementBaseClass, ABC):
@@ -103,7 +105,7 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
-        return T.T @ self.K @ T * self.cha_dict["RealConst"] # 只适用于等厚度的壳
+        return T.T @ self.K @ T * self.cha_dict["RealConst"]  # 只适用于等厚度的壳
 
     def ElementStress(self, displacement):
         """
@@ -204,7 +206,9 @@ class CPM8(ElementBaseClass, ABC):
                 B[2, :] += B2[0, :]
                 self.K += np.matmul(np.matmul(B.T, self.D), B) * w_r * w_s * det_J  # TODO: ??? 这里不会约分掉det_J???
 
-        # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
+        """
+        以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
+        """
         # e = 10e-8
         a12 = (self.node_coords[1, 0] - self.node_coords[0, 0]) * 0.125
         a23 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
@@ -233,8 +237,7 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-
-        return T.T @ self.K @ T * self.cha_dict["RealConst"] # 只适用于等厚度的壳
+        return T.T @ self.K @ T * self.cha_dict["RealConst"]  # 只适用于等厚度的壳
 
     def ElementStress(self, displacement):
         """

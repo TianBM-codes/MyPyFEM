@@ -1,33 +1,44 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
+from tensorboard.compat.tensorflow_stub.tensor_shape import vector
 
 
-def GetGlobal2LocalTransMatrix(global_coord: np.array):
+def GetShellGlobal2LocalTransMatrix(nodes: np.array):
     """
-    注意节点编号规则, 需是逆时针编号
-    :param global_coord: shape: n*3  n>=2 全局笛卡尔坐标
-    :return 局部坐标, x_local是节点1至节点2的单位向量, y_local是面外法向
+    第一个切向量 (沿1-2边方向), 第二个切向量 (沿1-4边方向，假设四边形单元)
+    :param nodes: shape: n*3  n>=2 全局笛卡尔坐标, 单元的节点坐标
+    :return 转换矩阵
     """
-    x_local = global_coord[1,] - global_coord[0,]
-    y_temp = global_coord[2,] - global_coord[1,]
-    z_local = np.cross(x_local, y_temp)
-    y_local = np.cross(z_local, x_local)
+    origin = nodes[0]
 
-    return np.array([x_local[0:] / np.linalg.norm(x_local),
-                     y_local[0:] / np.linalg.norm(y_local),
-                     z_local[0:] / np.linalg.norm(z_local)], dtype=float)
+    vec1 = nodes[1] - origin
+    vec1 = vec1 / np.linalg.norm(vec1)
+
+    vec2_initial = nodes[2] - origin
+    vec2_initial = vec2_initial / np.linalg.norm(vec2_initial)
+
+    normal = np.cross(vec1, vec2_initial)
+    normal = normal / np.linalg.norm(normal)
+
+    """
+    修正第二个切向量使其正交
+    """
+    vec2 = np.cross(normal, vec1)
+    vec2 = vec2 / np.linalg.norm(vec2)
+
+    return np.column_stack((vec1, vec2, normal)), origin
 
 
 if __name__ == "__main__":
-    # t_coord = np.asarray([[3, 0, 0], [0, 3, 0], [0, 0, 3]],dtype=float)
-    # t = np.asarray([[1,2,3],[4,5,6],[7,8,9]])
-    # print(t.T*t_coord)
-    # print(np.matmul(t,t_coord)+t_coord)
-    t = np.matrix([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
-    t_coord = np.array([[3, 0, 0], [0, 3, 0], [0, 0, 3]], dtype=float)
-    print(GetGlobal2LocalTransMatrix(t_coord))
-    print(GetGlobal2LocalTransMatrix(t_coord).shape)
-    print(t.shape)
-    print(t_coord.shape)
-    # print(t*t_coord)
+    element_nodes = np.array([
+        [20, 5, 0],
+        [20, 0, 0],
+        [24.33, 0, -2.5],
+        [24.33, 5, -2.5]
+    ])
+
+    trans_matrix, origin0 = GetShellGlobal2LocalTransMatrix(element_nodes)
+
+    offset_nodes = element_nodes.T - origin0[:, np.newaxis]
+    print(offset_nodes.T @ trans_matrix)
