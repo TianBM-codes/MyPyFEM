@@ -56,7 +56,6 @@ class CDBParser(object):
                     self.et_hash[int(splits[1].strip())] = int(splits[2].strip())
                     self.iter_line = cdb_f.readline()
 
-
                 # 解析实常数, 本行暂时不解析内容, 直接解析下一行开始的实常数
                 elif self.iter_line.startswith("RLBLOCK,"):
                     self.iter_line = cdb_f.readline()
@@ -185,7 +184,6 @@ class CDBParser(object):
                 保存至数据库, ANSYS单元的每一行都指定了材料等信息, 与ABAQUS不同. 在最后文件解析完成后再
                 PrepareCalculateAnsys中分配各个单元信息
                 """
-
                 # 节点编号是无符号32位的, 也就是节点最大4294967295
                 node_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)
                 search_ids = np.zeros(parsed_nodes_count, dtype=np.uint32)

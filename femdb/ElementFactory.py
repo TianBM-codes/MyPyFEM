@@ -51,7 +51,7 @@ class ElementFactory:
             return DKTShell(e_id), 3
         elif e_type in ["S4", "S4R", "S4RT"]:
             return DKQShell(e_id), 4
-        elif e_type in [181]:
+        elif e_type in [181, 63]:
             if opt == 4:
                 return DKQShell(e_id), 4
             elif opt == 3:
@@ -114,7 +114,7 @@ class ElementFactory:
             return 3
         elif e_type in ["C3D20R"]:
             return 3
-        elif e_type in [181]:
+        elif e_type in [181, 63]:
             return 6
 
         mlogger.fatal("No Such ElementType: {}".format(e_type))
