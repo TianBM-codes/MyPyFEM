@@ -56,17 +56,19 @@ class CDBParser(object):
                     self.et_hash[int(splits[1].strip())] = int(splits[2].strip())
                     self.iter_line = cdb_f.readline()
 
-                # 解析实常数, 本行暂时不解析内容, 直接解析下一行开始的实常数
                 elif self.iter_line.startswith("RLBLOCK,"):
+                    """
+                    https://ansyshelp.ansys.com/public/account/secured?returnurl=//////Views/Secured/corp/v242/en/ans_prog/Hlp_P_INT3_3.html%23eLN4r40lcd
+                    如果不是以字母开头的, 那么还没有跳出定义, 两个format都是固定的格式,  (2i8,6g16.9)和(7g16.9)
+                    """
                     self.iter_line = cdb_f.readline()
-                    # 如果不是以字母开头的, 那么还没有跳出定义
                     format_list = []
                     while not self.iter_line[0].isalpha():
                         if self.iter_line[0] == "(":
                             format_list.append(ff.FortranRecordReader(self.iter_line.strip()))
                             self.iter_line = cdb_f.readline()
-                        elif self.iter_line[0] == " ":  # RLBLOCK
-                            rl_data = format_list.pop(0).read(self.iter_line)
+                        elif self.iter_line[0] == " ":
+                            rl_data = format_list[0].read(self.iter_line)
                             self.real_constant_hash[rl_data[0]] = rl_data[2:]
                             self.iter_line = cdb_f.readline()
 

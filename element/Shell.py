@@ -111,13 +111,17 @@ class DKTShell(ElementBaseClass, ABC):
 
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
+        """
+        这里的T_matrix是全局==>局部，转职就是局部==>全局
+        """
+        R_matrix = T_matrix.T
         global_t_matrix = np.zeros((18, 18))
-        global_t_matrix[0:3, 0:3] = T_matrix
-        global_t_matrix[3:6, 3:6] = T_matrix
-        global_t_matrix[6:9, 6:9] = T_matrix
-        global_t_matrix[9:12, 9:12] = T_matrix
-        global_t_matrix[12:15, 12:15] = T_matrix
-        global_t_matrix[15:18, 15:18] = T_matrix
+        global_t_matrix[0:3, 0:3] = R_matrix
+        global_t_matrix[3:6, 3:6] = R_matrix
+        global_t_matrix[6:9, 6:9] = R_matrix
+        global_t_matrix[9:12, 9:12] = R_matrix
+        global_t_matrix[12:15, 12:15] = R_matrix
+        global_t_matrix[15:18, 15:18] = R_matrix
 
         self.K = global_t_matrix.T @ self.K @ global_t_matrix
 
@@ -233,15 +237,19 @@ class DKQShell(ElementBaseClass, ABC):
 
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
+        """
+        这里的T_matrix是全局==>局部，转职就是局部==>全局
+        """
+        R_matrix = T_matrix.T
         global_t_matrix = np.zeros((24, 24))
-        global_t_matrix[0:3, 0:3] = T_matrix
-        global_t_matrix[3:6, 3:6] = T_matrix
-        global_t_matrix[6:9, 6:9] = T_matrix
-        global_t_matrix[9:12, 9:12] = T_matrix
-        global_t_matrix[12:15, 12:15] = T_matrix
-        global_t_matrix[15:18, 15:18] = T_matrix
-        global_t_matrix[18:21, 18:21] = T_matrix
-        global_t_matrix[21:24, 21:24] = T_matrix
+        global_t_matrix[0:3, 0:3] = R_matrix
+        global_t_matrix[3:6, 3:6] = R_matrix
+        global_t_matrix[6:9, 6:9] = R_matrix
+        global_t_matrix[9:12, 9:12] = R_matrix
+        global_t_matrix[12:15, 12:15] = R_matrix
+        global_t_matrix[15:18, 15:18] = R_matrix
+        global_t_matrix[18:21, 18:21] = R_matrix
+        global_t_matrix[21:24, 21:24] = R_matrix
 
         self.K = global_t_matrix.T @ self.K @ global_t_matrix
 

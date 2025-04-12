@@ -118,7 +118,9 @@ Ansys2VTKType = {
     189: "line3",
     # shell
     "181_3": "triangle",
-    "181_4": "quad"
+    "181_4": "quad",
+    "63_4": "quad",
+    "63_3": "triangle"
 }
 
 """
