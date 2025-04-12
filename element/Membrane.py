@@ -56,10 +56,10 @@ class CPM6(ElementBaseClass, ABC):
             r, s = points[ii]
             w = weights[ii]
 
-            ph1pr, ph2pr, ph3pr = -3 + 4 * (r + s), -1 + 4 * r, 0
+            ph1pr, ph2pr, ph3pr = -3 + 4 * (r + s), 4 * r - 1, 0
             ph4pr, ph5pr, ph6pr = 4 * (1 - 2 * r - s), 4 * s, -4 * s
             ph1ps, ph2ps, ph3ps = ph1pr, 0, -1 + 4 * s
-            ph4ps, ph5ps, ph6ps = -4 * r * (1 - r), 4 * s, r * (1 - r - 2 * s)
+            ph4ps, ph5ps, ph6ps = -4 * r, 4 * r, 4 * (1 - r - 2 * s)
 
             phpr = np.array([ph1pr, ph2pr, ph3pr, ph4pr, ph5pr, ph6pr], dtype=float)
             phps = np.array([ph1ps, ph2ps, ph3ps, ph4ps, ph5ps, ph6ps], dtype=float)

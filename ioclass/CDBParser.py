@@ -59,7 +59,7 @@ class CDBParser(object):
                 elif self.iter_line.startswith("RLBLOCK,"):
                     """
                     https://ansyshelp.ansys.com/public/account/secured?returnurl=//////Views/Secured/corp/v242/en/ans_prog/Hlp_P_INT3_3.html%23eLN4r40lcd
-                    如果不是以字母开头的, 那么还没有跳出定义, 两个format都是固定的格式,  (2i8,6g16.9)和(7g16.9)
+                    如果不是以字母开头的, 那么还没有跳出定义, 两个format都是固定的格式,  (2i8,6g16.9)和(7g16.9), 现阶段对(7g16.9)格式的第二行不解析
                     """
                     self.iter_line = cdb_f.readline()
                     format_list = []
@@ -68,8 +68,9 @@ class CDBParser(object):
                             format_list.append(ff.FortranRecordReader(self.iter_line.strip()))
                             self.iter_line = cdb_f.readline()
                         elif self.iter_line[0] == " ":
-                            rl_data = format_list[0].read(self.iter_line)
-                            self.real_constant_hash[rl_data[0]] = rl_data[2:]
+                            if len(self.iter_line.split()) == 8:
+                                rl_data = format_list[0].read(self.iter_line)
+                                self.real_constant_hash[rl_data[0]] = rl_data[2:]
                             self.iter_line = cdb_f.readline()
 
                 # 解析节点信息, TODO:平面应变平面应力这种只有二维坐标的
@@ -198,8 +199,8 @@ class CDBParser(object):
                 iter_ele.SetNodeSearchIndex(np.asarray(ele_node_list))
 
                 # 除了组成单元所需的节点以外都是辅助节点, 默认e_node_count至parsed_nodes_count外的都是辅助节点
-                for idx in range(e_node_count, parsed_nodes_count):
-                    self.femdb.node_list[self.femdb.node_hash[node_ids[idx]]].is_assist_node = True
+                # for idx in range(e_node_count, parsed_nodes_count):
+                #     self.femdb.node_list[self.femdb.node_hash[node_ids[idx]]].is_assist_node = True
 
                 iter_ele.SetId(ele_num)
                 iter_ele.SetNodes(np.asarray(list(OrderedDict.fromkeys(node_ids))))
