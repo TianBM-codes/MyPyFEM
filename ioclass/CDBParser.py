@@ -72,6 +72,9 @@ class CDBParser(object):
                                 rl_data = format_list[0].read(self.iter_line)
                                 self.real_constant_hash[rl_data[0]] = rl_data[2:]
                             self.iter_line = cdb_f.readline()
+                        elif self.iter_line[0] == "!":
+                            # 兼容hypermesh生成的cdb
+                            self.iter_line = cdb_f.readline()
 
                 # 解析节点信息, TODO:平面应变平面应力这种只有二维坐标的
                 elif self.iter_line.startswith("NBLOCK,"):
