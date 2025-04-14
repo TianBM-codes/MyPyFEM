@@ -22,7 +22,7 @@ class CPM6(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 6  # Each element has 6 nodes
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
-        self.vtp_type = "triangle"
+        self.vtu_type = "triangle"
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
@@ -105,7 +105,7 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
-        return T.T @ self.K @ T * self.cha_dict["RealConst"]  # 只适用于等厚度的壳
+        return T.T @ self.K @ T * self.cha_dict[self.sec_id]  # 只适用于等厚度的壳
 
     def ElementStress(self, displacement):
         """
@@ -128,7 +128,7 @@ class CPM8(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 8  # Each element has 6 nodes
         self.K = np.zeros([16, 16], dtype=float)  # 刚度矩阵
-        self.vtp_type = "triangle"
+        self.vtu_type = "triangle"
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
@@ -237,7 +237,7 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        return T.T @ self.K @ T * self.cha_dict["RealConst"]  # 只适用于等厚度的壳
+        return T.T @ self.K @ T * self.cha_dict[self.sec_id]  # 只适用于等厚度的壳
 
     def ElementStress(self, displacement):
         """

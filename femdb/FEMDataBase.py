@@ -30,6 +30,7 @@ class FEMDataBase(object):
         # elements
         # Dict of all Element in the domain, key: ele_keyword, value: ele_group 单元实际数据也存在这里
         self.ele_grp_hash = {}
+        self.elements = []
         self.biggest_grp = ""  # 最大的组, 含义是哪个组内包含的单元最多
         self.et_hash = {}
         self.equation_number = None
@@ -49,6 +50,10 @@ class FEMDataBase(object):
         self.global_stiff_matrix = None
         self.load_case = LoadCase()
         self.real_const_hash = {}
+
+        # maps
+        self.shell_thickness_map = {}
+        self.material_map = {}
 
     """ 
     以下的函数为解析文件的相关函数, 添加节点、单元、节点集、单元集、属性、材料、边界条件、LoadCase等 
@@ -189,26 +194,22 @@ class FEMDataBase(object):
         """
         对每个单元进行循环, 赋予属性, 计算单刚. 假设ANSYS的单元信息全部存储在了mat、sec、real_const三者中
         """
-        for e_type, grp in self.ele_grp_hash.items():
-            for iter_ele in grp.Elements():
-                mat_dict = self.GetSpecificFEMObject(FEMObject.Material, iter_ele.mat_id).GetValueDict()
+        for iter_ele in self.elements:
+            mat_dict = self.material_map[iter_ele.mat_id]
 
-                # 并不是所有单元都有截面属性, 首先要判断是否为空
-                sec_characters = self.GetSpecificFEMObject(FEMObject.Section, iter_ele.sec_id)
-                if sec_characters is not None:
-                    sec_characters = sec_characters.GetSectionCharacter()
-                else:
-                    sec_characters = {}
+            # 并不是所有单元都有截面属性, 首先要判断是否为空
+            sec_characters = self.GetSpecificFEMObject(FEMObject.Section, iter_ele.sec_id)
+            if sec_characters is not None:
+                sec_characters = sec_characters.GetSectionCharacter()
+            else:
+                sec_characters = {}
 
-                # 同样, 也并不是所有单元都有实常数, 首先判断是否为空
-                real_const_id = iter_ele.real_const_id
-                if self.real_const_hash.__contains__(real_const_id):
-                    real_const = {"RealConst": real_const_id}
-                else:
-                    real_const = {}
+            # 同样, 也并不是所有单元都有实常数, 首先判断是否为空
+            real_const_id = iter_ele.real_const_id
+            real_const = {"RealConst": real_const_id}
 
-                # 所有计算单刚的参数均已设置完毕, 可以计算单刚
-                iter_ele.SetAllCharacterAndCalD({**mat_dict, **sec_characters, **real_const})
+            # 所有计算单刚的参数均已设置完毕, 可以计算单刚
+            iter_ele.SetAllCharacterAndCalD({**mat_dict, **sec_characters, **real_const, **self.shell_thickness_map})
 
     def AssignElementPropertyAbaqus(self):
         """

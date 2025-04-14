@@ -14,7 +14,7 @@ class T3D2(ElementBaseClass, ABC):
     def __init__(self, eid):
         super().__init__(eid)
         self.nodes_count = 2  # Each element has 2 nodes
-        self._vtp_type = "line"
+        self.vtu_type = "line"
         self.stiffness = None
         self.stress = None
 

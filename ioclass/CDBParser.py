@@ -211,25 +211,19 @@ class CDBParser(object):
                 iter_ele.sec_id = sec_id
                 iter_ele.real_const_id = real_constant_num
 
-                # 计算单元包括的节点的坐标矩阵
+                """
+                计算单元包括的节点的坐标矩阵
+                """
                 coords = []
                 for nid in ele_node_list:
                     n_coord = self.femdb.node_list[nid].GetNodeCoord()
                     coords.append(n_coord)
                 iter_ele.SetNodeCoords(np.asarray(coords))
+                self.femdb.elements.append(copy.deepcopy(iter_ele))
 
-                # 保存对应关系
-                if self.ele_group_hash.__contains__(e_type):
-                    ele_group = self.ele_group_hash[e_type]
-                    self.femdb.ele_idx_hash[ele_num] = ele_group.GetElementsCurrentCount()
-                    ele_group.AppendElement(copy.deepcopy(iter_ele))
-                else:
-                    new_ele_group = ElementGroup(e_type)
-                    new_ele_group.AppendElement(copy.deepcopy(iter_ele))
-                    self.femdb.ele_idx_hash[ele_num] = 0  # 第一个元素, 所以index为0
-                    self.ele_group_hash[e_type] = new_ele_group
-
-                # 更新并读取下一行
+                """
+                更新并读取下一行
+                """
                 self.ele_count += 1
                 self.iter_line = f_handle.readline()
         else:
@@ -269,7 +263,8 @@ class CDBParser(object):
                     iter_mat_id = int(splits[4])
                     if iter_mat_id != cur_mat_id:
                         # 读取同一种材料结束, 读取下一种材料或者读取材料结束, 程序跳出材料分支
-                        self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        self.femdb.material_map[cur_mat_id] = value_dict
                         self.iter_line = f_handle.readline()
                         break
                     if splits[3].startswith("EX"):
@@ -283,7 +278,8 @@ class CDBParser(object):
                     # 当前行为其他信息, 跳出读材料分支, 读取其他
                     jump_out = not (self.iter_line.startswith("MPDATA,") or self.iter_line.startswith("MPTEMP"))
                     if jump_out:
-                        self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        self.femdb.material_map[cur_mat_id] = value_dict
                         break
 
     def ReadSection(self, f_handle):
@@ -308,10 +304,14 @@ class CDBParser(object):
                 self.iter_line = f_handle.readline()
 
             elif splits[2] == "SHELL":
+                sec_num = splits[1]
                 f_handle.readline()  # secoffset
                 f_handle.readline()  # sec block
-                f_handle.readline()  # sec block data
+                self.iter_line = f_handle.readline()  # sec block data
+                splits = self.iter_line.split(",")
+                thickness = splits[0]
                 f_handle.readline()  # sec control
+                self.femdb.shell_thickness_map[int(sec_num)] = float(thickness)
 
             else:
                 mlogger.fatal("UnSupport Section Type")

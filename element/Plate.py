@@ -19,7 +19,7 @@ class MITC4(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 8 nodes
         self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
-        self.vtp_type = "quad"
+        self.vtu_type = "quad"
         self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):
@@ -152,7 +152,7 @@ class MITC3(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
         self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
-        self.vtp_type = "triangle"
+        self.vtu_type = "triangle"
         self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):
@@ -232,7 +232,7 @@ class DKTPlate(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
         self.K = np.zeros([9, 9], dtype=float)  # 刚度矩阵
-        self.vtp_type = "triangle"
+        self.vtu_type = "triangle"
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
 
@@ -263,7 +263,7 @@ class DKTPlate(ElementBaseClass, ABC):
         单元的坐标是通过Shell单元给的, 不是在读取cdb文件时候给的
         """
         assert self.node_coords.shape == (3, 2)
-        self.thickness = self.cha_dict["RealConst"]  # TODO 暂时支持各个点的厚度是一样的情形
+        self.thickness = self.cha_dict[self.sec_id]  # TODO 暂时支持各个点的厚度是一样的情形
 
         # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
@@ -360,7 +360,7 @@ class DKQPlate(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 3 nodes
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
-        self.vtp_type = "quad"
+        self.vtu_type = "quad"
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
 
@@ -389,7 +389,7 @@ class DKQPlate(ElementBaseClass, ABC):
         形函数与膜单元(CPM8)类似, 为8节点四边形单元
         """
         assert self.node_coords.shape == (4, 2)
-        self.thickness = self.cha_dict["RealConst"]
+        self.thickness = self.cha_dict[self.sec_id]
 
         # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]

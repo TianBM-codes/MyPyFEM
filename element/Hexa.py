@@ -15,7 +15,7 @@ class C3D8(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 8  # Each element has 8 nodes
         self.K = np.zeros([24, 24], dtype=float)  # 刚度矩阵
-        self.vtp_type = "hexahedron"
+        self.vtu_type = "hexahedron"
         self.unv_code = 80600
         self.gs_count = 8
         self.Gaussian_B = []  # 高斯积分点处的应变矩阵

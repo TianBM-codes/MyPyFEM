@@ -107,7 +107,7 @@ class Beam188(ElementBaseClass, ABC):
     def __init__(self, eid):
         super().__init__(eid)
         self.nodes_count = 2  # 每个单元包含2个节点, 表示方向的辅助节点不计算在内
-        self._vtp_type = "line"
+        self.vtu_type = "line"
         self.stiffness = None
         self.stress = None
 
@@ -222,7 +222,7 @@ class Beam189(ElementBaseClass, ABC):
     def __init__(self, eid):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
-        self._vtp_type = "line3"
+        self.vtp_type = "line3"
         self.stiffness = None
         self.stress = None
         self.I = None  # 惯性矩

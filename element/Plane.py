@@ -15,7 +15,7 @@ class CPS4(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 8 nodes
         self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
-        self.vtp_type = "quad"
+        self.vtu_type = "quad"
         self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):
@@ -96,7 +96,7 @@ class CPS3(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
         self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
-        self.vtp_type = "triangle"
+        self.vtu_type = "triangle"
         self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):

@@ -70,18 +70,13 @@ class ResultsWriter(object):
         coords = np.asarray([node.coord for node in self.femdb.node_list])
         all_eles = {}
 
-        for key, ele_grp in self.femdb.ele_grp_hash.items():
-            eles = ele_grp.Elements()
-            ele_count = len(eles)
-            for i in range(ele_count):
-                ele_node_count = eles[i].nodes_count
-                iter_relation = eles[i].GetNodeSearchIndex()[:ele_node_count].tolist()
-                key2 = str(self.femdb.et_hash[key]) + "_" + str(ele_node_count)
-                if all_eles.__contains__(Ansys2VTKType[key2]):
-                    all_eles[Ansys2VTKType[key2]].append(iter_relation)
-                else:
-                    all_eles[Ansys2VTKType[key2]] = [iter_relation]
-
+        for iter_ele in self.femdb.elements:
+            iter_relation = iter_ele.GetNodeSearchIndex().tolist()
+            ele_type = iter_ele.vtu_type
+            if all_eles.__contains__(ele_type):
+                all_eles[ele_type].append(iter_relation)
+            else:
+                all_eles[ele_type] = [iter_relation]
 
         # 位移结果
         dis_value = np.asarray([node.dof_disp[:3] for node in self.femdb.node_list])

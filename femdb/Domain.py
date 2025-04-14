@@ -101,17 +101,26 @@ class Domain(object):
 
     def CalBoundaryEffect(self):
         # 计算每个节点有多少自由度
+        # six_dof_nodes = []
+        # two_dof_nodes = []
+        # for key, ele_grp in self.femdb.ele_grp_hash.items():
+        #     e_type = self.femdb.et_hash[key]
+        #     # 即使单元是退化单元也可以
+        #     if ElementFactory.GetElementNodeDofCount(e_type) == 6:
+        #         for elem in ele_grp.Elements():
+        #             six_dof_nodes.extend(elem.GetNodeSearchIndex())
+        #     elif ElementFactory.GetElementNodeDofCount(e_type) == 2:
+        #         for elem in ele_grp.Elements():
+        #             two_dof_nodes.extend(elem.GetNodeSearchIndex())
         six_dof_nodes = []
         two_dof_nodes = []
-        for key, ele_grp in self.femdb.ele_grp_hash.items():
-            e_type = self.femdb.et_hash[key]
+        for elem in self.femdb.elements:
+            e_type = elem.e_type
             # 即使单元是退化单元也可以
             if ElementFactory.GetElementNodeDofCount(e_type) == 6:
-                for elem in ele_grp.Elements():
-                    six_dof_nodes.extend(elem.GetNodeSearchIndex())
+                six_dof_nodes.extend(elem.GetNodeSearchIndex())
             elif ElementFactory.GetElementNodeDofCount(e_type) == 2:
-                for elem in ele_grp.Elements():
-                    two_dof_nodes.extend(elem.GetNodeSearchIndex())
+                two_dof_nodes.extend(elem.GetNodeSearchIndex())
 
         # 去除重复节点, 在转换为list, set无法遍历
         six_dof_nodes = list(set(six_dof_nodes))
@@ -192,18 +201,28 @@ class Domain(object):
         # 排序完成现在每个节点已经计算好了对应的方程号, 现在设置每个单元所包含的节点的方程号, 以用来组装总刚
         # 计算每个单元节点包含节点对应的方程号, 是一个列表, 单刚是一个len(eq_numbers) * len(eq_numbers)的矩阵, 组装的
         # 时候K的第ij项加到对应总刚的eq_numbers[i]行 eq_numbers[j]列
-        for _, ele_group in self.femdb.ele_grp_hash.items():
-            eles = ele_group.Elements()
-            for iter_ele in eles:
-                # 不能对所有的search_node_ids进行循环, 因为这其中包括了辅助节点
-                eq_numbers = np.asarray([], dtype=np.uint32)
-                search_node_ids = iter_ele.search_node_ids
+        for iter_ele in self.femdb.elements:
+            # 不能对所有的search_node_ids进行循环, 因为这其中包括了辅助节点
+            eq_numbers = np.asarray([], dtype=np.uint32)
+            search_node_ids = iter_ele.search_node_ids
 
-                for idx in range(iter_ele.nodes_count):
-                    nid = search_node_ids[idx]
-                    node = self.femdb.GetNodeBySearchId(nid)
-                    eq_numbers = np.concatenate((eq_numbers, node.eq_num))
-                iter_ele.SetEquationNumber(eq_numbers)
+            for idx in range(iter_ele.nodes_count):
+                nid = search_node_ids[idx]
+                node = self.femdb.GetNodeBySearchId(nid)
+                eq_numbers = np.concatenate((eq_numbers, node.eq_num))
+            iter_ele.SetEquationNumber(eq_numbers)
+        # for _, ele_group in self.femdb.ele_grp_hash.items():
+        #     eles = ele_group.Elements()
+        #     for iter_ele in eles:
+        #         # 不能对所有的search_node_ids进行循环, 因为这其中包括了辅助节点
+        #         eq_numbers = np.asarray([], dtype=np.uint32)
+        #         search_node_ids = iter_ele.search_node_ids
+        #
+        #         for idx in range(iter_ele.nodes_count):
+        #             nid = search_node_ids[idx]
+        #             node = self.femdb.GetNodeBySearchId(nid)
+        #             eq_numbers = np.concatenate((eq_numbers, node.eq_num))
+        #         iter_ele.SetEquationNumber(eq_numbers)
 
         # 初始化总刚
         self.femdb.InitAssemblyMatrix(self.eq_count)
@@ -214,10 +233,13 @@ class Domain(object):
         计算所有单元的刚度阵, 对所有的单元组进行循环
         方便的查看各步骤运行时间: '%Y-%m-%d %H:%M:%S.%f')[:-3]
         """
-        for key, ele_group in self.femdb.ele_grp_hash.items():
-            for iter_ele in ele_group.eles:
-                self.eq_nums.append(iter_ele.GetElementEquationNumber())
-                self.stiff_list.append(iter_ele.ElementStiffness())
+        for iter_ele in self.femdb.elements:
+            self.eq_nums.append(iter_ele.GetElementEquationNumber())
+            self.stiff_list.append(iter_ele.ElementStiffness())
+        # for key, ele_group in self.femdb.ele_grp_hash.items():
+        #     for iter_ele in ele_group.eles:
+        #         self.eq_nums.append(iter_ele.GetElementEquationNumber())
+        #         self.stiff_list.append(iter_ele.ElementStiffness())
 
     def AssembleStiffnessMatrix(self):
         """

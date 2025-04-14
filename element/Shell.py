@@ -15,7 +15,8 @@ class DKTShell(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
         self._nodes = [None for _ in range(self.nodes_count)]
-        self._vtp_type = "triangle"
+        self.vtu_type = "triangle"
+        self.e_type = 181
         self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
 
@@ -65,7 +66,9 @@ class DKTShell(ElementBaseClass, ABC):
         设置膜单元和版单元的材料
         """
         membrane.cha_dict = self.cha_dict
+        membrane.sec_id = self.sec_id
         plate.cha_dict = self.cha_dict
+        plate.sec_id = self.sec_id
         membrane.CalElementDMatrix()
         plate.CalElementDMatrix()
 
@@ -141,7 +144,8 @@ class DKQShell(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 4 nodes
-        self._vtp_type = "quad"
+        self.vtu_type = "quad"
+        self.e_type = 181
         self.K = np.zeros((24, 24))
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
@@ -190,7 +194,9 @@ class DKQShell(ElementBaseClass, ABC):
         设置膜单元和版单元的材料
         """
         membrane.cha_dict = self.cha_dict
+        membrane.sec_id = self.sec_id
         plate.cha_dict = self.cha_dict
+        plate.sec_id = self.sec_id
         membrane.CalElementDMatrix()
         plate.CalElementDMatrix()
 

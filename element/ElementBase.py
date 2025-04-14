@@ -40,7 +40,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.node_ids = np.asarray([])  # Node list of the element
         self.search_node_ids = np.asarray([])  # Domain中node_list中该节点的index
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
-        self.vtp_type = None
+        self.e_type = None
+        self.vtu_type = None
         self.unv_code = None  # SiPESC平台显示的UNV结果, 单元代号
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
