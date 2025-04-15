@@ -1,0 +1,153 @@
+:NEUTRAL
+/COM, *** ANSYS GEOMETRY NEUTRAL FILE ***
+/NOPR
+FINISH
+/PREP7
+FINISH
+/AUX15
+MANF,ZERO
+MANF,DEF
+FINI
+:CDWRITE      ! START OF CDWRITE DATA
+/COM,ANSYS RELEASE Release 18.0      BUILD 18.0      UP20161219       15:17:39
+/PREP7
+/NOPR
+/TITLE,                                                                        
+ANTYPE, 0
+EQSLV,SPAR,  0.00000000    ,,0
+MODOPT,LANB,    10,  0.00000000    ,  0.00000000    ,     0, 0,  0.00000000    , 0
+MODCONTROL,ON
+QRDOPT,OFF ,YES ,NO  ,LANB,OFF 
+*IF,_CDRDOFF,EQ,1,THEN     !if solid model was read in
+_CDRDOFF=             !reset flag, numoffs already performed
+*ELSE              !offset database for the following FE model
+NUMOFF,NODE,        4
+NUMOFF,ELEM,        2
+NUMOFF,MAT ,        1
+NUMOFF,REAL,        1
+NUMOFF,SECN,        1
+NUMOFF,TYPE,        1
+*ENDIF
+*SET,_BUTTON ,  0.000000000000    
+*SET,_RETURN ,  0.000000000000    
+*SET,_STATUS ,  0.000000000000    
+*SET,_UIQR   ,'                                '
+*DIM,_Z      ,ARRAY,       9,       1,       1,
+*PREAD,_Z      ,         3
+  2.000000000000      0.000000000000      1.000000000000    
+END PREAD
+*SET,_Z1     ,  0.000000000000    
+*SET,_Z10    ,  0.000000000000    
+*SET,_Z11    ,  0.000000000000    
+*SET,_Z12    ,  0.000000000000    
+*SET,_Z13    ,  0.000000000000    
+*SET,_Z14    ,  0.000000000000    
+*SET,_Z15    ,  0.000000000000    
+*SET,_Z16    ,  0.000000000000    
+*SET,_Z17    ,  0.000000000000    
+*SET,_Z18    ,  0.000000000000    
+*SET,_Z19    ,  0.000000000000    
+*SET,_Z2     ,  0.000000000000    
+*SET,_Z20    ,  0.000000000000    
+*SET,_Z21    ,  0.000000000000    
+*SET,_Z3     ,  0.000000000000    
+*SET,_Z30    ,  0.000000000000    
+*SET,_Z31    ,  0.000000000000    
+*SET,_Z32    ,  0.000000000000    
+*SET,_Z4     ,  0.000000000000    
+*SET,_Z5     ,'OFF                             '
+*SET,_Z6     ,  0.000000000000    
+*SET,_Z7     ,  0.000000000000    
+*SET,_Z8     ,  0.000000000000    
+*SET,_ZBIGMAT,  1.000000000000    
+*DIM,_ZC     ,CHAR,      11,       1,       1,
+*SET,_ZC     (       1,       1,       1),'SUBSP   '
+*SET,_ZC     (       2,       1,       1),'LANB    '
+*SET,_ZC     (       3,       1,       1),'LANP    '
+*SET,_ZC     (       4,       1,       1),'REDUC   '
+*SET,_ZC     (       5,       1,       1),'UNSYM   '
+*SET,_ZC     (       6,       1,       1),'DAMP    '
+*SET,_ZC     (       7,       1,       1),'QRDAMP  '
+*SET,_ZC     (       8,       1,       1),'AUTO    '
+*SET,_ZC     (       9,       1,       1),'NO      '
+*SET,_ZC     (      10,       1,       1),'YES     '
+*SET,_ZC     (      11,       1,       1),'SNODE   '
+*SET,_ZR1    ,'*.rom                           '
+*DIM,_ZV     ,CHAR,       3,       1,       1,
+*SET,_ZV     (       1,       1,       1),'CAVI    '
+*SET,_ZV     (       2,       1,       1),'CUTO    '
+*SET,_ZV     (       3,       1,       1),'GAMM    '
+ET,        1,181
+RLBLOCK,       1,       1,      12,       7
+(2i8,6g16.9)
+(7g16.9)
+       1       6 0.200000000     0.200000000     0.200000000     0.200000000      0.00000000      0.00000000    
+NBLOCK,6,SOLID,         4,         3
+(3i9,6e21.13e3)
+        2        0        0 2.0000000000000E+001
+        3        0        0 1.5000000000000E+001
+        4        0        0 1.5000048251495E+001 5.0018535912916E+000
+N,R5.3,LOC,       -1,
+N,R5.1,LOC,       -1,
+EBLOCK,19,SOLID,         2,         1
+(19i9)
+        1        1        1        1        0        0        0        0        4        0        2        4        3        2        2
+       -1
+EN,R5.5,ATTR,       -1,
+CMBLOCK,TYPE1-REAL1-MAT1,ELEM,       1  ! users element component definition
+(8i10)
+         2
+CMBLOCK,_ANF__ELEM__,ELEM,       1  ! users element component definition
+(8i10)
+         2
+CMBLOCK,_ANF__NODE__,NODE,       2  ! users node component definition
+(8i10)
+         2        -4
+CMBLOCK,_ANF__NODE__.1,NODE,       3  ! users node component definition
+(8i10)
+         2         3         4
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,EX  ,       1, 1, 2.100000000E+11,
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,NUXY,       1, 1, 0.300000000    ,
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,DENS,       1, 1,  2400000.00    ,
+SECTYPE,      1,SHELL,    ,        
+SECOFFSET,MID
+SECBLOCK,      1
+     1.000000,         1,     0.000000,         3
+SECCONTROL,  0.0000    ,  0.0000    ,  0.0000    ,  0.0000    ,  1.0000    ,  1.0000    ,  1.0000    ,,,,,  0.0000    
+EXTOPT,ATTR,      0,      0,      0
+EXTOPT,ESIZE,  0,  0.0000    
+EXTOPT,ACLEAR,     0
+TREF,  0.00000000
+BFUNIF,TEMP,_TINY
+ACEL,  0.00000000    ,  0.00000000    ,  0.00000000
+OMEGA,  0.00000000    ,  0.00000000    ,  0.00000000,     0
+DOMEGA,  0.00000000    ,  0.00000000    ,  0.00000000
+CGLOC,  0.00000000    ,  0.00000000    ,  0.00000000
+CGOMEGA,  0.00000000    ,  0.00000000    ,  0.00000000
+DCGOMG,  0.00000000    ,  0.00000000    ,  0.00000000
+ALPHAD,  0.00000000
+BETAD,  0.00000000
+DMPRAT,  0.00000000
+DMPSTR,  0.00000000
+ERESX,DEFA
+
+FINISH
+/AUX15
+FINISH
+/PREP7
+CMBLOCK,_ANF__NODE__,NODE,       2  ! component definition
+(8i10)
+         2        -4
+CMSEL,S,_ANF__NODE__                    
+CMDEL,_ANF__NODE__                    
+CMBLOCK,_ANF__ELEM__,ELEM,       1  ! component definition
+(8i10)
+         2
+CMSEL,S,_ANF__ELEM__                    
+CMDEL,_ANF__ELEM__                    
+CMSEL,ALL,,,,,NO
+/GO
+FINISH
