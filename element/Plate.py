@@ -52,55 +52,55 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
 
         # Partial
         """
-        temp1 = 1 - 2 * xi
-        temp2 = 1 - 2 * eta
-        assert self.node_coords.shape == (4, 3)
-        x1, y1 = self.node_coords[0]
-        x2, y2 = self.node_coords[1]
-        x3, y3 = self.node_coords[2]
-
-        # 边向量计算
-        x12, y12 = x2 - x1, y2 - y1
-        x23, y23 = x3 - x2, y3 - y2
-        x31, y31 = x1 - x3, y1 - y3
-
-        # 边长计算
-        l12 = np.hypot(x12, y12)
-        l23 = np.hypot(x23, y23)
-        l31 = np.hypot(x31, y31)
-
-        # 几何参数预计算
-        A2 = np.linalg.det(np.array([[1, x1, y1],
-                                     [1, x2, y2],
-                                     [1, x3, y3]]))
-
-        p4 = -x12 / (l12 ** 2) * 6
-        p5 = -x23 / (l23 ** 2) * 6
-        p6 = -x31 / (l31 ** 2) * 6
-
-        q4 = 3 * x12 * y12 / l12 ** 2
-        q5 = 3 * x23 * y23 / l23 ** 2,
-        q6 = 3 * x31 * y31 / l31 ** 2
-
-        r4 = 3 * y12 ** 2 / l12 ** 2
-        r5 = 3 * y23 ** 2 / l23 ** 2,
-        r6 = 3 * y31 ** 2 / l31 ** 2
-
-        t4 = -y12 / (l12 ** 2) * 6
-        t5 = -y23 / (l23 ** 2) * 6
-        t6 = -y31 / (l31 ** 2) * 6
-
-        Hxxi =  np.array([
-        p4 * temp1 + (p6 - p4) * eta,
-        -q4 * temp1 + (q4 + q6) * eta,
-        4 - 6 * (temp1 / 2 + eta) + (r6 + r4) * eta - r4 * temp1,
-        -p4 * temp1 + (p5 + p4) * eta,
-        -q4 * temp1 + (q4 - q5) * eta,
-        2 - 6 * (1 - temp1 / 2) + (r4 - r5) * eta - r4 * temp1,
-        -(p5 + p6) * eta,
-        (q6 - q5) * eta,
-        (r6 - r5) * eta
-    ])
+    #     temp1 = 1 - 2 * xi
+    #     temp2 = 1 - 2 * eta
+    #     assert self.node_coords.shape == (4, 3)
+    #     x1, y1 = self.node_coords[0]
+    #     x2, y2 = self.node_coords[1]
+    #     x3, y3 = self.node_coords[2]
+    #
+    #     # 边向量计算
+    #     x12, y12 = x2 - x1, y2 - y1
+    #     x23, y23 = x3 - x2, y3 - y2
+    #     x31, y31 = x1 - x3, y1 - y3
+    #
+    #     # 边长计算
+    #     l12 = np.hypot(x12, y12)
+    #     l23 = np.hypot(x23, y23)
+    #     l31 = np.hypot(x31, y31)
+    #
+    #     # 几何参数预计算
+    #     A2 = np.linalg.det(np.array([[1, x1, y1],
+    #                                  [1, x2, y2],
+    #                                  [1, x3, y3]]))
+    #
+    #     p4 = -x12 / (l12 ** 2) * 6
+    #     p5 = -x23 / (l23 ** 2) * 6
+    #     p6 = -x31 / (l31 ** 2) * 6
+    #
+    #     q4 = 3 * x12 * y12 / l12 ** 2
+    #     q5 = 3 * x23 * y23 / l23 ** 2,
+    #     q6 = 3 * x31 * y31 / l31 ** 2
+    #
+    #     r4 = 3 * y12 ** 2 / l12 ** 2
+    #     r5 = 3 * y23 ** 2 / l23 ** 2,
+    #     r6 = 3 * y31 ** 2 / l31 ** 2
+    #
+    #     t4 = -y12 / (l12 ** 2) * 6
+    #     t5 = -y23 / (l23 ** 2) * 6
+    #     t6 = -y31 / (l31 ** 2) * 6
+    #
+    #     Hxxi =  np.array([
+    #     p4 * temp1 + (p6 - p4) * eta,
+    #     -q4 * temp1 + (q4 + q6) * eta,
+    #     4 - 6 * (temp1 / 2 + eta) + (r6 + r4) * eta - r4 * temp1,
+    #     -p4 * temp1 + (p5 + p4) * eta,
+    #     -q4 * temp1 + (q4 - q5) * eta,
+    #     2 - 6 * (1 - temp1 / 2) + (r4 - r5) * eta - r4 * temp1,
+    #     -(p5 + p6) * eta,
+    #     (q6 - q5) * eta,
+    #     (r6 - r5) * eta
+    # ])
 
 
 def ElementStress(self, displacement):

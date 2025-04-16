@@ -83,6 +83,36 @@ class CSTDrill(ElementBaseClass, ABC):
         Calculate element stress
         """
 
+class Q4Mem(ElementBaseClass, ABC):
+    """
+    王欢Q4Mem
+    """
+
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        self.nodes_count = 4
+        self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
+        self.vtu_type = "triangle"
+        self.thickness = None
+        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        h = self.cha_dict[self.sec_id]
+        niu = self.cha_dict[MaterialKey.Niu]
+        a = e * h / (1 - niu ** 2)
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
+
+    def ElementStiffness(self):
+        """
+        p代表偏导: partial, ph1pr 代表偏h1偏r
+        """
+        assert self.node_coords.shape == (3, 2)  # 3节点, 2个坐标分量
 
 class CPM6(ElementBaseClass, ABC):
     """
