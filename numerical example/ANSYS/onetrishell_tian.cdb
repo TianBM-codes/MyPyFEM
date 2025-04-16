@@ -1,0 +1,118 @@
+/COM,ANSYS RELEASE 15.0    UP20131014       08:19:20    04/28/2019
+/PREP7
+/NOPR
+/TITLE,                                                                        
+ANTYPE, 0
+*IF,_CDRDOFF,EQ,1,THEN     !if solid model was read in
+_CDRDOFF=             !reset flag, numoffs already performed
+*ELSE              !offset database for the following FE model
+NUMOFF,NODE,        3
+NUMOFF,ELEM,        1
+NUMOFF,MAT ,        1
+NUMOFF,REAL,        1
+NUMOFF,TYPE,        1
+*ENDIF
+*SET,B       ,  1.000000000000    
+*SET,L       ,  10.00000000000    
+*SET,NODEID  ,  23.00000000000    
+*SET,THICK   ,  1.000000000000    
+*SET,_BUTTON ,  0.000000000000    
+*SET,_CHKMSH ,  0.000000000000    
+*SET,_ET_NEXT,  2.000000000000    
+*SET,_GUI_CLR_BG,' systemButtonFace               '
+*SET,_GUI_CLR_FG,' systemButtonText               '
+*SET,_GUI_CLR_INFOBG,' systemInfoBackground           '
+*SET,_GUI_CLR_SEL,' systemHighlight                '
+*SET,_GUI_CLR_SELBG,' systemHighlight                '
+*SET,_GUI_CLR_SELFG,' systemHighlightText            '
+*SET,_GUI_CLR_WIN,' systemWindow                   '
+*SET,_GUI_FNT_FMLY,'宋体                          '
+*SET,_GUI_FNT_PXLS,  24.00000000000    
+*SET,_GUI_FNT_SLNT,'r                               '
+*SET,_GUI_FNT_WEGT,'medium                          '
+*SET,_RETURN ,  0.000000000000    
+*SET,_STATUS ,  0.000000000000    
+*SET,_UIQR   ,'                                '
+*SET,_Z1     ,  0.000000000000    
+*SET,_Z10    ,  0.000000000000    
+*SET,_Z11    ,  0.000000000000    
+*SET,_Z12    ,  0.000000000000    
+*SET,_Z13    ,  0.000000000000    
+*SET,_Z14    ,  0.000000000000    
+*SET,_Z15    ,  0.000000000000    
+*SET,_Z16    ,  0.000000000000    
+*SET,_Z17    ,  0.000000000000    
+*SET,_Z18    ,  0.000000000000    
+*SET,_Z19    ,  0.000000000000    
+*SET,_Z2     ,  0.000000000000    
+*SET,_Z20    ,  0.000000000000    
+*SET,_Z21    ,  0.000000000000    
+*SET,_Z30    ,  0.000000000000    
+*SET,_Z31    ,  0.000000000000    
+*SET,_Z32    ,  0.000000000000    
+*SET,_Z4     ,  0.000000000000    
+*SET,_Z7     ,'_Y1                             '
+DOF,DELETE
+ET,       1, 63
+RLBLOCK,       1,       1,       6,       7
+(2i8,6g16.9)
+(7g16.9)
+       1       6  1.00000000      0.00000000      0.00000000      0.00000000      0.00000000      0.00000000    
+NBLOCK,6,SOLID,         3,         3
+(3i9,6e20.13)
+       1       0       0             0.0             1.0             0.0 
+       2       0       0             0.0             0.5             0.0 
+       3       0       0             0.5             0.5             0.0 
+N,R5.3,LOC,       -1,
+EBLOCK,19,SOLID,         1,         1
+(19i9)
+        1        1        1        1        0        0        0        0        4       0       1       1       2       3       3
+       -1
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,EX  ,       1, 1,  1200.00000    ,
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,NUXY,       1, 1,  0.00000000    ,
+MPTEMP,R5.0, 1, 1,  0.00000000    ,
+MPDATA,R5.0, 1,PRXY,       1, 1,  0.00000000    ,
+SECTYPE,      1,SHELL,    ,        
+SECOFFSET,MID
+SECBLOCK,      1
+     1.000000,         1,     0.000000,         3
+SECCONTROL,  0.0000    ,  0.0000    ,  0.0000    ,  0.0000    ,  1.0000    ,  1.0000    ,  1.0000    ,,,,,  0.0000    
+EXTOPT,ATTR,      0,      0,      0
+EXTOPT,ESIZE,  0,  0.0000    
+EXTOPT,ACLEAR,      0
+TREF,  0.00000000
+IRLF,  0
+BFUNIF,TEMP,_TINY
+ACEL,  0.00000000    ,  0.00000000    ,  0.00000000
+OMEGA,  0.00000000    ,  0.00000000    ,  0.00000000
+DOMEGA,  0.00000000    ,  0.00000000    ,  0.00000000
+CGLOC,  0.00000000    ,  0.00000000    ,  0.00000000
+CGOMEGA,  0.00000000    ,  0.00000000    ,  0.00000000
+DCGOMG,  0.00000000    ,  0.00000000    ,  0.00000000
+
+KUSE,     0
+TIME,  0.00000000
+ALPHAD,  0.00000000
+BETAD,  0.00000000
+DMPRAT,  0.00000000
+DMPSTR,  0.00000000
+
+
+
+
+
+CRPLIM, 0.100000000    ,   0
+CRPLIM,  0.00000000    ,   1
+NCNV,     1,  0.00000000    ,     0,  0.00000000    ,  0.00000000
+
+NEQIT,     0
+
+ERESX,DEFA
+
+F,3,FZ,         10000.0
+D,1,ALL,             0.0
+D,2,ALL,             0.0
+/GO
+FINISH

@@ -57,7 +57,7 @@ class ElementFactory:
             elif opt == 3:
                 return DKTShell(e_id), 3
             else:
-                mlogger.fatal("Shell 181 don't support opt {}".format(opt))
+                mlogger.fatal("Shell 181/63 don't support opt {}".format(opt))
                 sys.exit(1)
 
         elif e_type in ["C3D8", 45]:

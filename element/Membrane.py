@@ -8,6 +8,82 @@ import numpy as np
 from element.ElementBase import *
 
 
+class CSTDrill(ElementBaseClass, ABC):
+    """
+    6-node quadratic plane strain triangle, 在这里用作Cook膜单元
+
+    Reference:
+    1. A COMPATIBLE TRIANGULAR ELEMENT INCLUDING VERTEX ROTATIONS FOR PLANE ELASTICITY ANALYSIS   D.J.ALLMAN
+    2. TECHNICAL NOTE ON THE ALLMAN TRIANGLE AND A RELATED QUADRILATERAL ELEMENT  Robert D.Cook
+    3. 有限元理论、格式与求解方法 上 K.J Bathe P352
+    """
+
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        self.nodes_count = 6  # Each element has 6 nodes
+        self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
+        self.vtu_type = "triangle"
+        self.thickness = None
+        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        h = self.cha_dict[self.sec_id]
+        niu = self.cha_dict[MaterialKey.Niu]
+        a = e * h / (1 - niu ** 2)
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
+
+    def ElementStiffness(self):
+        """
+        p代表偏导: partial, ph1pr 代表偏h1偏r
+        """
+        assert self.node_coords.shape == (3, 2)  # 3节点, 2个坐标分量
+        x2 = self.node_coords[1, 0]
+        x3 = self.node_coords[2, 0]
+        y3 = self.node_coords[2, 1]
+        A2 = y3 * x2
+        B = np.array([
+            [-1 / x2, 0, 0, 1 / x2, 0, 0, 0, 0, 0],
+            [0, (x3 - x2) / (x2 * y3), 0, 0, -x3 / (x2 * y3), 0, 0, 1 / y3, 0],
+            [(x3 - x2) / (x2 * y3), -1 / x2, 0, -x3 / (x2 * y3), 1 / x2, 0, 1 / y3, 0, 0]
+        ])
+
+        # 计算基础刚度矩阵
+        G = self.cha_dict[MaterialKey.G]
+        Ke = B.T @ self.D @ B * (A2 / 2)  # 矩阵乘法运算符@
+
+        # Drilling自由度修正部分
+        Q = np.array([[
+            -(x2 - x3) / (2 * A2), y3 / (2 * A2), 1 / 3,
+            -x3 / (2 * A2), -y3 / (2 * A2), 1 / 3,
+            x2 / (2 * A2), 0, 1 / 3
+        ]])
+
+        delta2 = 0.01
+        V = (A2 / 2) * self.cha_dict[self.sec_id]  # 单元体积计算
+        Sr = (delta2 * V * G) * (Q.T @ Q)  # 刚度修正项
+
+        # 合并刚度矩阵
+        Ke += Sr
+
+        # 对角项增强（注意Python索引从0开始）
+        Ke[2, 2] += G * V * 1e-8
+        Ke[5, 5] += G * V * 1e-8
+        Ke[8, 8] += G * V * 1e-8
+
+        return Ke
+
+    def ElementStress(self, displacement):
+        """
+        Calculate element stress
+        """
+
+
 class CPM6(ElementBaseClass, ABC):
     """
     6-node quadratic plane strain triangle, 在这里用作Cook膜单元

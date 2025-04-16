@@ -41,6 +41,98 @@ class DKTShell(ElementBaseClass, ABC):
         """
         由膜单元和板单元构成
         """
+        plate = KirchhoffTrianglePlate(-1)
+        membrane = CSTDrill(-1)
+
+        """
+        先转换到局部坐标
+        """
+        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
+        m_coords = local_coord[:, :2]
+
+        """
+        设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
+        """
+        membrane.node_coords = m_coords
+        membrane.T_matrix = T_matrix
+        plate.node_coords = m_coords
+        plate.T_matrix = T_matrix
+
+        """
+        设置膜单元和版单元的材料
+        """
+        membrane.cha_dict = self.cha_dict
+        membrane.sec_id = self.sec_id
+        plate.cha_dict = self.cha_dict
+        plate.sec_id = self.sec_id
+        membrane.CalElementDMatrix()
+        plate.CalElementDMatrix()
+
+        """
+        Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
+        """
+        # e = 10e-8
+        k_mtx_m = membrane.ElementStiffness()
+        k_mtx_p = plate.ElementStiffness()
+
+        index_m_g = [(0, 1), (5, 7), (11, 13)]
+        index_m = [(0, 1), (2, 4), (5, 7)]
+        index_p_g = [(2, 4), (8, 10), (14, 16)]
+        index_p = [(0, 2), (3, 5), (6, 8)]
+        for ii in range(3):
+            m_row_s = index_m[ii][0]
+            m_row_e = index_m[ii][1] + 1
+            m_row_g_s = index_m_g[ii][0]
+            m_row_g_e = index_m_g[ii][1] + 1
+
+            p_row_s = index_p[ii][0]
+            p_row_e = index_p[ii][1] + 1
+            p_row_g_s = index_p_g[ii][0]
+            p_row_g_e = index_p_g[ii][1] + 1
+            for jj in range(3):
+                m_col_s = index_m[jj][0]
+                m_col_e = index_m[jj][1] + 1
+
+                m_col_g_s = index_m_g[jj][0]
+                m_col_g_e = index_m_g[jj][1] + 1
+                self.K[m_row_g_s:m_row_g_e, m_col_g_s:m_col_g_e] = k_mtx_m[m_row_s:m_row_e, m_col_s:m_col_e]
+
+                p_col_s = index_p[jj][0]
+                p_col_e = index_p[jj][1] + 1
+
+                p_col_g_s = index_p_g[jj][0]
+                p_col_g_e = index_p_g[jj][1] + 1
+
+                self.K[p_row_g_s:p_row_g_e, p_col_g_s:p_col_g_e] = k_mtx_p[p_row_s:p_row_e, p_col_s:p_col_e]
+
+            self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
+            self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
+
+        self.K[-1, -1] = k_mtx_m[-1, -1]
+
+        """
+        这里的T_matrix是全局==>局部，转职就是局部==>全局
+        """
+        R_matrix = T_matrix.T
+        global_t_matrix = np.zeros((18, 18))
+        global_t_matrix[0:3, 0:3] = R_matrix
+        global_t_matrix[3:6, 3:6] = R_matrix
+        global_t_matrix[6:9, 6:9] = R_matrix
+        global_t_matrix[9:12, 9:12] = R_matrix
+        global_t_matrix[12:15, 12:15] = R_matrix
+        global_t_matrix[15:18, 15:18] = R_matrix
+
+        self.K = global_t_matrix.T @ self.K @ global_t_matrix
+
+        return self.K
+    def ElementStiffness2(self):
+        """
+        TODO: 转轴要不要加小量
+        """
+        """
+        由膜单元和板单元构成
+        """
         plate = DKTPlate(-1)
         membrane = CPM6(-1)
 

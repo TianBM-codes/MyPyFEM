@@ -264,6 +264,7 @@ class CDBParser(object):
                     if iter_mat_id != cur_mat_id:
                         # 读取同一种材料结束, 读取下一种材料或者读取材料结束, 程序跳出材料分支
                         # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
                         self.femdb.material_map[cur_mat_id] = value_dict
                         self.iter_line = f_handle.readline()
                         break
@@ -279,6 +280,7 @@ class CDBParser(object):
                     jump_out = not (self.iter_line.startswith("MPDATA,") or self.iter_line.startswith("MPTEMP"))
                     if jump_out:
                         # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
                         self.femdb.material_map[cur_mat_id] = value_dict
                         break
 
