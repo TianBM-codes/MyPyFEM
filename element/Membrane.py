@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from abc import ABC
+from typing import Tuple
 
-import numpy as np
-
+from ShapeFunctionsAndInteg import *
 from element.ElementBase import *
 
 
@@ -13,8 +13,8 @@ class CSTDrill(ElementBaseClass, ABC):
     6-node quadratic plane strain triangle, 在这里用作Cook膜单元
 
     Reference:
-    1. A COMPATIBLE TRIANGULAR ELEMENT INCLUDING VERTEX ROTATIONS FOR PLANE ELASTICITY ANALYSIS   D.J.ALLMAN
-    2. TECHNICAL NOTE ON THE ALLMAN TRIANGLE AND A RELATED QUADRILATERAL ELEMENT  Robert D.Cook
+    1. A COMPATIBLE TRIANGULAR ELEMENT INCLUDING VERTEX ROTATIONS FOR PLANE ELASTICITY ANALYSIS   D.J.AllMan
+    2. TECHNICAL NOTE ON THE AllMan TRIANGLE AND A RELATED QUADRILATERAL ELEMENT  Robert D.Cook
     3. 有限元理论、格式与求解方法 上 K.J Bathe P352
     """
 
@@ -25,15 +25,21 @@ class CSTDrill(ElementBaseClass, ABC):
         self.vtu_type = "triangle"
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
+        self.h = None
 
     def CalElementDMatrix(self, an_type=None):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
         e = self.cha_dict[MaterialKey.E]
-        h = self.cha_dict[self.sec_id]
+        if self.sec_id:
+            self.h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            self.h = self.cha_dict["RealConst"]
+        else:
+            raise KeyError("Don't Contain RealConst and sec_id")
         niu = self.cha_dict[MaterialKey.Niu]
-        a = e * h / (1 - niu ** 2)
+        a = e * self.h / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
@@ -65,7 +71,7 @@ class CSTDrill(ElementBaseClass, ABC):
         ]])
 
         delta2 = 0.01
-        V = (A2 / 2) * self.cha_dict[self.sec_id]  # 单元体积计算
+        V = (A2 / 2) * self.h
         Sr = (delta2 * V * G) * (Q.T @ Q)  # 刚度修正项
 
         # 合并刚度矩阵
@@ -83,6 +89,7 @@ class CSTDrill(ElementBaseClass, ABC):
         Calculate element stress
         """
 
+
 class Q4Mem(ElementBaseClass, ABC):
     """
     王欢Q4Mem
@@ -96,31 +103,126 @@ class Q4Mem(ElementBaseClass, ABC):
         self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
+        self.integ = IntegForm2D2P()
+        self.shpFunc = shpFunc2D4Node(self.integ)
+        # 用于旋转自由度
+        self.shpFunc8 = shpFunc2D8Node(self.integ)
+        # 用于计算不协调应变插值矩阵[G]
+        self.gauss_centor = IntegForm2D1P()
+        self.shpFunc_centor = shpFunc2D4Node(self.gauss_centor)
+        self.shpFunc_Incom = shpFunc4NodeIncom(self.integ)
+
+        # 单元局部坐标
+        self.node_coords = None
+        self.h = None  # 厚度
+        self.G = None  # 剪切模量
+
     def CalElementDMatrix(self, an_type=None):
         """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        计算本构矩阵
+        @param an_type:
+        @return:
         """
         e = self.cha_dict[MaterialKey.E]
-        h = self.cha_dict[self.sec_id]
+        if self.sec_id:
+            self.h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            self.h = self.cha_dict["RealConst"]
+        else:
+            raise KeyError("Don't Contain RealConst and sec_id")
         niu = self.cha_dict[MaterialKey.Niu]
-        a = e * h / (1 - niu ** 2)
+        a = e * self.h / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
+        self.G = e / 2 / (1 + niu)
+
+    def strain_matrix(self, igauss: int) -> Tuple[np.ndarray, float]:
+        """计算应变矩阵B和雅可比行列式"""
+        J = self.shpFunc[igauss].DNDxi @ self.node_coords[:, :2]
+        DNDx = np.linalg.solve(J, self.shpFunc[igauss].DNDxi)
+
+        B = np.zeros((3, 12))
+        for iNode in range(4):
+            B[0, (iNode * 3)] = DNDx[0, iNode]
+            B[1, (iNode * 3) + 1] = DNDx[1, iNode]
+            B[2, (iNode * 3)] = DNDx[1, iNode]
+            B[2, (iNode * 3) + 1] = DNDx[0, iNode]
+
+        j = np.linalg.det(J)
+        return B, j
+
+    def incom_strain_matrix(self, igauss: int, j: float, J0: np.ndarray) -> np.ndarray:
+        """计算不协调应变矩阵G"""
+        scale = np.linalg.det(J0) / j
+        DMbarDx = np.linalg.solve(scale * J0, self.shpFunc_Incom[igauss].DNDxi)
+
+        G = np.zeros((3, 4))
+        G[0, 0] = DMbarDx[0, 0]
+        G[1, 1] = DMbarDx[1, 0]
+        G[2, 0] = DMbarDx[1, 0]
+        G[2, 1] = DMbarDx[0, 0]
+        G[0, 2] = DMbarDx[0, 1]
+        G[1, 3] = DMbarDx[1, 1]
+        G[2, 2] = DMbarDx[1, 1]
+        G[2, 3] = DMbarDx[0, 1]
+
+        return G
 
     def ElementStiffness(self):
-        """
-        p代表偏导: partial, ph1pr 代表偏h1偏r
-        """
-        assert self.node_coords.shape == (3, 2)  # 3节点, 2个坐标分量
+        """计算刚度矩阵"""
+        # 膜部分
+        Ke = np.zeros((12, 12))
+        Kmud = np.zeros((12, 4))
+        Kmdd = np.zeros((4, 4))
+
+        J0 = self.shpFunc_centor[0].DNDxi @ self.node_coords[:, :2]
+        V = 0.0
+
+        for igauss in range(4):
+            B, j = self.strain_matrix(igauss)
+            G = self.incom_strain_matrix(igauss, j, J0)
+
+            wgt = 1.0
+            Ke += B.T @ self.D @ B * j * wgt
+            Kmud += B.T @ self.D @ G * j * wgt
+            Kmdd += G.T @ self.D @ G * j * wgt
+            V += j * wgt * self.h
+
+            # 凝聚
+        Ke -= Kmud @ np.linalg.inv(Kmdd) @ Kmud.T
+
+        # 钻孔部分
+        delta2 = 0.01
+        DN0Dx = np.linalg.solve(J0, self.shpFunc_centor[0].DNDxi)
+        Q = 0.5 * np.array([
+            [-DN0Dx[1, 0], DN0Dx[0, 0], -0.5, -DN0Dx[1, 1], DN0Dx[0, 1], -0.5,
+             -DN0Dx[1, 2], DN0Dx[0, 2], -0.5, -DN0Dx[1, 3], DN0Dx[0, 3], -0.5]
+        ])
+        Sr = (delta2 * V * self.G) * (Q.T @ Q)
+        Ke += Sr
+
+        # 为旋转自由度添加小刚度
+        lambda_ = 1e-4
+        Ke[2, 2] += self.G * V * lambda_
+        Ke[5, 5] += self.G * V * lambda_
+        Ke[8, 8] += self.G * V * lambda_
+        Ke[11, 11] += self.G * V * lambda_
+
+        return Ke
+
+    def ElementStress(self, displacement: np.array):
+        """"""
+        pass
+
 
 class CPM6(ElementBaseClass, ABC):
     """
     6-node quadratic plane strain triangle, 在这里用作Cook膜单元
 
     Reference:
-    1. A COMPATIBLE TRIANGULAR ELEMENT INCLUDING VERTEX ROTATIONS FOR PLANE ELASTICITY ANALYSIS   D.J.ALLMAN
-    2. TECHNICAL NOTE ON THE ALLMAN TRIANGLE AND A RELATED QUADRILATERAL ELEMENT  Robert D.Cook
+    1. A COMPATIBLE TRIANGULAR ELEMENT INCLUDING VERTEX ROTATIONS FOR PLANE ELASTICITY ANALYSIS   D.J.AllMan
+    2. TECHNICAL NOTE ON THE AllMan TRIANGLE AND A RELATED QUADRILATERAL ELEMENT  Robert D.Cook
     3. 有限元理论、格式与求解方法 上 K.J Bathe P352
     """
 
@@ -352,4 +454,15 @@ class CPM8(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    t_ele = CPM6()
+    t_ele = Q4Mem()
+    t_ele.sec_id = 10001
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.node_coords = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [1, 1, 0],
+        [0.5, 1, 0]
+    ], dtype=float)
+    t_ele.CalElementDMatrix()
+    Ke1 = t_ele.ElementStiffness()
+    print(Ke1)

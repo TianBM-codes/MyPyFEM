@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import numpy as np
 
 from element.Plate import *
 from element.Membrane import *
@@ -126,7 +125,116 @@ class DKTShell(ElementBaseClass, ABC):
         self.K = global_t_matrix.T @ self.K @ global_t_matrix
 
         return self.K
-    def ElementStiffness2(self):
+
+    def ElementStress(self, displacement: np.array):
+        """"""
+        pass
+
+
+class DKQShell(ElementBaseClass, ABC):
+    """
+    DKQShell Element class
+    """
+
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        self.nodes_count = 4  # Each element has 4 nodes
+        self.vtu_type = "quad"
+        self.e_type = 181
+        self.K = np.zeros((24, 24))
+        self._nodes = [None for _ in range(self.nodes_count)]
+        self.unv_code = 40500
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        a = e / ((1 + niu) * (1 - 2 * niu))
+        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+                               [niu, 1 - niu, niu, 0, 0, 0],
+                               [niu, niu, 1 - niu, 0, 0, 0],
+                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+
+    def ElementStiffness(self):
+        """
+        壳的刚度阵由膜单元和板单元构成
+        """
+        """
+        先转换到局部坐标, 初始化板单元和膜单元
+        """
+        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
+        plate = KirchhoffQuaPlate(-1)
+        plate.sec_id = self.sec_id
+        plate.node_coords = local_coord
+        plate.cha_dict = self.cha_dict
+        plate.CalElementDMatrix()
+        K1 = plate.ElementStiffness()
+
+        q4 = Q4Mem(-1)
+        q4.sec_id = self.sec_id
+        q4.node_coords = local_coord
+        q4.cha_dict = self.cha_dict
+        q4.CalElementDMatrix()
+        K2 = q4.ElementStiffness()
+
+        KShell = np.zeros((24, 24), dtype=float)
+        index_m = [0, 1, 5, 6, 7, 11, 12, 13, 17, 18, 19, 23]
+        KShell[np.ix_(index_m, index_m)] = K2
+
+        R_matrix = T_matrix.T
+        global_t_matrix = np.zeros((24, 24))
+        global_t_matrix[0:3, 0:3] = R_matrix
+        global_t_matrix[3:6, 3:6] = R_matrix
+        global_t_matrix[6:9, 6:9] = R_matrix
+        global_t_matrix[9:12, 9:12] = R_matrix
+        global_t_matrix[12:15, 12:15] = R_matrix
+        global_t_matrix[15:18, 15:18] = R_matrix
+        global_t_matrix[18:21, 18:21] = R_matrix
+        global_t_matrix[21:24, 21:24] = R_matrix
+
+        KShell = global_t_matrix.T @ KShell @ global_t_matrix
+        return K1 + KShell
+
+    def ElementStress(self, displacement):
+        """
+        Calculate element stress
+        """
+
+
+class CookTriShell(ElementBaseClass, ABC):
+    """
+    DKTShell Element class
+    """
+
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        self.nodes_count = 3  # Each element has 3 nodes
+        self._nodes = [None for _ in range(self.nodes_count)]
+        self.vtu_type = "triangle"
+        self.e_type = 181
+        self.K = np.zeros((18, 18), dtype=float)
+        self.unv_code = 30500
+
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        a = e / ((1 + niu) * (1 - 2 * niu))
+        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+                               [niu, 1 - niu, niu, 0, 0, 0],
+                               [niu, niu, 1 - niu, 0, 0, 0],
+                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+
+    def ElementStiffness(self):
         """
         TODO: 转轴要不要加小量
         """
@@ -228,9 +336,9 @@ class DKTShell(ElementBaseClass, ABC):
         """
 
 
-class DKQShell(ElementBaseClass, ABC):
+class CookQuaShell(ElementBaseClass, ABC):
     """
-    DKQShell Element class
+    CookShell Element class
     """
 
     def __init__(self, eid=None):
@@ -357,3 +465,19 @@ class DKQShell(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+
+if __name__ == "__main__":
+    t_ele = DKQShell()
+    t_ele.sec_id = 10001
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.node_coords = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [0.8, 0.8, 0],
+        [0.5, 1, 0]
+    ], dtype=float)
+    t_ele.CalElementDMatrix()
+    Ke = t_ele.ElementStiffness()
+    # np.savetxt('ke',Ke)
+    print(Ke)

@@ -63,5 +63,9 @@ def ReadANSYSStiffness(f_name, print_log=False):
 
 
 if __name__ == "__main__":
-    f_path = "../../testcases/ANSYS/tempdirectory/Stiffness_mat.dat"
+    # f_path = "../../testcases/ANSYS/tempdirectory/Stiffness_mat.dat"
+    # f_path = "D:/WorkSpace/Temp/ccc/stiffness_mat_one_shell.dat"
+    # f_path = "D:/WorkSpace/Temp/ccc/stiffness_mat.dat"
+    f_path = "D:/WorkSpace/Temp/ccc/plane42_stiff.dat"
+    # f_path = "D:/WorkSpace/Temp/ccc/shell63.dat"
     ReadANSYSStiffness(f_path, True)

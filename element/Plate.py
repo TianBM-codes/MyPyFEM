@@ -1,16 +1,142 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import sys
 
 from element.ElementBase import *
 from abc import ABC
 
 
+class IntegFormTriangle3P:
+    """二维2点高斯积分格式"""
+
+    def __init__(self):
+        self.point = np.array([
+            [1 / 6, 1 / 6],
+            [2 / 3, 1 / 6],
+            [1 / 6, 2 / 3],
+        ])
+        self.weight = np.array([1 / 3, 1 / 3, 1 / 3])
+
+
+def PlateBMatrix(node_coords, xi, eta):
+    """
+    Kirchhoff三角形板单元
+    @param xi:
+    @param eta:
+    @return:
+    """
+    x1, y1 = node_coords[0]
+    x2, y2 = node_coords[1]
+    x3, y3 = node_coords[2]
+
+    x23 = x3 - x2
+    x31 = x1 - x3
+    x12 = x2 - x1
+    x13 = -x31
+    y23 = y3 - y2
+    y31 = y1 - y3
+    y12 = y2 - y1
+    y13 = -y31
+
+    # 计算边长
+    l12 = np.sqrt(x12 ** 2 + y12 ** 2)
+    l23 = np.sqrt(x23 ** 2 + y23 ** 2)
+    l31 = np.sqrt(x31 ** 2 + y31 ** 2)
+
+    # 计算系数p, q, r, t
+    p4 = -x12 / l12 ** 2 * 6
+    p5 = -x23 / l23 ** 2 * 6
+    p6 = -x31 / l31 ** 2 * 6
+
+    q4 = 3 * x12 * y12 / l12 ** 2
+    q5 = 3 * x23 * y23 / l23 ** 2
+    q6 = 3 * x31 * y31 / l31 ** 2
+
+    r4 = 3 * y12 ** 2 / l12 ** 2
+    r5 = 3 * y23 ** 2 / l23 ** 2
+    r6 = 3 * y31 ** 2 / l31 ** 2
+
+    t4 = -y12 / l12 ** 2 * 6
+    t5 = -y23 / l23 ** 2 * 6
+    t6 = -y31 / l31 ** 2 * 6
+
+    # 计算三角形面积(2A)
+    A2 = np.linalg.det(np.array([
+        [1, x1, y1],
+        [1, x2, y2],
+        [1, x3, y3]
+    ]))
+
+    # 临时变量
+    temp1 = 1 - 2 * xi
+    temp2 = 1 - 2 * eta
+
+    # 计算H矩阵的各分量
+    Hxxi = np.array([
+        p4 * temp1 + (p6 - p4) * eta,
+        -q4 * temp1 + (q4 + q6) * eta,
+        4 - 6 * (xi + eta) + (r6 + r4) * eta - r4 * temp1,
+        -p4 * temp1 + (p5 + p4) * eta,
+        -q4 * temp1 + (q4 - q5) * eta,
+        2 - 6 * xi + (r4 - r5) * eta - r4 * temp1,
+        -(p5 + p6) * eta,
+        (q6 - q5) * eta,
+        (r6 - r5) * eta
+    ])
+
+    Hxeta = np.array([
+        -p6 * temp2 + (p6 - p4) * xi,
+        -q6 * temp2 + (q4 + q6) * xi,
+        4 - 6 * (xi + eta) + (r4 + r6) * xi - r6 * temp2,
+        (p5 + p4) * xi,
+        (q4 - q5) * xi,
+        (r4 - r5) * xi,
+        p6 * temp2 - (p6 + p5) * xi,
+        -q6 * temp2 + (q6 - q5) * xi,
+        2 - 6 * eta + (r6 - r5) * xi - r6 * temp2
+    ])
+
+    Hyxi = np.array([
+        t4 * temp1 + (t6 - t4) * eta,
+        -1 - r4 * temp1 + (r4 + r6) * eta,
+        q4 * temp1 - (q4 + q6) * eta,
+        -t4 * temp1 + (t4 + t5) * eta,
+        1 - r4 * temp1 + (r4 - r5) * eta,
+        q4 * temp1 + (q5 - q4) * eta,
+        -(t5 + t6) * eta,
+        (r6 - r5) * eta,
+        (q5 - q6) * eta
+    ])
+
+    Hyeta = np.array([
+        -t6 * temp2 + (t6 - t4) * xi,
+        -1 - r6 * temp2 + (r4 + r6) * xi,
+        q6 * temp2 - (q4 + q6) * xi,
+        (t5 + t4) * xi,
+        (r4 - r5) * xi,
+        (q5 - q4) * xi,
+        t6 * temp2 - (t5 + t6) * xi,
+        1 - r6 * temp2 + (r6 - r5) * xi,
+        q6 * temp2 + (q5 - q6) * xi
+    ])
+
+    # 组装应变矩阵B
+    B = np.zeros((3, 9))
+    B[0, :] = (1 / A2) * (y13 * Hxxi - y12 * Hxeta)
+    B[1, :] = (1 / A2) * (-x13 * Hyxi + x12 * Hyeta)
+    B[2, :] = (1 / A2) * (-x13 * Hxxi + x12 * Hxeta + y13 * Hyxi - y12 * Hyeta)
+
+    # Jacobian行列式
+    j = A2 / 2
+
+    return B, j
+
+
 class KirchhoffTrianglePlate(ElementBaseClass, ABC):
     """
-    MITC4 Element class
+    Kirchhoff Triangle Plate Element class
     Reference:
-    1.《有限元法、理论、格式与求解方法》上册Bathe P395
-    2. 王欢Matlab程序
+    1. 王欢Matlab程序
     """
 
     def __init__(self, eid=None):
@@ -26,90 +152,121 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
-            a = e / (1 - niu ** 2)
-            self.D = a * np.array([[1, niu, 0],
-                                   [niu, 1, 0],
-                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
-        elif an_type == MaterialMatrixType.PlaneStrain:
-            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.array([[1, niu / (1 - niu), 0],
-                                   [niu(1 - niu), 1, 0],
-                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
+        if self.sec_id:
+            h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            h = self.cha_dict["RealConst"]
         else:
-            mlogger.fatal("Unknown an_dimension")
-            sys.exit(1)
+            raise KeyError("Don't Contain RealConst and sec_id")
+        a = e * h ** 3 / 12 / (1 - niu ** 2)
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self):
         """
         dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
-
-        # Shape Function:
-        N1 = 0.25 * (1 + r) * (1 + s)
-        N2 = 0.25 * (1 - r) * (1 + s)
-        N3 = 0.25 * (1 - r) * (1 - s)
-        N4 = 0.25 * (1 + r) * (1 - s)
-
-        # Partial
         """
-    #     temp1 = 1 - 2 * xi
-    #     temp2 = 1 - 2 * eta
-    #     assert self.node_coords.shape == (4, 3)
-    #     x1, y1 = self.node_coords[0]
-    #     x2, y2 = self.node_coords[1]
-    #     x3, y3 = self.node_coords[2]
-    #
-    #     # 边向量计算
-    #     x12, y12 = x2 - x1, y2 - y1
-    #     x23, y23 = x3 - x2, y3 - y2
-    #     x31, y31 = x1 - x3, y1 - y3
-    #
-    #     # 边长计算
-    #     l12 = np.hypot(x12, y12)
-    #     l23 = np.hypot(x23, y23)
-    #     l31 = np.hypot(x31, y31)
-    #
-    #     # 几何参数预计算
-    #     A2 = np.linalg.det(np.array([[1, x1, y1],
-    #                                  [1, x2, y2],
-    #                                  [1, x3, y3]]))
-    #
-    #     p4 = -x12 / (l12 ** 2) * 6
-    #     p5 = -x23 / (l23 ** 2) * 6
-    #     p6 = -x31 / (l31 ** 2) * 6
-    #
-    #     q4 = 3 * x12 * y12 / l12 ** 2
-    #     q5 = 3 * x23 * y23 / l23 ** 2,
-    #     q6 = 3 * x31 * y31 / l31 ** 2
-    #
-    #     r4 = 3 * y12 ** 2 / l12 ** 2
-    #     r5 = 3 * y23 ** 2 / l23 ** 2,
-    #     r6 = 3 * y31 ** 2 / l31 ** 2
-    #
-    #     t4 = -y12 / (l12 ** 2) * 6
-    #     t5 = -y23 / (l23 ** 2) * 6
-    #     t6 = -y31 / (l31 ** 2) * 6
-    #
-    #     Hxxi =  np.array([
-    #     p4 * temp1 + (p6 - p4) * eta,
-    #     -q4 * temp1 + (q4 + q6) * eta,
-    #     4 - 6 * (temp1 / 2 + eta) + (r6 + r4) * eta - r4 * temp1,
-    #     -p4 * temp1 + (p5 + p4) * eta,
-    #     -q4 * temp1 + (q4 - q5) * eta,
-    #     2 - 6 * (1 - temp1 / 2) + (r4 - r5) * eta - r4 * temp1,
-    #     -(p5 + p6) * eta,
-    #     (q6 - q5) * eta,
-    #     (r6 - r5) * eta
-    # ])
+        integ = IntegFormTriangle3P()
+        Ke = np.zeros((9, 9), dtype=float)
+        for ii in range(3):
+            xi = integ.point[ii, 0]
+            eta = integ.point[ii, 1]
+            wgt = integ.weight[ii]
+            B, detj = PlateBMatrix(self.node_coords, xi, eta)
+            Ke += B.T @ self.D @ B * detj * wgt
+        return Ke
+
+    def ElementStress(self, displacement):
+        """
+        Calculate element stress
+        """
 
 
-def ElementStress(self, displacement):
+class KirchhoffQuaPlate(ElementBaseClass, ABC):
     """
-    Calculate element stress
+    Kirchhoff Qua Plate Element class
+    Reference:
+    1. 王欢Matlab程序
     """
 
+    def __init__(self, eid=None):
+        super().__init__(eid)
+        self.nodes_count = 4  # Each element has 8 nodes
+        self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
+        self.vtu_type = "quad"
+        self.thickness = None
 
-# TODO: 中厚板 MITC4和MITC3
+    def CalElementDMatrix(self, an_type=None):
+        """
+        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        """
+        e = self.cha_dict[MaterialKey.E]
+        niu = self.cha_dict[MaterialKey.Niu]
+        if self.sec_id:
+            h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            h = self.cha_dict["RealConst"]
+        else:
+            raise KeyError("Don't Contain RealConst and sec_id")
+        a = e * h ** 3 / 12 / (1 - niu ** 2)
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
+
+    def ElementStiffness(self):
+        """
+        dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
+        """
+        tri_plate = KirchhoffTrianglePlate()
+        tri_plate.sec_id = self.sec_id
+        tri_plate.cha_dict = self.cha_dict
+        tri_plate.CalElementDMatrix()
+        Kb = np.zeros((24, 24), dtype=float)
+        indexes = [[0, 1, 2],
+                   [0, 2, 3],
+                   [0, 1, 3],
+                   [1, 2, 3]
+                   ]
+        node_coords = [self.node_coords[indexes[0], :],
+                       self.node_coords[indexes[1], :],
+                       self.node_coords[indexes[2], :],
+                       self.node_coords[indexes[3], :]
+                       ]
+        for ii in range(4):
+            T_matrix, origin = GetShellGlobal2LocalTransMatrix(node_coords[ii])
+            local_coord = (node_coords[ii].T - origin[:, np.newaxis]).T @ T_matrix
+            m_coords = local_coord[:, :2]
+            tri_plate.node_coords = m_coords
+            Kb_iter = tri_plate.ElementStiffness()
+            index = indexes[ii]
+            i0j0 = np.array([
+                (index[0]) * 6 + 2, (index[0]) * 6 + 3, (index[0]) * 6 + 4,
+                (index[1]) * 6 + 2, (index[1]) * 6 + 3, (index[1]) * 6 + 4,
+                (index[2]) * 6 + 2, (index[2]) * 6 + 3, (index[2]) * 6 + 4
+            ])
+            Kb2424 = np.zeros((24, 24), dtype=float)
+            Kb2424[np.ix_(i0j0, i0j0)] = Kb_iter
+            R_matrix = T_matrix.T
+            global_t_matrix = np.zeros((24, 24))
+            global_t_matrix[0:3, 0:3] = R_matrix
+            global_t_matrix[3:6, 3:6] = R_matrix
+            global_t_matrix[6:9, 6:9] = R_matrix
+            global_t_matrix[9:12, 9:12] = R_matrix
+            global_t_matrix[12:15, 12:15] = R_matrix
+            global_t_matrix[15:18, 15:18] = R_matrix
+            global_t_matrix[18:21, 18:21] = R_matrix
+            global_t_matrix[21:24, 21:24] = R_matrix
+            Kb2424 = global_t_matrix.T @ Kb2424 @ global_t_matrix
+            Kb += Kb2424
+
+        return Kb / 2
+
+    def ElementStress(self, displacement):
+        """
+        壳的刚度阵由膜单元和板单元构成
+        """
+
 
 class MITC4(ElementBaseClass, ABC):
     """
@@ -614,11 +771,16 @@ class DKQPlate(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    t_ele = MITC3(-1)
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e9}
-    t_ele.node_coords = np.array([[0, 0],
-                                  [4, 0],
-                                  [1, 3]], dtype=float)
-    t_ele.CalElementDMatrix(MaterialMatrixType.PlaneStree)
-    t_ele.ElementStiffness()
+    t_ele = KirchhoffQuaPlate()
+    t_ele.sec_id = 10001
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.node_coords = np.array([
+        [2, 0, 0],
+        [1, 0, 0],
+        [1, 1, 0],
+        [2, 1, 0]
+    ], dtype=float)
+    t_ele.CalElementDMatrix()
+    Ke = t_ele.ElementStiffness()
+    print(Ke)
     mlogger.debug("finish")
