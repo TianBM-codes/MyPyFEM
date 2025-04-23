@@ -73,16 +73,11 @@ class MyPyFEM:
         reader.ParseFileAndInitFEMDB()
         self.parsed_time = time.time()
 
-        if check_model:
-            reader.CheckModel()
-            c_end = time.time()
-            mlogger.debug("Elapsed time: {:.3f} seconds\n".format(c_end - self.program_begin))
-
         if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
             """
             求解线弹性问题, 输出节点位移以及应力
             """
-            domain = Domain()
+            domain = Domain(check_model)
             domain.AssignElementCharacter()
             time_2 = time.time()
 

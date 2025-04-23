@@ -170,7 +170,7 @@ class DKQShell(ElementBaseClass, ABC):
         local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
         plate = KirchhoffQuaPlate(-1)
         plate.sec_id = self.sec_id
-        plate.node_coords = local_coord
+        plate.node_coords = self.node_coords
         plate.cha_dict = self.cha_dict
         plate.CalElementDMatrix()
         K1 = plate.ElementStiffness()

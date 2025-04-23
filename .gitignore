@@ -4,6 +4,7 @@ __pycache__
 .sipesc/
 /docs
 /to_assemble_code
+/NumericalCases/Projects
 
 __init__.py
 

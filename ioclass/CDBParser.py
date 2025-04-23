@@ -305,18 +305,26 @@ class CDBParser(object):
 
                 self.iter_line = f_handle.readline()
 
-            elif splits[2] == "SHELL":
+            elif splits[2].startswith("SHELL"):
                 sec_num = splits[1]
                 f_handle.readline()  # secoffset
-                f_handle.readline()  # sec block
-                self.iter_line = f_handle.readline()  # sec block data
-                splits = self.iter_line.split(",")
-                thickness = splits[0]
-                f_handle.readline()  # sec control
-                self.femdb.shell_thickness_map[int(sec_num)] = float(thickness)
+                self.iter_line = f_handle.readline()  # sec block
+                if self.iter_line.startswith("SECBLOCK"):
+                    self.iter_line = f_handle.readline()  # sec block data
+                    splits = self.iter_line.split(",")
+                    thickness = splits[0]
+                    f_handle.readline()  # sec control
+                    self.femdb.shell_thickness_map[int(sec_num)] = float(thickness)
+                elif self.iter_line.startswith("SECDATA"):
+                    splits = self.iter_line.split(",")
+                    thickness = splits[1]
+                    f_handle.readline()  # sec control
+                    self.femdb.shell_thickness_map[int(sec_num)] = float(thickness)
+                else:
+                    raise KeyError(f"Failed to parse shell section:{splits[2]}")
 
             else:
-                mlogger.fatal("UnSupport Section Type")
+                mlogger.fatal(f"UnSupport Section Type:{splits[2]}")
                 sys.exit(1)
 
             # 当前行为其他信息, 跳出读材料分支, 读取其他

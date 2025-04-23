@@ -4,7 +4,7 @@
 from abc import ABC
 from typing import Tuple
 
-from ShapeFunctionsAndInteg import *
+from femdb.ShapeFunctionsAndInteg import *
 from element.ElementBase import *
 
 

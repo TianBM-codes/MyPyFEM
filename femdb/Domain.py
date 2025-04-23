@@ -43,7 +43,7 @@ class Domain(object):
     TODO 去掉一些没用过的函数
     """
 
-    def __init__(self):
+    def __init__(self, check_model):
         """
           具体注意事项需要结合InpReader::ParseFile中的注释. 不同单元集合中的属性可能不一样, 有的集合也可能创建但没有被用到, 再计算单元
         本构阵的时候需要对ele_sets进行循环.
@@ -58,6 +58,7 @@ class Domain(object):
         # 以下为刚度阵相关
         self.stiff_list = []
         self.eq_nums = []
+        self.check_model = check_model
 
     def AssignElementCharacter(self):
         """
@@ -100,20 +101,12 @@ class Domain(object):
         self.femdb.AssignElementProperty()
 
     def CalBoundaryEffect(self):
-        # 计算每个节点有多少自由度
-        # six_dof_nodes = []
-        # two_dof_nodes = []
-        # for key, ele_grp in self.femdb.ele_grp_hash.items():
-        #     e_type = self.femdb.et_hash[key]
-        #     # 即使单元是退化单元也可以
-        #     if ElementFactory.GetElementNodeDofCount(e_type) == 6:
-        #         for elem in ele_grp.Elements():
-        #             six_dof_nodes.extend(elem.GetNodeSearchIndex())
-        #     elif ElementFactory.GetElementNodeDofCount(e_type) == 2:
-        #         for elem in ele_grp.Elements():
-        #             two_dof_nodes.extend(elem.GetNodeSearchIndex())
+        """
+        计算每个节点有多少自由度
+        """
         six_dof_nodes = []
         two_dof_nodes = []
+        all_ele_nodes = []
         for elem in self.femdb.elements:
             e_type = elem.e_type
             # 即使单元是退化单元也可以
@@ -122,11 +115,27 @@ class Domain(object):
             elif ElementFactory.GetElementNodeDofCount(e_type) == 2:
                 two_dof_nodes.extend(elem.GetNodeSearchIndex())
 
-        # 去除重复节点, 在转换为list, set无法遍历
+            if self.check_model:
+                all_ele_nodes.extend(elem.GetNodeSearchIndex())
+
+        if self.check_model:
+            if len(set(all_ele_nodes)) != len(self.femdb.node_list):
+                ele_node_set = set(all_ele_nodes)
+                all_node_set = set()
+                for inode in self.femdb.node_list:
+                    all_node_set.add(inode.id)
+                diff_list = list(all_node_set - ele_node_set)
+                for ii in diff_list:
+                    print(f"Useless Node: {ii}")
+        """
+        去除重复节点, 在转换为list, set无法遍历
+        """
         six_dof_nodes = list(set(six_dof_nodes))
         two_dof_nodes = list(set(two_dof_nodes))
 
-        # 将自由度为6(2)的节点的位移长度以及方程号长度改为6(2), 其他默认为3
+        """
+        将自由度为6(2)的节点的位移长度以及方程号长度改为6(2), 其他默认为3
+        """
         for nd_idx in six_dof_nodes:
             self.femdb.node_list[nd_idx].ChangeDofCount(6)
         for nd_idx in two_dof_nodes:
@@ -186,7 +195,9 @@ class Domain(object):
         self.free_dof_count = self.eq_count
         self.femdb.equation_number = self.eq_count
 
-        # 第二遍排序, 排序约束自由度的方程号, 顺便初始化Ub
+        """
+        第二遍排序, 排序约束自由度的方程号, 顺便初始化Ub
+        """
         for node in self.femdb.node_list:
             if node.is_boundary_node:
                 for ii in range(node.GetDofCount()):
@@ -195,12 +206,16 @@ class Domain(object):
                         self.Ub.append(node.dof_disp[ii])
                         self.eq_count += 1
 
-        # 自由度号已经计算完成, 对自由度相关变量进行初始化
+        """
+        自由度号已经计算完成, 对自由度相关变量进行初始化
+        """
         self.bound_dof_count = self.eq_count - self.free_dof_count
 
-        # 排序完成现在每个节点已经计算好了对应的方程号, 现在设置每个单元所包含的节点的方程号, 以用来组装总刚
-        # 计算每个单元节点包含节点对应的方程号, 是一个列表, 单刚是一个len(eq_numbers) * len(eq_numbers)的矩阵, 组装的
-        # 时候K的第ij项加到对应总刚的eq_numbers[i]行 eq_numbers[j]列
+        """
+        排序完成现在每个节点已经计算好了对应的方程号, 现在设置每个单元所包含的节点的方程号, 以用来组装总刚
+        计算每个单元节点包含节点对应的方程号, 是一个列表, 单刚是一个len(eq_numbers) * len(eq_numbers)的矩阵, 组装的
+        时候K的第ij项加到对应总刚的eq_numbers[i]行 eq_numbers[j]列
+        """
         for iter_ele in self.femdb.elements:
             # 不能对所有的search_node_ids进行循环, 因为这其中包括了辅助节点
             eq_numbers = np.asarray([], dtype=np.uint32)
@@ -211,20 +226,10 @@ class Domain(object):
                 node = self.femdb.GetNodeBySearchId(nid)
                 eq_numbers = np.concatenate((eq_numbers, node.eq_num))
             iter_ele.SetEquationNumber(eq_numbers)
-        # for _, ele_group in self.femdb.ele_grp_hash.items():
-        #     eles = ele_group.Elements()
-        #     for iter_ele in eles:
-        #         # 不能对所有的search_node_ids进行循环, 因为这其中包括了辅助节点
-        #         eq_numbers = np.asarray([], dtype=np.uint32)
-        #         search_node_ids = iter_ele.search_node_ids
-        #
-        #         for idx in range(iter_ele.nodes_count):
-        #             nid = search_node_ids[idx]
-        #             node = self.femdb.GetNodeBySearchId(nid)
-        #             eq_numbers = np.concatenate((eq_numbers, node.eq_num))
-        #         iter_ele.SetEquationNumber(eq_numbers)
 
-        # 初始化总刚
+        """
+        初始化总刚
+        """
         self.femdb.InitAssemblyMatrix(self.eq_count)
 
     def CalAllElementStiffness(self):
@@ -235,11 +240,14 @@ class Domain(object):
         """
         for iter_ele in self.femdb.elements:
             self.eq_nums.append(iter_ele.GetElementEquationNumber())
+            if self.check_model:
+                if iter_ele.id == 786:
+                    print("")
+                has_zero_row = (iter_ele.ElementStiffness() >= 1e-8).all(axis=1).any()
+                if has_zero_row:
+                    # raise ValueError(f"Element {iter_ele.id} has zero row")
+                    print(f"Element {iter_ele.id} has zero row")
             self.stiff_list.append(iter_ele.ElementStiffness())
-        # for key, ele_group in self.femdb.ele_grp_hash.items():
-        #     for iter_ele in ele_group.eles:
-        #         self.eq_nums.append(iter_ele.GetElementEquationNumber())
-        #         self.stiff_list.append(iter_ele.ElementStiffness())
 
     def AssembleStiffnessMatrix(self):
         """
