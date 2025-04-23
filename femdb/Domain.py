@@ -116,7 +116,7 @@ class Domain(object):
                 two_dof_nodes.extend(elem.GetNodeSearchIndex())
 
             if self.check_model:
-                all_ele_nodes.extend(elem.GetNodeSearchIndex())
+                all_ele_nodes.extend(elem.node_ids)
 
         if self.check_model:
             if len(set(all_ele_nodes)) != len(self.femdb.node_list):
