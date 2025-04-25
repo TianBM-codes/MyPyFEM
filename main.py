@@ -99,7 +99,7 @@ class MyPyFEM:
 
             writer = ResultsWriter()
             writer.WriteVTPFile(self.output_files[0])
-            writer.WriteUNVFile(self.output_files[1])
+            # writer.WriteUNVFile(self.output_files[1])
             p_end = time.time()
 
             # Print FEMDB Information
