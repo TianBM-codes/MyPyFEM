@@ -224,7 +224,6 @@ class InpParser(object):
                 """
                 在当前程序解析属性的时候, 如果用到某个EleSet, 那么这个EleSet就是有用的
                 """
-                # Shell
                 ret_dict = ReadSectionLine(self.iter_line)
                 els_name = ret_dict["elset"]
                 mat_name = ret_dict["material"]

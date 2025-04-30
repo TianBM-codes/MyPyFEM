@@ -145,6 +145,10 @@ class DKQShell(ElementBaseClass, ABC):
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
 
+    def CalMassMatrix(self):
+        """
+        计算单元的质量矩阵
+        """
     def CalElementDMatrix(self, an_type=None):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
