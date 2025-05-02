@@ -128,6 +128,8 @@ class Q4Mem(ElementBaseClass, ABC):
             self.h = self.cha_dict[self.sec_id]
         elif self.cha_dict.__contains__('RealConst'):
             self.h = self.cha_dict["RealConst"]
+        elif self.cha_dict.__contains__(MaterialKey.Thickness):
+            self.h = self.cha_dict[MaterialKey.Thickness]
         else:
             raise KeyError("Don't Contain RealConst and sec_id")
         niu = self.cha_dict[MaterialKey.Niu]

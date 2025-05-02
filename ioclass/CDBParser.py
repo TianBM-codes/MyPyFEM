@@ -18,7 +18,6 @@ class CDBParser(object):
         self.cdb_path = input_path
         self.iter_line = None
         self.et_hash = {}
-        self.ele_group_hash = {}
         self.ele_count = 0
         self.real_constant_hash = {}
 
@@ -141,7 +140,6 @@ class CDBParser(object):
                     self.iter_line = cdb_f.readline()
 
         self.femdb.et_hash = self.et_hash
-        self.femdb.SetGrpHash(self.ele_group_hash, self.ele_count)
         self.femdb.real_const_hash = self.real_constant_hash
 
     def ReadEBlock(self, f_handle):

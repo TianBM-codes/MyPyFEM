@@ -34,12 +34,14 @@ class InpParser(object):
     """
 
     def __init__(self, input_path):
-        self.fem_data = FEMDataBase()
-        # mlogger.debug("In InpReader, femdb id is:{}".format(id(self.fem_data)))
+        self.fem_db = FEMDataBase()
         self.inp_path = input_path
         self.ele_count = 0
-        self.ele_group_hash = {}  # key(单元名): value(ele_group), 存的实有值
         self.iter_line = ""
+        self.sections = []
+        self.materials = {}
+        self.ele_sets = {}
+        self.eleId2Idx = {}
 
     def ParseFileAndInitFEMDB(self):
         """
@@ -57,6 +59,7 @@ class InpParser(object):
             2. ABAQUS keyword browser table & Keyword support from the input file readers
             3.《ABAQUS有限元分析实例详解》P26  图2-30 数据库的结构示意图
         """
+        GlobalInfor[GlobalVariant.AnaType] = AnalyseType.LinearStatic
         with open(self.inp_path, 'r') as inp_f:
             self.iter_line = inp_f.readline()
             while True:
@@ -69,7 +72,7 @@ class InpParser(object):
 
                 # 在Part外也会可有Nset和Elset, 比如设置约束或力的时候
                 elif self.iter_line.startswith("*Nset,"):
-                    self.ReadNset(inp_f)
+                    self.ReadNSet(inp_f)
 
                 elif self.iter_line.startswith("*Elset,"):
                     self.ReadElset(inp_f)
@@ -85,7 +88,17 @@ class InpParser(object):
                         break
                     self.iter_line = inp_f.readline().strip()
 
-        self.fem_data.SetGrpHash(self.ele_group_hash, self.ele_count)
+        for section in self.sections:
+            ele_set_name = section.ele_set_name
+            mat_name = section.mat_name
+            mat_cha_dict = self.materials[mat_name]
+            sec_cha_dict = section.cha_dict
+            ele_cha_dict = {**mat_cha_dict, **sec_cha_dict}
+            ele_set = self.ele_sets[ele_set_name]
+            ele_ids = ele_set.GetEleIds()
+            for ele_id in ele_ids:
+                idx = self.eleId2Idx[ele_id]
+                self.fem_db.elements[idx].cha_dict = ele_cha_dict
 
     def ReadPart(self, f_handle):
         """
@@ -106,27 +119,25 @@ class InpParser(object):
                     if len(n_data) == 4:
                         # 三维问题, 涉及的单元均为三维单元
                         z = float(n_data[3])
-                        self.fem_data.AddNode(Node(n_id, x, y, z))
+                        self.fem_db.AddNode(Node(n_id, x, y, z))
                     elif len(n_data) == 3:
                         # 二维问题, 涉及的单元均为二维单元
-                        self.fem_data.AddNode(Node(n_id, x, y))
+                        self.fem_db.AddNode(Node(n_id, x, y))
 
-                    self.fem_data.node_hash[n_id] = node_index
+                    self.fem_db.node_hash[n_id] = node_index
                     node_index += 1
                     self.iter_line = f_handle.readline().strip()
 
-            # 读取Elements的时候需要ElementGroups是因为输出vtp时不同单元不同样式, 默认每种Element都集中在一起,
             # 相同单元类型不同属性的话, 通过Section中的Set来区分
             elif self.iter_line.startswith("*Element,") or self.iter_line.startswith("*ELEMENT,"):
                 # 解析单元类型关键字, 如果出现某些单元, 那么整个分析将变为2D分析
                 e_type = self.iter_line.split(",")[1].split("=")[-1]
-                mlogger.debug("Parsing Element Type: {}".format(e_type.strip()))
                 if e_type in ["CPS3", "CPS4"]:
-                    self.fem_data.an_dimension = AnalyseDimension.TwoDimension
+                    self.fem_db.an_dimension = AnalyseDimension.TwoDimension
 
                 # 创建单元和单元组, ele_ids用来收集本组中单元的真实ID, nds是组成单个单元的真实节点号
                 iter_ele, n_cnt = ElementFactory.CreateElement(e_type.strip())
-                ele_group = ElementGroup(e_type)
+                # ele_group = ElementGroup(e_type)
                 nds = np.zeros(n_cnt, dtype=np.uint32)
                 ele_ids = []
 
@@ -137,7 +148,8 @@ class InpParser(object):
                     if sp_line[-1] == "":
                         sp_line.pop()
                     first_line_node_count = len(sp_line) - 1
-                    iter_ele.SetId(int(sp_line[0]))
+                    eleId = int(sp_line[0])
+                    iter_ele.SetId(eleId)
                     ele_ids.append(int(sp_line[0]))
                     sp_line[-1] = sp_line[-1].strip()  # 去掉\n换行符
                     for i in range(1, len(sp_line)):
@@ -154,31 +166,28 @@ class InpParser(object):
                     iter_ele.SetNodes(nds)
                     search_ids = np.array([], dtype=np.uint32)
                     for nd in nds:
-                        search_ids = np.append(search_ids, self.fem_data.node_hash[nd])
+                        search_ids = np.append(search_ids, self.fem_db.node_hash[nd])
                     iter_ele.SetNodeSearchIndex(search_ids)
 
                     # 计算单元包括的节点的坐标矩阵
                     coords = []
                     for nid in search_ids:
-                        n_coord = self.fem_data.node_list[nid].GetNodeCoord()
+                        n_coord = self.fem_db.node_list[nid].GetNodeCoord()
                         # coords.append(np.stack((coords,n_coord)))
                         coords.append(n_coord)
                     coords = np.asarray(coords)
                     iter_ele.SetNodeCoords(coords)
 
-                    # 保存对应关系
-                    self.fem_data.ele_idx_hash[int(sp_line[0])] = ele_group.GetElementsCurrentCount()
-
-                    # 需要进行深拷贝, 否则是一个单元重复了单元个数次
-                    ele_group.AppendElement(copy.deepcopy(iter_ele))
+                    """
+                    需要进行深拷贝, 否则是一个单元重复了单元个数次
+                    """
+                    self.eleId2Idx[eleId] = len(self.fem_db.elements)
+                    self.fem_db.elements.append(copy.deepcopy(iter_ele))
                     self.ele_count += 1
                     self.iter_line = f_handle.readline().strip()
 
-                ele_group.SetEleIdSet(set(ele_ids))
-                self.ele_group_hash[e_type] = ele_group
-
             elif self.iter_line.startswith("*Nset,") or self.iter_line.startswith("*NSET,"):
-                self.ReadNset(f_handle)
+                self.ReadNSet(f_handle)
 
             elif self.iter_line.startswith("*Elset") or self.iter_line.startswith("ELSET"):
                 self.ReadElset(f_handle)
@@ -199,7 +208,7 @@ class InpParser(object):
                     if par:
                         pars[PropertyKey.ThicknessOrArea] = float(par)
                 section = Property(els_name, mat_name, pars)
-                self.fem_data.properties.append(section)
+                self.fem_db.properties.append(section)
                 self.iter_line = f_handle.readline().strip()
 
             elif self.iter_line.startswith("*Beam Section"):
@@ -211,13 +220,13 @@ class InpParser(object):
                 els_name = ret_dict["elset"]
                 mat_name = ret_dict["material"]
                 section = ret_dict["section"]
-                self.fem_data.GetSpecificFEMObject(FEMObject.EleSet, els_name).SetUsed(True)
+                self.fem_db.GetSpecificFEMObject(FEMObject.EleSet, els_name).SetUsed(True)
                 self.iter_line = f_handle.readline().strip()
                 features = [float(iter_v) for iter_v in self.iter_line.split(",")]
                 self.iter_line = f_handle.readline().strip()
                 normal_dir = [float(di) for di in self.iter_line.split(",")]
                 assert len(normal_dir) == 3
-                self.fem_data.properties.append(Property(els_name, mat_name, [section, features, normal_dir]))
+                self.fem_db.properties.append(Property(els_name, mat_name, [section, features, normal_dir]))
                 self.iter_line = f_handle.readline().strip()
 
             elif self.iter_line.startswith("*Shell Section"):
@@ -227,19 +236,19 @@ class InpParser(object):
                 ret_dict = ReadSectionLine(self.iter_line)
                 els_name = ret_dict["elset"]
                 mat_name = ret_dict["material"]
-                self.fem_data.GetSpecificFEMObject(FEMObject.EleSet, els_name).SetUsed(True)
                 self.iter_line = f_handle.readline().strip()
-                features = [float(iter_v) for iter_v in self.iter_line.split(",")]
-                self.iter_line = f_handle.readline().strip()
-                self.fem_data.properties.append(Property(els_name, mat_name, features))
-                self.iter_line = f_handle.readline().strip()
+                shell_cha_dict = {MaterialKey.Thickness: float(self.iter_line.split(",")[0])}
+                shell_sec = Section(els_name, mat_name, shell_cha_dict)
+                self.sections.append(shell_sec)
 
             else:
-                # 对于暂不支持的内容直接读取下一行
+                """
+                对于暂不支持的内容直接读取下一行, 文件的结尾, 读取结束
+                """
                 self.iter_line = f_handle.readline().strip()
-                # 文件的结尾, 读取结束
                 if not self.iter_line:
                     return
+
         self.iter_line = f_handle.readline().strip()
 
     def ReadMaterial(self, f_handle):
@@ -249,7 +258,8 @@ class InpParser(object):
         mat_name = self.iter_line.split(",")[1].strip().split("=")[1]
         pars_dict = {}
         self.iter_line = f_handle.readline().strip()
-        while not self.iter_line.startswith("**"):
+        new_material = False
+        while True:
             if self.iter_line == "*Density":
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.Density] = float(self.iter_line.split(",")[0])
@@ -259,14 +269,35 @@ class InpParser(object):
                 pars_dict[MaterialKey.E] = float(self.iter_line.split(",")[0])
                 pars_dict[MaterialKey.Niu] = float(self.iter_line.split(",")[1])
                 self.iter_line = f_handle.readline().strip()
+            elif self.iter_line == "*Conductivity":
+                self.iter_line = f_handle.readline().strip()
+                pars_dict[MaterialKey.Conductivity] = float(self.iter_line.split(",")[0])
+                self.iter_line = f_handle.readline().strip()
+            elif self.iter_line == "*Expansion":
+                self.iter_line = f_handle.readline().strip()
+                pars_dict[MaterialKey.Expansion] = float(self.iter_line.split(",")[0])
+                self.iter_line = f_handle.readline().strip()
+            elif self.iter_line == "*Specific Heat":
+                self.iter_line = f_handle.readline().strip()
+                pars_dict[MaterialKey.SpecificHeat] = float(self.iter_line.split(",")[0])
+                self.iter_line = f_handle.readline().strip()
+            elif self.iter_line.startswith("*Material,"):
+                new_material = True
+                self.materials[mat_name] = pars_dict
+                break
+            elif self.iter_line.startswith("**"):
+                self.materials[mat_name] = pars_dict
+                break
             else:
-                mlogger.fatal("Fatal Error: UnSupport Material Para Line {}".format(self.iter_line))
+                mlogger.fatal("Fatal Error: UnSupport Material Para Line:{}".format(self.iter_line))
                 sys.exit(1)
 
-        self.fem_data.materials.append(ISOMaterial(mat_name, pars_dict))
-        self.iter_line = f_handle.readline().strip()
+        if new_material:
+            self.ReadMaterial(f_handle)
+        else:
+            self.iter_line = f_handle.readline().strip()
 
-    def ReadNset(self, f_handle):
+    def ReadNSet(self, f_handle):
         """
         读取节点集合
         """
@@ -280,7 +311,9 @@ class InpParser(object):
         self.iter_line = f_handle.readline().strip()
         nodes = []
 
-        # 有两种形式, 如果是generate, 那么是start, end, inc形式, 否则都按照罗列法
+        """
+        有两种形式, 如果是generate, 那么是start, end, inc形式, 否则都按照罗列法
+        """
         if is_generate:
             begin_idx, end_idx, inc, = self.iter_line.split(",")
             for i in range(int(begin_idx), int(end_idx) + 1, int(inc)):
@@ -291,7 +324,7 @@ class InpParser(object):
                     if nd:
                         nodes.append(int(nd))
                 self.iter_line = f_handle.readline().strip()
-        self.fem_data.node_sets.append(NodeSet(set_name, nodes))
+        self.fem_db.node_sets.append(NodeSet(set_name, nodes))
 
     def ReadElset(self, f_handle):
         """
@@ -306,7 +339,9 @@ class InpParser(object):
                 break
         self.iter_line = f_handle.readline().strip()
 
-        # 有两种形式, 如果是generate, 那么是start, end, inc形式, 只占一行, 否则都按照罗列法
+        """
+        有两种形式, 如果是generate, 那么是start, end, inc形式, 只占一行, 否则都按照罗列法
+        """
         eles = []
         if is_generate:
             begin_idx, end_idx, inc, = self.iter_line.split(",")
@@ -319,7 +354,7 @@ class InpParser(object):
                     if ele_id:
                         eles.append(int(ele_id))
                 self.iter_line = f_handle.readline().strip()
-        self.fem_data.ele_sets.append(EleSet(set_name, eles))
+        self.ele_sets[set_name] = EleSet(set_name, eles)
 
     def ReadLoadCase(self, f_handle):
         """
@@ -332,7 +367,7 @@ class InpParser(object):
             elif self.iter_line == "*Cload":
                 self.iter_line = f_handle.readline().strip()
                 keywords = self.iter_line.split(",")
-                self.fem_data.load_case.AddAbaqusCLoad(keywords[0].strip(), int(keywords[1]), float(keywords[2]))
+                self.fem_db.load_case.AddAbaqusCLoad(keywords[0].strip(), int(keywords[1]), float(keywords[2]))
                 self.iter_line = f_handle.readline().strip()
             else:
                 # 其他情况先读取下一行, 直到遇到 *End Step为止
@@ -349,15 +384,18 @@ class InpParser(object):
         keywords = self.iter_line.split(",")
         if len(keywords) == 2:
             # 如果改行为一个逗号间隔, 那么约束方式是用字符串来标识的
-            self.fem_data.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), b_type=keywords[1].strip()))
+            self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), b_type=keywords[1].strip()))
         elif len(keywords) == 3:
             # 如果该行用两个逗号间隔, 那么是固定该自由度为零
-            self.fem_data.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), 0.0))
+            self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), 0.0))
         elif len(keywords) == 4:
             # 如果该行为三个逗号间隔, 那么为指定位移形式
-            self.fem_data.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), float(keywords[3])))
+            self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), float(keywords[3])))
         self.iter_line = f_handle.readline().strip()
 
 
 if __name__ == "__main__":
-    print(ReadSectionLine("*Beam Section, elset=_PickedSet8, material=Material-1, temperature=GRADIENTS, section=PIPE\n"))
+    # print(ReadSectionLine("*Beam Section, elset=_PickedSet8, material=Material-1, temperature=GRADIENTS, section=PIPE\n"))
+    input_file = r"../numerical example/ABAQUS/Model701.inp"
+    npp = InpParser(input_path=input_file)
+    npp.ParseFileAndInitFEMDB()

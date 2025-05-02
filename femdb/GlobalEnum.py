@@ -134,6 +134,10 @@ class MaterialKey(Enum):
     Density = 2
     Niu = 3
     G = 4
+    Thickness = 5
+    Conductivity = 6  # 热传导系数
+    Expansion = 7
+    SpecificHeat = 8
 
 
 class PropertyKey(Enum):

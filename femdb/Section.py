@@ -28,3 +28,14 @@ class BeamSection(object):
 
     def GetSectionCharacter(self):
         return self.characters
+
+
+class Section(object):
+    """
+    Shell Section
+    """
+
+    def __init__(self, ele_set_name, mat_name, cha_dict):
+        self.ele_set_name = ele_set_name
+        self.mat_name = mat_name
+        self.cha_dict = cha_dict

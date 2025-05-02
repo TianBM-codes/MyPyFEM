@@ -156,6 +156,8 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
             h = self.cha_dict[self.sec_id]
         elif self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"]
+        elif self.cha_dict.__contains__(MaterialKey.Thickness):
+            h = self.cha_dict[MaterialKey.Thickness]
         else:
             raise KeyError("Don't Contain RealConst and sec_id")
         a = e * h ** 3 / 12 / (1 - niu ** 2)
@@ -207,6 +209,8 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
             h = self.cha_dict[self.sec_id]
         elif self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"]
+        elif self.cha_dict.__contains__(MaterialKey.Thickness):
+            h = self.cha_dict[MaterialKey.Thickness]
         else:
             raise KeyError("Don't Contain RealConst and sec_id")
         a = e * h ** 3 / 12 / (1 - niu ** 2)
