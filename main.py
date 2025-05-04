@@ -29,6 +29,7 @@ class MyPyFEM:
         # 程序开始时间以及解析文件完成时间
         self.program_begin = None
         self.parsed_time = None
+        self.check_model = check_model
 
         # 是否绘制总刚度阵
         if plot_stiff:
@@ -38,7 +39,7 @@ class MyPyFEM:
         self.input_file_path = file_path
         self.output_files = [file_path.with_suffix(".vtu"), file_path.with_suffix(".unv")]
 
-        self.FEMAnalyseFlow(check_model)
+        self.FEMAnalyseFlow()
 
         # 结果查看, Paraview显示, 注意要将paraview的路径加入至环境变量
         if open_paraview and not check_model:
@@ -51,18 +52,18 @@ class MyPyFEM:
         suffix = self.input_file_path.suffix
         if suffix == ".inp":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.INP
-            return InpParser(self.input_file_path)
+            return InpParser(self.input_file_path, self.check_model)
         elif suffix == ".cdb":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.CDB
-            return CDBParser(self.input_file_path)
+            return CDBParser(self.input_file_path, self.check_model)
         elif suffix == ".bdf":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.BDF
-            return BDFParser(self.input_file_path)
+            return BDFParser(self.input_file_path, self.check_model)
         else:
             mlogger.fatal("UnSupport File Suffix:{}".format(suffix))
             sys.exit(1)
 
-    def FEMAnalyseFlow(self, check_model):
+    def FEMAnalyseFlow(self):
         """
         TODO: 标准流程, 完成注释, 重写mlogger的debug信息, 将有限元模型的信息输出, 比如单元类型及相应个数, 自由度个数
         求解文件, 步骤如下所示, 该函数中不应包含对不同文件类型的分类, 即判断文件类型的bdf cdb等应在其他函数中完成
@@ -77,7 +78,7 @@ class MyPyFEM:
             """
             求解线弹性问题, 输出节点位移以及应力
             """
-            domain = Domain(check_model)
+            domain = Domain(self.check_model)
             domain.AssignElementCharacter()
             time_2 = time.time()
 
@@ -88,7 +89,7 @@ class MyPyFEM:
             domain.CalAllElementStiffness()
             time_4 = time.time()
 
-            domain.AssembleStiffnessMatrix()
+            domain.AssembleStiffnessMatrixByElimination()
             time_5 = time.time()
 
             domain.SolveDisplacement()
@@ -134,7 +135,7 @@ class MyPyFEM:
             """
             求解线弹性问题, 输出节点位移以及应力
             """
-            domain = Domain(check_model)
+            domain = Domain(self.check_model)
             domain.AssignElementCharacter()
             time_2 = time.time()
 

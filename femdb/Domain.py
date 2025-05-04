@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+from numpy.matrixlib.defmatrix import matrix
 
 from femdb.FEMDataBase import *
 import pypardiso
@@ -132,6 +133,12 @@ class Domain(object):
         """
         six_dof_nodes = list(set(six_dof_nodes))
         two_dof_nodes = list(set(two_dof_nodes))
+        if len(six_dof_nodes) != 0:
+            self.femdb.per_node_dof = 6
+        elif len(two_dof_nodes) != 0:
+            self.femdb.per_node_dof = 2
+        else:
+            self.femdb.per_node_dof = 3
 
         """
         将自由度为6(2)的节点的位移长度以及方程号长度改为6(2), 其他默认为3
@@ -241,16 +248,17 @@ class Domain(object):
         for iter_ele in self.femdb.elements:
             self.eq_nums.append(iter_ele.GetElementEquationNumber())
             iter_ele.CalculateBasic()
+            stiff = iter_ele.ElementStiffness()
             if self.check_model:
                 if iter_ele.id == 786:
                     print("")
-                has_zero_row = (iter_ele.ElementStiffness() >= 1e-8).all(axis=1).any()
+                has_zero_row = (stiff >= 1e-8).all(axis=1).any()
                 if has_zero_row:
                     # raise ValueError(f"Element {iter_ele.id} has zero row")
                     print(f"Element {iter_ele.id} has zero row")
-            self.stiff_list.append(iter_ele.ElementStiffness())
+            self.stiff_list.append(stiff)
 
-    def AssembleStiffnessMatrix(self):
+    def AssembleStiffnessMatrixByElimination(self):
         """
         Assemble the banded global stiffness matrix, STAPPy中的del Matrix是否会减少内存分配, 或提高运算速度
         之前是lil_matrix, 但是速度很慢, 大概是现在方法的4倍左右, 原因是如下行程序所示, 需要__getitem__然后__setitem__
@@ -277,6 +285,37 @@ class Domain(object):
             plt.spy(self.femdb.global_stiff_matrix, markersize=1)
             plt.title("GlobalStiffnessMatrix")
             plt.savefig("GlobalStiffness.jpg")
+
+    def AssembleStiffnessMatrixByPenalty(self):
+        """
+        与AssembleStiffnessMatrixByElimination不同的是，前者是将约束的自由度去掉, 而本方法是通过罚函数或者乘大数法来实现
+        本方法限制所有节点的自由度是同一个数, 即不可以让有的节点自由度是3, 有的节点自由度是6
+        @return:
+        """
+        rows = []
+        cols = []
+        datas = []
+        GlobalNodeHash = self.femdb.node_hash
+        per_node_dof = self.femdb.per_node_dof
+        for kk, ele in enumerate(self.femdb.elements):
+            nodes = ele.nodeIds
+            stiff_array = self.stiff_list[kk]
+            for ii, nodeA in enumerate(nodes):
+                equA = GlobalNodeHash[nodeA] * per_node_dof
+                for jj, nodeB in enumerate(nodes):
+                    equB = GlobalNodeHash[nodeB] * per_node_dof
+                    for m in range(3):
+                        for n in range(3):
+                            TolRow = equA + m
+                            TolCol = equB + n
+                            eRow = ii * 3 + m
+                            eClo = jj * 3 + n
+                            rows.append(TolRow)
+                            cols.append(TolCol)
+                            datas.append(stiff_array[eRow, eClo])
+        matrix_size = len(self.femdb.node_list) * per_node_dof
+        self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
+                                                           shape=(matrix_size, matrix_size))
 
     def SolveDisplacement(self):
         """
@@ -347,6 +386,44 @@ class Domain(object):
             for ii in range(nd.GetDofCount()):
                 nd.dof_disp[ii] = U[nd.eq_num[ii]]
             nd.CalNodeMagnitudeDisplacement()
+
+    def AddBoundaryByPenalty(self):
+        """
+        罚函数的方法施加约束
+        @return:
+        """
+        # 指定约束位移, 现在的位移只支持关键字约束
+        suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
+        node_dof_count = self.femdb.per_node_dof
+        if suffix == InputFileType.INP:
+            for bd in self.femdb.load_case.GetBoundaries():
+                node_set_name = bd.GetSetName()
+                node_set = self.femdb.GetSpecificFEMObject(FEMObject.NodeSet, node_set_name)
+                node_ids = node_set.GetNodeIds()
+                bd_type = bd.GetBoundaryType()
+                for nd in node_ids:
+                    nd_idx = self.femdb.node_hash[nd]
+                    if bd_type == "ENCASTRE":
+                        base_idx = nd_idx * node_dof_count
+                        for ii in node_dof_count:
+                            self.femdb.global_stiff_matrix[base_idx + ii, base_idx + ii] += 2e21
+                    else:
+                        raise KeyError(f"don't support boundary type: {bd_type}")
+
+        else:
+            mlogger.fatal("UnSupport Boundary")
+            sys.exit(1)
+
+    def CalInitAcceleration(self):
+        """
+        NewMark方法中计算初始加速度
+        Reference:
+           《结构动力学基础》 张亚辉、林家浩 P94
+        @return:
+        """
+        temp_t = self.femdb.load_case.history_loads[0][0]
+        delta_t = temp_t[1] - temp_t[0]
+
 
     def CalculateNodeStress(self):
         """

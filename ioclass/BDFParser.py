@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-import random
 
 
 class Node:
@@ -27,11 +26,12 @@ class BDFParser(object):
     1. https://pynastran-git.readthedocs.io/en/1.3/quick_start/bdf_overview.html#example-1-read-write
     """
 
-    def __init__(self, input_path):
+    def __init__(self, input_path, check_model=False):
         self.iter_line = None
         self.bdf_path = input_path
         self.nodes = []
         self.elements = []
+        self.check_model = check_model
 
     def ParseFile(self):
         with open(self.bdf_path, 'r') as bdf_f:

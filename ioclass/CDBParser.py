@@ -13,12 +13,13 @@ class CDBParser(object):
     同样的, 其他类也不会包含任何解析输入文件的功能或者函数
     """
 
-    def __init__(self, input_path):
+    def __init__(self, input_path, check_model):
         self.femdb = FEMDataBase()
         self.cdb_path = input_path
         self.iter_line = None
         self.et_hash = {}
         self.ele_count = 0
+        self.check_model = check_model
         self.real_constant_hash = {}
 
     def ParseFileAndInitFEMDB(self):

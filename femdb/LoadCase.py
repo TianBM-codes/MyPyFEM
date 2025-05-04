@@ -122,6 +122,7 @@ class LoadCase(object):
     def __init__(self):
         self.c_loads = []
         self.boundaries = []
+        self.history_loads = []
 
     def __str__(self):
         self.case_ = "\n  Here is LoadCase:\n"
@@ -162,3 +163,12 @@ class LoadCase(object):
 
     def GetConcentratedLoads(self):
         return self.c_loads
+
+    def AddHistoryLoad(self, node, amps):
+        """
+        添加时间载荷
+        @param node:
+        @param amps:
+        @return:
+        """
+        self.history_loads.append((node, amps))

@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 
 import copy
-
 from femdb.FEMDataBase import *
 
 """
@@ -33,7 +32,7 @@ class InpParser(object):
     TODO: http://130.149.89.49:2080/v6.14/ ABAQUS帮助文档
     """
 
-    def __init__(self, input_path):
+    def __init__(self, input_path, check_model=False):
         self.fem_db = FEMDataBase()
         self.inp_path = input_path
         self.ele_count = 0
@@ -42,6 +41,8 @@ class InpParser(object):
         self.materials = {}
         self.ele_sets = {}
         self.eleId2Idx = {}
+        self.node_set = {}
+        self.check_model = check_model
 
     def ParseFileAndInitFEMDB(self):
         """
@@ -327,7 +328,7 @@ class InpParser(object):
                     if nd:
                         nodes.append(int(nd))
                 self.iter_line = f_handle.readline().strip()
-        self.fem_db.node_sets.append(NodeSet(set_name, nodes))
+        self.node_set[set_name] = nodes
 
     def ReadElset(self, f_handle):
         """
@@ -367,10 +368,20 @@ class InpParser(object):
         while self.iter_line != "*End Step":
             if self.iter_line == "*AbaqusBoundary":
                 self.ReadBoundary(f_handle)
-            elif self.iter_line == "*Cload":
-                self.iter_line = f_handle.readline().strip()
-                keywords = self.iter_line.split(",")
-                self.fem_db.load_case.AddAbaqusCLoad(keywords[0].strip(), int(keywords[1]), float(keywords[2]))
+            elif self.iter_line.__contains__("*Cload"):
+                if self.iter_line.__contains__("amplitude"):
+                    rt_dict = ReadSectionLine(self.iter_line)
+                    amp_group_name = rt_dict["amplitude"]
+                    vals = self.fem_db.amplitudes[amp_group_name]
+                    node_set_name = f_handle.readline().split(",")[0]
+                    nodes = self.node_set[node_set_name]
+                    for node in nodes:
+                        self.fem_db.load_case.AddHistoryLoad(node, vals)
+                else:
+                    self.iter_line = f_handle.readline().strip()
+                    keywords = self.iter_line.split(",")
+                    self.fem_db.load_case.AddAbaqusCLoad(keywords[0].strip(), int(keywords[1]), float(keywords[2]))
+
                 self.iter_line = f_handle.readline().strip()
             else:
                 # 其他情况先读取下一行, 直到遇到 *End Step为止
@@ -425,10 +436,10 @@ class InpParser(object):
             self.iter_line = f_handle.readline()
         self.fem_db.amplitudes[amp_name] = np.asarray([times, amps], dtype=float)
 
-        import matplotlib.pyplot as plt
-        plt.plot(times, amps, label=amp_name)
-        plt.legend()
-        plt.show()
+        if self.check_model:
+            plt.plot(times, amps, label=amp_name)
+            plt.legend()
+            plt.show()
 
 
 if __name__ == "__main__":

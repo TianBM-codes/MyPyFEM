@@ -26,6 +26,7 @@ class FEMDataBase(object):
         # nodes
         self.node_list = []  # List of all nodes in the domain, 实例化数据
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
+        self.per_node_dof = None  # 现只支持所有节点同一个自由度
 
         # elements
         # Dict of all Element in the domain, key: ele_keyword, value: ele_group 单元实际数据也存在这里
