@@ -240,6 +240,7 @@ class Domain(object):
         """
         for iter_ele in self.femdb.elements:
             self.eq_nums.append(iter_ele.GetElementEquationNumber())
+            iter_ele.CalculateBasic()
             if self.check_model:
                 if iter_ele.id == 786:
                     print("")
@@ -299,8 +300,10 @@ class Domain(object):
         # 组装Ra, 自然边界条件都是在右端项的Ua上, 不可以施加在Ub上, 现在只能处理集中载荷
         self.Ra = np.zeros((self.free_dof_count,), dtype=float)
         suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
-        # Abaqus格式的集中力是一个集合一个集合添加的
         if suffix == InputFileType.INP:
+            """
+            Abaqus格式的集中力是一个集合一个集合添加的
+            """
             for c_load in self.femdb.load_case.GetConcentratedLoads():
                 node_set = c_load.set_name
                 f_dir = c_load.direction
@@ -311,8 +314,10 @@ class Domain(object):
                     f_eq_num = cnode.GetEquationNumbers()[f_dir]
                     self.Ra[f_eq_num] = f_value
 
-        # Ansys格式的集中力是一个自由度一个自由度添加的
         elif suffix == InputFileType.CDB:
+            """
+            Ansys格式的集中力是一个自由度一个自由度添加的
+            """
             for c_load in self.femdb.load_case.GetConcentratedLoads():
                 cnode = self.femdb.node_list[self.femdb.node_hash[c_load.node]]
                 f_eq_num = cnode.GetEquationNumbers()[c_load.direction]
@@ -322,10 +327,10 @@ class Domain(object):
             mlogger.fatal("UnSupport File Type In SolveDisplacement")
             sys.exit(1)
 
-        # 施加位移约束, 见visio文档, 求解Boundary矩阵和V矩阵, 暂未实现隐式约束, 对于显示不用求解Boundary矩阵,
-        # 因为这种情况罚函数影响的只是Kbb的对角元素, 与未知位移求解没关系. 求解支反力也不需要加入罚函数的值
-
-        # 求解
+        """
+        施加位移约束, 见visio文档, 求解Boundary矩阵和V矩阵, 暂未实现隐式约束, 对于显示不用求解Boundary矩阵,
+        因为这种情况罚函数影响的只是Kbb的对角元素, 与未知位移求解没关系. 求解支反力也不需要加入罚函数的值
+        """
         self.femdb.global_stiff_matrix = self.femdb.global_stiff_matrix.tocsc()
         Kaa = self.femdb.global_stiff_matrix[:self.free_dof_count, :self.free_dof_count]
         Kab = self.femdb.global_stiff_matrix[:self.free_dof_count, self.free_dof_count:]

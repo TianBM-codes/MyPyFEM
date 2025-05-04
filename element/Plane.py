@@ -88,6 +88,12 @@ class CPS4(ElementBaseClass, ABC):
         Calculate element stress
         """
 
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
+
 
 class CPS3(ElementBaseClass, ABC):
     """ plane2D 3node Element class """
@@ -164,6 +170,12 @@ class CPS3(ElementBaseClass, ABC):
                         [b, a, b, c],
                         [c, b, a, b],
                         [b, c, b, a]], dtype=float)
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 if __name__ == "__main__":

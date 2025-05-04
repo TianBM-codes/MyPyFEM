@@ -90,6 +90,33 @@ class ResultsWriter(object):
             # field_data=field_data
         )
 
+    def WriteSeriesResult(self, directory, pro_name):
+        """
+        将时序结果写入文件
+        :param directory: 存储路径
+        :param pro_name: 项目名称
+        :return:
+        """
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        all_eles = {}
+
+        for iter_ele in self.femdb.elements:
+            iter_relation = iter_ele.GetNodeSearchIndex().tolist()
+            ele_type = iter_ele.vtu_type
+            if all_eles.__contains__(ele_type):
+                all_eles[ele_type].append(iter_relation)
+            else:
+                all_eles[ele_type] = [iter_relation]
+
+        for ii, time_result in enumerate(self.femdb.time_results):
+            path = directory + "/" + pro_name + "_ii.vtu"
+            meshio.write_points_cells(
+                filename=path,
+                points=coords,
+                cells=all_eles,
+                point_data=time_result,
+            )
+
     def WriteUNVFile(self, u_path):
         """
         将结果写入UNV文件用SiPESC平台查看

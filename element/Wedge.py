@@ -63,3 +63,9 @@ class C3D6(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass

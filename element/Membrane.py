@@ -89,6 +89,9 @@ class CSTDrill(ElementBaseClass, ABC):
         Calculate element stress
         """
 
+    def CalculateBasic(self):
+        pass
+
 
 class Q4Mem(ElementBaseClass, ABC):
     """
@@ -217,6 +220,12 @@ class Q4Mem(ElementBaseClass, ABC):
         """"""
         pass
 
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
+
 
 class CPM6(ElementBaseClass, ABC):
     """
@@ -321,6 +330,12 @@ class CPM6(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 class CPM8(ElementBaseClass, ABC):
@@ -453,6 +468,12 @@ class CPM8(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 if __name__ == "__main__":

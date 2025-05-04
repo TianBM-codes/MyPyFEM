@@ -83,6 +83,9 @@ class InpParser(object):
                 elif self.iter_line.startswith("*AbaqusBoundary"):
                     self.ReadBoundary(inp_f)
 
+                elif self.iter_line.startswith("*Amplitude"):
+                    self.ReadAmplitude(inp_f)
+
                 else:
                     if not self.iter_line:
                         break
@@ -392,6 +395,40 @@ class InpParser(object):
             # 如果该行为三个逗号间隔, 那么为指定位移形式
             self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), float(keywords[3])))
         self.iter_line = f_handle.readline().strip()
+
+    def ReadAmplitude(self, f_handle):
+        """
+        解析时程载荷数据
+        :param f_handle:
+        :return:
+        """
+        amp_name = ReadSectionLine(self.iter_line)["name"]
+        self.iter_line = f_handle.readline()
+        times = []
+        amps = []
+        while not self.iter_line.startswith("*"):
+            splits = [float(ii) for ii in self.iter_line.split(",")]
+            if len(splits) == 8:
+                times.extend([splits[0], splits[2], splits[4], splits[6]])
+                amps.extend([splits[1], splits[3], splits[5], splits[7]])
+            elif len(splits) == 6:
+                times.extend([splits[0], splits[2], splits[4]])
+                amps.extend([splits[1], splits[3], splits[5]])
+            elif len(splits) == 4:
+                times.extend([splits[0], splits[2]])
+                amps.extend([splits[1], splits[3]])
+            elif len(splits) == 2:
+                times.append(splits[0])
+                amps.append(splits[1])
+            else:
+                raise ValueError(f"Read Amplitude Error: {self.iter_line}")
+            self.iter_line = f_handle.readline()
+        self.fem_db.amplitudes[amp_name] = np.asarray([times, amps], dtype=float)
+
+        import matplotlib.pyplot as plt
+        plt.plot(times, amps, label=amp_name)
+        plt.legend()
+        plt.show()
 
 
 if __name__ == "__main__":

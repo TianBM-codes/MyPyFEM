@@ -72,3 +72,9 @@ class C3D4(ElementBaseClass):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass

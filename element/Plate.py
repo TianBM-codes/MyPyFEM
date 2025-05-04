@@ -184,6 +184,12 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
         Calculate element stress
         """
 
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
+
 
 class KirchhoffQuaPlate(ElementBaseClass, ABC):
     """
@@ -270,6 +276,12 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
         """
         壳的刚度阵由膜单元和板单元构成
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 class MITC4(ElementBaseClass, ABC):
@@ -409,6 +421,12 @@ class MITC4(ElementBaseClass, ABC):
         Calculate element stress
         """
 
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
+
 
 class MITC3(ElementBaseClass, ABC):
     """ plate 3node Element class """
@@ -478,6 +496,12 @@ class MITC3(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 class DKTPlate(ElementBaseClass, ABC):
@@ -612,6 +636,12 @@ class DKTPlate(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 class DKQPlate(ElementBaseClass, ABC):
@@ -772,6 +802,12 @@ class DKQPlate(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 if __name__ == "__main__":

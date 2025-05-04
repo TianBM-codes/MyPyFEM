@@ -55,6 +55,9 @@ class FEMDataBase(object):
         self.shell_thickness_map = {}
         self.material_map = {}
 
+        # Amplitudes
+        self.amplitudes = {}
+
     """ 
     以下的函数为解析文件的相关函数, 添加节点、单元、节点集、单元集、属性、材料、边界条件、LoadCase等 
     """

@@ -288,6 +288,12 @@ class Beam189(ElementBaseClass, ABC):
         # x2 = fem_database.GetDisplacement(self.search_node_id[1])
         # self.stress = self.e / self.rod_length * (np.dot(np.asarray(x2), self.cos_angel) - np.dot(np.asarray(x1), self.cos_angel))
 
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
+
 
 if __name__ == "__main__":
     # ele = Beam188(-1)

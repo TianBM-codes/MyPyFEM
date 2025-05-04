@@ -128,6 +128,12 @@ class C3D8(ElementBaseClass, ABC):
 
         return node_stress
 
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
+
 
 """
     稀疏矩阵存储应变阵, 发现还没全矩阵计算快

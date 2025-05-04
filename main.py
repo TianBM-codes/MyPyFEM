@@ -102,7 +102,9 @@ class MyPyFEM:
             # writer.WriteUNVFile(self.output_files[1])
             p_end = time.time()
 
-            # Print FEMDB Information
+            """
+            Print FEMDB Information
+            """
             summary = domain.femdb.GetModelSummary()
             mlogger.debug(" " + "-" * 40)
             summary_format = r"{:>25s} --> {:<}"
@@ -124,6 +126,42 @@ class MyPyFEM:
             mlogger.debug(time_format.format("Solve Displacement", time_6 - time_5))
             mlogger.debug(time_format.format("Calculate Stress", time_7 - time_6))
             mlogger.debug(time_format.format("Write Output File", p_end - time_7))
+            mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
+            mlogger.debug(" " + "-" * 40)
+            mlogger.debug(" Finish Analysis\n")
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.Transient:
+            """
+            求解线弹性问题, 输出节点位移以及应力
+            """
+            domain = Domain(check_model)
+            domain.AssignElementCharacter()
+            time_2 = time.time()
+
+            domain.CalBoundaryEffect()
+            domain.CalculateEquationNumber()
+            p_end = time.time()
+
+            """
+            Print FEMDB Information
+            """
+            summary = domain.femdb.GetModelSummary()
+            mlogger.debug(" " + "-" * 40)
+            summary_format = r"{:>25s} --> {:<}"
+            mlogger.debug(" Model Summary:")
+            for key, value in summary.items():
+                mlogger.debug(summary_format.format(key, value))
+            mlogger.debug(" " + "-" * 40)
+
+            """
+            Define Output Format And Print Each Step Time Elapsed
+            """
+            time_format = r"{:>25s} --> {:<.3f} seconds"
+            last_line_format = "{:>25s} --> {:<.3f} seconds"
+
+            mlogger.debug(" Elapsed Time Summary:")
+            mlogger.debug(time_format.format("Parse File", self.parsed_time - self.program_begin))
+            mlogger.debug(time_format.format("Calculate D", time_2 - self.parsed_time))
             mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
             mlogger.debug(" " + "-" * 40)
             mlogger.debug(" Finish Analysis\n")

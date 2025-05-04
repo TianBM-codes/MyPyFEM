@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import time
+
+import numpy as np
 
 from element.Plate import *
 from element.Membrane import *
@@ -130,6 +133,15 @@ class DKTShell(ElementBaseClass, ABC):
         """"""
         pass
 
+    def ElementMass(self):
+        """
+        计算单元质量阵
+        :return:
+        """
+
+    def CalculateBasic(self):
+        pass
+
 
 class DKQShell(ElementBaseClass, ABC):
     """
@@ -144,11 +156,14 @@ class DKQShell(ElementBaseClass, ABC):
         self.K = np.zeros((24, 24))
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
+        self.local_coord = None
+        self.global_t_matrix = np.zeros((24, 24))
 
     def CalMassMatrix(self):
         """
         计算单元的质量矩阵
         """
+
     def CalElementDMatrix(self, an_type=None):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
@@ -170,8 +185,6 @@ class DKQShell(ElementBaseClass, ABC):
         """
         先转换到局部坐标, 初始化板单元和膜单元
         """
-        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
         plate = KirchhoffQuaPlate(-1)
         plate.sec_id = self.sec_id
         plate.node_coords = self.node_coords
@@ -181,7 +194,7 @@ class DKQShell(ElementBaseClass, ABC):
 
         q4 = Q4Mem(-1)
         q4.sec_id = self.sec_id
-        q4.node_coords = local_coord
+        q4.node_coords = self.local_coord
         q4.cha_dict = self.cha_dict
         q4.CalElementDMatrix()
         K2 = q4.ElementStiffness()
@@ -190,24 +203,79 @@ class DKQShell(ElementBaseClass, ABC):
         index_m = [0, 1, 5, 6, 7, 11, 12, 13, 17, 18, 19, 23]
         KShell[np.ix_(index_m, index_m)] = K2
 
-        R_matrix = T_matrix.T
-        global_t_matrix = np.zeros((24, 24))
-        global_t_matrix[0:3, 0:3] = R_matrix
-        global_t_matrix[3:6, 3:6] = R_matrix
-        global_t_matrix[6:9, 6:9] = R_matrix
-        global_t_matrix[9:12, 9:12] = R_matrix
-        global_t_matrix[12:15, 12:15] = R_matrix
-        global_t_matrix[15:18, 15:18] = R_matrix
-        global_t_matrix[18:21, 18:21] = R_matrix
-        global_t_matrix[21:24, 21:24] = R_matrix
-
-        KShell = global_t_matrix.T @ KShell @ global_t_matrix
+        KShell = self.global_t_matrix.T @ KShell @ self.global_t_matrix
         return K1 + KShell
 
     def ElementStress(self, displacement):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        """
+        计算单元的质量阵(协调质量阵)
+        :return:
+        """
+        """
+        先转换到局部坐标
+        """
+        m_coords = self.local_coord[:, :2]
+        self.M = np.zeros((24, 24), dtype=float)
+        rho = self.cha_dict[MaterialKey.Density]
+        thickness = self.cha_dict[MaterialKey.Thickness]
+        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        for ri in range(2):
+            for si in range(2):
+                r, s = sample_pt[ri], sample_pt[si]
+                N1 = 0.25 * (1 - r) * (1 - s)
+                N2 = 0.25 * (1 + r) * (1 - s)
+                N3 = 0.25 * (1 + r) * (1 + s)
+                N4 = 0.25 * (1 - r) * (1 + s)
+                H = np.zeros((3, 12))
+                H[0, 0] = N1
+                H[1, 1] = N1
+                H[2, 2] = N1
+                H[0, 3] = N2
+                H[1, 4] = N2
+                H[2, 5] = N2
+                H[0, 6] = N3
+                H[1, 7] = N3
+                H[2, 8] = N3
+                H[0, 9] = N4
+                H[1, 10] = N4
+                H[2, 11] = N4
+
+                dNdr = np.array([[0.25 * (1 + s), -0.25 * (1 + s), 0.25 * (s - 1), 0.25 * (1 - s)],
+                                 [0.25 * (1 + r), 0.25 * (1 - r), 0.25 * (r - 1), -0.25 * (1 + r)]], dtype=float)
+                g_weight = weight[ri] * weight[si]
+
+                det_J = np.linalg.det(dNdr @ m_coords)
+                iter_mass = H.T @ H * rho * det_J * g_weight * thickness  # 12*12
+                for jj in range(4):
+                    for kk in range(4):
+                        row_idx = jj * 6
+                        col_idx = kk * 6
+                        self.M[row_idx:row_idx + 3, col_idx:col_idx + 3] += \
+                            iter_mass[jj:jj + 3, kk:kk + 3]
+
+        return self.global_t_matrix.T @ self.M @ self.global_t_matrix
+
+    def CalculateBasic(self):
+        """
+        计算基本量
+        :return:
+        """
+        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        R_matrix = T_matrix.T
+        self.global_t_matrix[0:3, 0:3] = R_matrix
+        self.global_t_matrix[3:6, 3:6] = R_matrix
+        self.global_t_matrix[6:9, 6:9] = R_matrix
+        self.global_t_matrix[9:12, 9:12] = R_matrix
+        self.global_t_matrix[12:15, 12:15] = R_matrix
+        self.global_t_matrix[15:18, 15:18] = R_matrix
+        self.global_t_matrix[18:21, 18:21] = R_matrix
+        self.global_t_matrix[21:24, 21:24] = R_matrix
+        self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
 
 
 class CookTriShell(ElementBaseClass, ABC):
@@ -338,6 +406,12 @@ class CookTriShell(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 class CookQuaShell(ElementBaseClass, ABC):
@@ -470,8 +544,17 @@ class CookQuaShell(ElementBaseClass, ABC):
         Calculate element stress
         """
 
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
+
 
 if __name__ == "__main__":
+    """
+    测试四边形壳单元刚度阵
+    """
     t_ele = DKQShell()
     t_ele.sec_id = 10001
     t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
@@ -481,7 +564,29 @@ if __name__ == "__main__":
         [0.8, 0.8, 0],
         [0.5, 1, 0]
     ], dtype=float)
+    t_ele.CalculateBasic()
     t_ele.CalElementDMatrix()
     Ke = t_ele.ElementStiffness()
     # np.savetxt('ke',Ke)
-    print(Ke)
+    # print(Ke)
+    """
+    测试四边形壳单元的质量阵
+    """
+    time1 = time.time()
+    t_ele = DKQShell()
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3,
+                      MaterialKey.E: 2e11,
+                      MaterialKey.Thickness: 0.1,
+                      MaterialKey.Density: 7850}
+    t_ele.node_coords = np.array([
+        [-1.0, -1.0, 0.0],  # 节点1
+        [1.0, -1.0, 0.0],  # 节点2
+        [1.0, 1.0, 0.0],  # 节点3
+        [-1.0, 1.0, 0.0]  # 节点4
+    ], dtype=float)
+    t_ele.CalculateBasic()
+    M = t_ele.ElementMass()
+    print("calculated mass:", np.sum(np.diag(M)))
+    print(f"theory mass:{4 * t_ele.cha_dict[MaterialKey.Density] * t_ele.cha_dict[MaterialKey.Thickness]}")
+    time2 = time.time()
+    print(" {:<.5f} seconds".format(time2-time1))
