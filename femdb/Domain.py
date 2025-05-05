@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-from numpy.matrixlib.defmatrix import matrix
+import numpy as np
+import scipy.sparse
 
 from femdb.FEMDataBase import *
+from scipy.sparse.linalg import factorized
 import pypardiso
 
 """
@@ -56,8 +58,10 @@ class Domain(object):
         self.Ub = []  # 约束指定位移
         self.Ua = None  # 未被约束的自由度
         self.Ra = None  # 未被约束的自由度上的力或力矩
+        self.right_hand = None  # 右端项, 长度等于node_count * per_node_dof
         # 以下为刚度阵相关
         self.stiff_list = []
+        self.mass_list = []
         self.eq_nums = []
         self.check_model = check_model
 
@@ -298,24 +302,71 @@ class Domain(object):
         GlobalNodeHash = self.femdb.node_hash
         per_node_dof = self.femdb.per_node_dof
         for kk, ele in enumerate(self.femdb.elements):
-            nodes = ele.nodeIds
+            nodes = ele.node_ids
             stiff_array = self.stiff_list[kk]
             for ii, nodeA in enumerate(nodes):
                 equA = GlobalNodeHash[nodeA] * per_node_dof
                 for jj, nodeB in enumerate(nodes):
                     equB = GlobalNodeHash[nodeB] * per_node_dof
-                    for m in range(3):
-                        for n in range(3):
+                    for m in range(per_node_dof):
+                        for n in range(per_node_dof):
                             TolRow = equA + m
                             TolCol = equB + n
-                            eRow = ii * 3 + m
-                            eClo = jj * 3 + n
+                            eRow = ii * per_node_dof + m
+                            eClo = jj * per_node_dof + n
                             rows.append(TolRow)
                             cols.append(TolCol)
                             datas.append(stiff_array[eRow, eClo])
         matrix_size = len(self.femdb.node_list) * per_node_dof
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
                                                            shape=(matrix_size, matrix_size))
+
+    def CalAllElementMassMatrix(self):
+        """
+        计算所有单元的质量矩阵
+        :return:
+        """
+        for iter_ele in self.femdb.elements:
+            self.mass_list.append(iter_ele.ElementMass())
+
+    def AssembleMassMatrixByPerturbation(self):
+        """
+        计算全局质量阵, 对角线增加摄动项
+        :return:
+        """
+        rows = []
+        cols = []
+        datas = []
+        GlobalNodeHash = self.femdb.node_hash
+        per_node_dof = self.femdb.per_node_dof
+        for kk, ele in enumerate(self.femdb.elements):
+            nodes = ele.node_ids
+            mass_array = self.mass_list[kk]
+            for ii, nodeA in enumerate(nodes):
+                equA = GlobalNodeHash[nodeA] * per_node_dof
+                for jj, nodeB in enumerate(nodes):
+                    equB = GlobalNodeHash[nodeB] * per_node_dof
+                    for m in range(per_node_dof):
+                        for n in range(per_node_dof):
+                            TolRow = equA + m
+                            TolCol = equB + n
+                            eRow = ii * per_node_dof + m
+                            eCol = jj * per_node_dof + n
+                            if mass_array[eRow, eCol] != 0:
+                                rows.append(TolRow)
+                                cols.append(TolCol)
+                                datas.append(mass_array[eRow, eCol])
+        matrix_size = len(self.femdb.node_list) * per_node_dof
+
+        """
+        给质量阵添加扰动项，避免计算奇异
+        """
+        for ii in range(matrix_size):
+            rows.append(ii)
+            cols.append(ii)
+            datas.append(1e-12)
+        self.femdb.global_mass_matrix = sparse.coo_matrix((datas, (rows, cols)),
+                                                          shape=(matrix_size, matrix_size)).tocsc()
 
     def SolveDisplacement(self):
         """
@@ -395,6 +446,8 @@ class Domain(object):
         # 指定约束位移, 现在的位移只支持关键字约束
         suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
         node_dof_count = self.femdb.per_node_dof
+        # node_count = len(self.femdb.node_list)
+        # self.right_hand = np.zeros(node_count * node_dof_count)
         if suffix == InputFileType.INP:
             for bd in self.femdb.load_case.GetBoundaries():
                 node_set_name = bd.GetSetName()
@@ -407,6 +460,7 @@ class Domain(object):
                         base_idx = nd_idx * node_dof_count
                         for ii in node_dof_count:
                             self.femdb.global_stiff_matrix[base_idx + ii, base_idx + ii] += 2e21
+                            # self.right_hand[base_idx + ii] = 0
                     else:
                         raise KeyError(f"don't support boundary type: {bd_type}")
 
@@ -414,16 +468,64 @@ class Domain(object):
             mlogger.fatal("UnSupport Boundary")
             sys.exit(1)
 
-    def CalInitAcceleration(self):
+    def NewMarkExplict(self):
         """
-        NewMark方法中计算初始加速度
+        显式的动力学求解，使用NewMark方法
         Reference:
            《结构动力学基础》 张亚辉、林家浩 P94
-        @return:
+        :return:
         """
-        temp_t = self.femdb.load_case.history_loads[0][0]
-        delta_t = temp_t[1] - temp_t[0]
+        """
+        初始化载荷, 计算初始加速度
+        """
+        his_load = self.femdb.load_case.history_loads
+        force_nodes = [ii[0] for ii in his_load]
+        directories = [ii[1] for ii in his_load]
+        scale = [ii[2] for ii in his_load]
+        steps_count = his_load[0][-1].shape[1]
+        delta_t = his_load[0][-1][0, 1] - his_load[0][-1][0, 0]
+        node_dof_count = self.femdb.per_node_dof
+        node_count = len(self.femdb.node_list)
+        fem_all_dofs = node_dof_count * node_count
+        his_vals = np.zeros((fem_all_dofs, steps_count), dtype=float)
 
+        for ii, nd in enumerate(force_nodes):
+            eqa = self.femdb.node_hash[nd] * node_dof_count
+            xyz = directories[ii]
+            his_vals[eqa + xyz] = his_load[ii][-1][1, :] * scale[ii]
+
+        acc_0 = pypardiso.spsolve(self.femdb.global_mass_matrix, his_vals[:, 0])
+
+        """
+        计算初始参数
+        """
+        alpha = 0.25
+        delta = 0.5
+        a0 = 1 / alpha / delta_t ** 2
+        a1 = delta / alpha / delta_t
+        a2 = 1 / alpha / delta_t
+        a3 = 0.5 / alpha - 1
+        a4 = delta / alpha - 1
+        a5 = delta_t / 2 * (delta / alpha - 2)
+        a6 = delta_t * (1 - delta)
+        a7 = delta * delta_t
+        K_hat = self.femdb.global_stiff_matrix + a0 * self.femdb.global_mass_matrix
+        solve = factorized(K_hat.tocsc())
+
+        """
+        开始计算各个时间步的值
+        """
+        u = [np.zeros(fem_all_dofs, dtype=float)]
+        v = [np.zeros(fem_all_dofs, dtype=float)]
+        a = [acc_0]
+        for ii in range(steps_count - 1):
+            f_hat = his_vals[:, ii + 1] + self.femdb.global_mass_matrix @ (a0 * u[ii] + a2 * v[ii] + a3 * a[ii])
+            u_next = solve(f_hat)
+            a_next = a0 * (u_next - u[ii]) - a2 * v[ii] - a3 * a[ii]
+            v_next = v[ii] + a6 * a[ii] + a7 * a_next
+            u.append(u_next)
+            v.append(v_next)
+            a.append(a_next)
 
     def CalculateNodeStress(self):
         """
@@ -456,3 +558,24 @@ class Domain(object):
 
     def GetDisplacementBySearchId(self, nd_id):
         return self.femdb.node_list[nd_id].displacement
+
+
+if __name__ == "__main__":
+    from scipy.linalg import cho_factor, cho_solve
+
+    K = np.array([[4, 1], [1, 3]])
+    b_list = [np.array([1, 2]), np.array([3, 4])]
+    c, lower = cho_factor(K)
+    x_list = [cho_solve((c, lower), b) for b in b_list]
+
+    # for i, x in enumerate(x_list):
+    #     print(f"x[{i}] = {x}")
+
+    print(K @ np.array([0.09090909, 0.63636364]))
+    print(K @ np.array([0.45454545, 1.18181818]))
+
+    K1 = sparse.csc_matrix(K)
+    solve = factorized(K1)
+    x_list2 = [solve(b) for b in b_list]
+    for i, x in enumerate(x_list2):
+        print(f"x[{i}] = {x}")

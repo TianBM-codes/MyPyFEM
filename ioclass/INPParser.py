@@ -61,6 +61,7 @@ class InpParser(object):
             3.《ABAQUS有限元分析实例详解》P26  图2-30 数据库的结构示意图
         """
         GlobalInfor[GlobalVariant.AnaType] = AnalyseType.LinearStatic
+        self.fem_db.file_path = self.inp_path
         with open(self.inp_path, 'r') as inp_f:
             self.iter_line = inp_f.readline()
             while True:
@@ -136,7 +137,9 @@ class InpParser(object):
             elif self.iter_line.startswith("*Element,") or self.iter_line.startswith("*ELEMENT,"):
                 # 解析单元类型关键字, 如果出现某些单元, 那么整个分析将变为2D分析
                 e_type = self.iter_line.split(",")[1].split("=")[-1]
-                if e_type in ["CPS3", "CPS4"]:
+                dof_count = ElementFactory.GetElementNodeDofCount(e_type)
+                self.fem_db.per_node_dof = dof_count
+                if dof_count == 2:
                     self.fem_db.an_dimension = AnalyseDimension.TwoDimension
 
                 # 创建单元和单元组, ele_ids用来收集本组中单元的真实ID, nds是组成单个单元的真实节点号
@@ -370,13 +373,17 @@ class InpParser(object):
                 self.ReadBoundary(f_handle)
             elif self.iter_line.__contains__("*Cload"):
                 if self.iter_line.__contains__("amplitude"):
+                    GlobalInfor[GlobalVariant.AnaType] = AnalyseType.Transient
                     rt_dict = ReadSectionLine(self.iter_line)
                     amp_group_name = rt_dict["amplitude"]
                     vals = self.fem_db.amplitudes[amp_group_name]
-                    node_set_name = f_handle.readline().split(",")[0]
+                    splits = f_handle.readline().split(",")
+                    node_set_name = splits[0]
                     nodes = self.node_set[node_set_name]
+                    direction = int(splits[1])
+                    scale = float(splits[2])
                     for node in nodes:
-                        self.fem_db.load_case.AddHistoryLoad(node, vals)
+                        self.fem_db.load_case.AddHistoryLoad(node, direction, scale, vals)
                 else:
                     self.iter_line = f_handle.readline().strip()
                     keywords = self.iter_line.split(",")

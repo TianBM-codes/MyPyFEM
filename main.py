@@ -137,10 +137,16 @@ class MyPyFEM:
             """
             domain = Domain(self.check_model)
             domain.AssignElementCharacter()
+            time_1 = time.time()
+            domain.CalAllElementStiffness()
             time_2 = time.time()
-
-            domain.CalBoundaryEffect()
-            domain.CalculateEquationNumber()
+            domain.AssembleStiffnessMatrixByPenalty()
+            time_3 = time.time()
+            time_4 = time.time()
+            domain.CalAllElementMassMatrix()
+            domain.AssembleMassMatrixByPerturbation()
+            domain.AddBoundaryByPenalty()
+            domain.NewMarkExplict()
             p_end = time.time()
 
             """
@@ -162,7 +168,11 @@ class MyPyFEM:
 
             mlogger.debug(" Elapsed Time Summary:")
             mlogger.debug(time_format.format("Parse File", self.parsed_time - self.program_begin))
-            mlogger.debug(time_format.format("Calculate D", time_2 - self.parsed_time))
+            mlogger.debug(time_format.format("Calculate D", time_1 - self.parsed_time))
+            mlogger.debug(time_format.format("Calculate All Stiff", time_2 - time_1))
+            mlogger.debug(time_format.format("Assemble Global Stiff", time_3 - time_2))
+            mlogger.debug(time_format.format("Calculate All Mass", time_3 - time_2))
+            mlogger.debug(time_format.format("Assemble Global Mass", time_3 - time_2))
             mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
             mlogger.debug(" " + "-" * 40)
             mlogger.debug(" Finish Analysis\n")

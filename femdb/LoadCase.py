@@ -164,11 +164,11 @@ class LoadCase(object):
     def GetConcentratedLoads(self):
         return self.c_loads
 
-    def AddHistoryLoad(self, node, amps):
+    def AddHistoryLoad(self, node, directory, scale, amps):
         """
         添加时间载荷
         @param node:
         @param amps:
         @return:
         """
-        self.history_loads.append((node, amps))
+        self.history_loads.append((node, directory, scale, amps))

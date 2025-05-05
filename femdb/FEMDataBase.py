@@ -49,6 +49,7 @@ class FEMDataBase(object):
         self.sections = []
         self.materials = []
         self.global_stiff_matrix = None
+        self.global_mass_matrix = None
         self.load_case = LoadCase()
         self.real_const_hash = {}
 
@@ -150,9 +151,12 @@ class FEMDataBase(object):
         """
         summary_dict = OrderedDict()
         summary_dict["File Path"] = str(self.file_path)
-        summary_dict["Number Of Equation"] = self.equation_number
+        if not self.equation_number:
+            summary_dict["Number of Equation"] = self.per_node_dof * len(self.node_list)
+        else:
+            summary_dict["Number Of Equation"] = self.equation_number
         summary_dict["Number Of Node"] = len(self.node_list)  # TODO: 并不是标准的节点个数, 标准节点个数应该是由单元计算出来
-        summary_dict["Number Of Element"] = self.ele_count
+        summary_dict["Number Of Element"] = len(self.elements)
 
         return summary_dict
 
