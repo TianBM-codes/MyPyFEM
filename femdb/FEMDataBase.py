@@ -60,6 +60,12 @@ class FEMDataBase(object):
         # Amplitudes
         self.amplitudes = {}
 
+        # Result
+        self.history_u = None
+        self.history_v = None
+        self.history_a = None
+        self.history_step_count = 0
+
     """ 
     以下的函数为解析文件的相关函数, 添加节点、单元、节点集、单元集、属性、材料、边界条件、LoadCase等 
     """

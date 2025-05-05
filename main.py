@@ -38,6 +38,8 @@ class MyPyFEM:
         self._fem_data = None
         self.input_file_path = file_path
         self.output_files = [file_path.with_suffix(".vtu"), file_path.with_suffix(".unv")]
+        self.output_dir = file_path.parent
+        self.output_name = file_path.stem
 
         self.FEMAnalyseFlow()
 
@@ -142,11 +144,16 @@ class MyPyFEM:
             time_2 = time.time()
             domain.AssembleStiffnessMatrixByPenalty()
             time_3 = time.time()
-            time_4 = time.time()
             domain.CalAllElementMassMatrix()
+            time_4 = time.time()
             domain.AssembleMassMatrixByPerturbation()
+            time_5 = time.time()
             domain.AddBoundaryByPenalty()
+            time_6 = time.time()
             domain.NewMarkExplict()
+            time_7 = time.time()
+            writer = ResultsWriter()
+            writer.WriteSeriesResult(str(self.output_dir), str(self.output_name))
             p_end = time.time()
 
             """
@@ -171,8 +178,11 @@ class MyPyFEM:
             mlogger.debug(time_format.format("Calculate D", time_1 - self.parsed_time))
             mlogger.debug(time_format.format("Calculate All Stiff", time_2 - time_1))
             mlogger.debug(time_format.format("Assemble Global Stiff", time_3 - time_2))
-            mlogger.debug(time_format.format("Calculate All Mass", time_3 - time_2))
-            mlogger.debug(time_format.format("Assemble Global Mass", time_3 - time_2))
+            mlogger.debug(time_format.format("Calculate All Mass", time_4 - time_3))
+            mlogger.debug(time_format.format("Assemble Global Mass", time_5 - time_4))
+            mlogger.debug(time_format.format("Add Boundary Effect", time_6 - time_5))
+            mlogger.debug(time_format.format("NewMark Analysis", time_7 - time_6))
+            mlogger.debug(time_format.format("Write Output", p_end - time_7))
             mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
             mlogger.debug(" " + "-" * 40)
             mlogger.debug(" Finish Analysis\n")

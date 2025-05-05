@@ -49,6 +49,8 @@
 """
 
 import meshio
+import numpy as np
+
 from femdb.FEMDataBase import *
 
 
@@ -108,8 +110,15 @@ class ResultsWriter(object):
             else:
                 all_eles[ele_type] = [iter_relation]
 
-        for ii, time_result in enumerate(self.femdb.time_results):
-            path = directory + "/" + pro_name + "_ii.vtu"
+        for ii in range(self.femdb.history_step_count):
+            path = directory + "/" + pro_name + f"_{ii}.vtu"
+            u = self.femdb.history_u[ii]
+            v = self.femdb.history_v[ii]
+            a = self.femdb.history_a[ii]
+            per_node_dof = self.femdb.per_node_dof
+            time_result = {"displacement": np.reshape(u, (-1, per_node_dof))[:, :3],
+                           "velocity": np.reshape(v, (-1, per_node_dof))[:, :3],
+                           "acceleration": np.reshape(a, (-1, per_node_dof))[:, :3]}
             meshio.write_points_cells(
                 filename=path,
                 points=coords,
@@ -185,3 +194,8 @@ class ResultsWriter(object):
             #
             # uf.write('}\n')  # 应力结果结束
             uf.write('}\n')  # 整个文件结束
+
+
+if __name__ == "__main__":
+    a = np.asarray([[1, 2, 3], [4, 5, 6]])
+    print(np.reshape(a, (-1, 6)))

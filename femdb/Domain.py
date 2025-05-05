@@ -527,6 +527,11 @@ class Domain(object):
             v.append(v_next)
             a.append(a_next)
 
+        self.femdb.history_u = u
+        self.femdb.history_v = v
+        self.femdb.history_a = a
+        self.femdb.history_step_count = len(u)
+
     def CalculateNodeStress(self):
         """
         计算节点的应力
