@@ -218,7 +218,7 @@ class CDBParser(object):
                     n_coord = self.femdb.node_list[nid].GetNodeCoord()
                     coords.append(n_coord)
                 iter_ele.SetNodeCoords(np.asarray(coords))
-                self.femdb.elements.append(copy.deepcopy(iter_ele))
+                self.femdb.elements.append(iter_ele)
 
                 """
                 更新并读取下一行

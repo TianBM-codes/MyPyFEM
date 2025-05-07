@@ -143,14 +143,12 @@ class InpParser(object):
                     self.fem_db.an_dimension = AnalyseDimension.TwoDimension
 
                 # 创建单元和单元组, ele_ids用来收集本组中单元的真实ID, nds是组成单个单元的真实节点号
-                iter_ele, n_cnt = ElementFactory.CreateElement(e_type.strip())
-                # ele_group = ElementGroup(e_type)
-                nds = np.zeros(n_cnt, dtype=np.uint32)
                 ele_ids = []
-
                 # 将*视为结束
                 self.iter_line = f_handle.readline().strip()
                 while not self.iter_line.startswith("*"):
+                    iter_ele, n_cnt = ElementFactory.CreateElement(e_type.strip())
+                    nds = np.zeros(n_cnt, dtype=np.uint32)
                     sp_line = self.iter_line.split(",")
                     if sp_line[-1] == "":
                         sp_line.pop()
@@ -189,7 +187,7 @@ class InpParser(object):
                     需要进行深拷贝, 否则是一个单元重复了单元个数次
                     """
                     self.eleId2Idx[eleId] = len(self.fem_db.elements)
-                    self.fem_db.elements.append(copy.deepcopy(iter_ele))
+                    self.fem_db.elements.append(iter_ele)
                     self.ele_count += 1
                     self.iter_line = f_handle.readline().strip()
 
