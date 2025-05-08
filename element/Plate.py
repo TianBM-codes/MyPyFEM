@@ -155,7 +155,7 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
         if self.sec_id:
             h = self.cha_dict[self.sec_id]
         elif self.cha_dict.__contains__('RealConst'):
-            h = self.cha_dict["RealConst"]
+            h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
@@ -214,7 +214,7 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
         if self.sec_id:
             h = self.cha_dict[self.sec_id]
         elif self.cha_dict.__contains__('RealConst'):
-            h = self.cha_dict["RealConst"]
+            h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
@@ -531,19 +531,18 @@ class DKTPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
-            a = e / (1 - niu ** 2)
-            self.D = a * np.array([[1, niu, 0],
-                                   [niu, 1, 0],
-                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
-        elif an_type == MaterialMatrixType.PlaneStrain:
-            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.array([[1, niu / (1 - niu), 0],
-                                   [niu(1 - niu), 1, 0],
-                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
+        if self.sec_id:
+            h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            h = self.cha_dict["RealConst"][0]
+        elif self.cha_dict.__contains__(MaterialKey.Thickness):
+            h = self.cha_dict[MaterialKey.Thickness]
         else:
-            mlogger.fatal("Unknown an_dimension")
-            sys.exit(1)
+            raise KeyError("Don't Contain RealConst and sec_id")
+        a = e * h ** 3 / 12 / (1 - niu ** 2)
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self):
         """
@@ -552,7 +551,6 @@ class DKTPlate(ElementBaseClass, ABC):
         单元的坐标是通过Shell单元给的, 不是在读取cdb文件时候给的
         """
         assert self.node_coords.shape == (3, 2)
-        self.thickness = self.cha_dict[self.sec_id]  # TODO 暂时支持各个点的厚度是一样的情形
 
         # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
@@ -617,20 +615,18 @@ class DKTPlate(ElementBaseClass, ABC):
             # Jacobi 2*2
             detJ = x31 * y12 - x12 * y31
 
-            j11 = y31 / detJ
-            j12 = y12 / detJ
-            j21 = -x31 / detJ
-            j22 = -x12 / detJ
+            j11 = y31
+            j12 = y12
+            j21 = -x31
+            j22 = -x12
 
-            # B Matrix
             B = np.asarray([j11 * pHxps + j12 * pHxps,
                             j21 * pHyps + j22 * pHypr,
                             j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
 
-            self.K += B.T @ self.D @ B * weight[ii] * detJ
+            self.K += B.T @ self.D @ B * weight[ii] / detJ
 
-        # self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
-        return self.K * self.thickness
+        return self.K
 
     def ElementStress(self, displacement):
         """
@@ -656,7 +652,6 @@ class DKQPlate(ElementBaseClass, ABC):
         self.nodes_count = 4  # Each element has 3 nodes
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
-        self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
 
     def CalElementDMatrix(self, an_type=None):
@@ -665,26 +660,24 @@ class DKQPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
-            a = e / (1 - niu ** 2)
-            self.D = a * np.array([[1, niu, 0],
-                                   [niu, 1, 0],
-                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
-        elif an_type == MaterialMatrixType.PlaneStrain:
-            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.array([[1, niu / (1 - niu), 0],
-                                   [niu(1 - niu), 1, 0],
-                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
+        if self.sec_id:
+            h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            h = self.cha_dict["RealConst"][0]
+        elif self.cha_dict.__contains__(MaterialKey.Thickness):
+            h = self.cha_dict[MaterialKey.Thickness]
         else:
-            mlogger.fatal("Unknown an_dimension")
-            sys.exit(1)
+            raise KeyError("Don't Contain RealConst and sec_id")
+        a = e * h ** 3 / 12 / (1 - niu ** 2)
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self):
         """
         形函数与膜单元(CPM8)类似, 为8节点四边形单元
         """
         assert self.node_coords.shape == (4, 2)
-        self.thickness = self.cha_dict[self.sec_id]
 
         # 开始论文中的计算
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
@@ -782,21 +775,19 @@ class DKQPlate(ElementBaseClass, ABC):
                 J22 = 0.25 * (y23 - y41 + s * (y12 + y34))
                 detJ = 0.125 * (x13 * y24 - x24 * y13 - r * (x12 * y34 + x34 * y12) + s * (x41 * y23 - x23 * y41))
 
-                j11 = J22 / detJ
-                j12 = -J12 / detJ
-                j21 = -J21 / detJ
-                j22 = J11 / detJ
+                j11 = J22
+                j12 = -J12
+                j21 = -J21
+                j22 = J11
 
-                # B Matrix
                 B = np.asarray([j11 * pHxpr + j12 * pHxps,
                                 j21 * pHypr + j22 * pHyps,
                                 j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
 
-                # 这里不会约分掉det_J
-                self.K += B.T @ self.D @ B * weight[si] * detJ
+                # 这里的除以det_J是因为B放大了detJ倍, 为了减少计算量
+                self.K += B.T @ self.D @ B * weight[si] / detJ
 
-        # self.K = np.matmul(np.matmul(self.T_matrix.T, self.K), self.T_matrix) * self.thickness
-        return self.K * self.thickness
+        return self.K
 
     def ElementStress(self, displacement):
         """
@@ -820,7 +811,21 @@ if __name__ == "__main__":
         [1, 1, 0],
         [2, 1, 0]
     ], dtype=float)
+    t_ele.CalculateBasic()
     t_ele.CalElementDMatrix()
     Ke = t_ele.ElementStiffness()
-    print(Ke)
-    mlogger.debug("finish")
+
+    t_ele2 = DKQPlate()
+    t_ele2.sec_id = 10001
+    t_ele2.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele2.node_coords = np.array([
+        [2, 0],
+        [1, 0],
+        [1, 1],
+        [2, 1]
+    ], dtype=float)
+    t_ele2.CalculateBasic()
+    t_ele2.CalElementDMatrix()
+    Ke2 = t_ele2.ElementStiffness()
+
+    print("finish")

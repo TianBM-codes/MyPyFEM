@@ -35,7 +35,7 @@ class CSTDrill(ElementBaseClass, ABC):
         if self.sec_id:
             self.h = self.cha_dict[self.sec_id]
         elif self.cha_dict.__contains__('RealConst'):
-            self.h = self.cha_dict["RealConst"]
+            self.h = self.cha_dict["RealConst"][0]
         else:
             raise KeyError("Don't Contain RealConst and sec_id")
         niu = self.cha_dict[MaterialKey.Niu]
@@ -92,6 +92,9 @@ class CSTDrill(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ElementMass(self):
+        pass
+
 
 class Q4Mem(ElementBaseClass, ABC):
     """
@@ -130,7 +133,7 @@ class Q4Mem(ElementBaseClass, ABC):
         if self.sec_id:
             self.h = self.cha_dict[self.sec_id]
         elif self.cha_dict.__contains__('RealConst'):
-            self.h = self.cha_dict["RealConst"]
+            self.h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             self.h = self.cha_dict[MaterialKey.Thickness]
         else:
@@ -251,19 +254,18 @@ class CPM6(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
-            a = e / (1 - niu ** 2)
-            self.D = a * np.array([[1, niu, 0],
-                                   [niu, 1, 0],
-                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
-        elif an_type == MaterialMatrixType.PlaneStrain:
-            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.array([[1, niu / (1 - niu), 0],
-                                   [niu(1 - niu), 1, 0],
-                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
+        if self.sec_id:
+            h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            h = self.cha_dict["RealConst"][0]
+        elif self.cha_dict.__contains__(MaterialKey.Thickness):
+            h = self.cha_dict[MaterialKey.Thickness]
         else:
-            mlogger.fatal("Unknown an_dimension")
-            sys.exit(1)
+            raise KeyError("Don't Contain RealConst and sec_id")
+        a = e / (1 - niu ** 2) * h
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self):
         """
@@ -291,7 +293,6 @@ class CPM6(ElementBaseClass, ABC):
             J_inv = np.asarray([[J_ij[1, 1], -J_ij[0, 1]],
                                 [-J_ij[1, 0], J_ij[0, 0]]], dtype=float) / det_J
 
-            # pupxy = [pupx, pupy].T,  pvpxy = [pvpx, pvpy].T
             pupxy = np.asarray([[ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr, 0],
                                 [ph1ps, 0, ph2ps, 0, ph3ps, 0, ph4ps, 0, ph5ps, 0, ph6ps, 0]], dtype=float)
             pvpxy = np.asarray([[0, ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr],
@@ -302,7 +303,7 @@ class CPM6(ElementBaseClass, ABC):
             # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
             B = np.insert(B1, 1, B2[1, :], axis=0)
             B[2, :] += B2[0, :]
-            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J  # TODO: ??? 这里不会约分掉det_J???
+            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
         a1 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
@@ -324,7 +325,7 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
-        return T.T @ self.K @ T * self.cha_dict[self.sec_id]  # 只适用于等厚度的壳
+        return T.T @ self.K @ T
 
     def ElementStress(self, displacement):
         """
@@ -363,19 +364,18 @@ class CPM8(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
-            a = e / (1 - niu ** 2)
-            self.D = a * np.array([[1, niu, 0],
-                                   [niu, 1, 0],
-                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
-        elif an_type == MaterialMatrixType.PlaneStrain:
-            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.array([[1, niu / (1 - niu), 0],
-                                   [niu(1 - niu), 1, 0],
-                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
+        if self.sec_id:
+            h = self.cha_dict[self.sec_id]
+        elif self.cha_dict.__contains__('RealConst'):
+            h = self.cha_dict["RealConst"][0]
+        elif self.cha_dict.__contains__(MaterialKey.Thickness):
+            h = self.cha_dict[MaterialKey.Thickness]
         else:
-            mlogger.fatal("Unknown an_dimension")
-            sys.exit(1)
+            raise KeyError("Don't Contain RealConst and sec_id")
+        a = e / (1 - niu ** 2) * h
+        self.D = a * np.array([[1, niu, 0],
+                               [niu, 1, 0],
+                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self):
         """
@@ -418,7 +418,6 @@ class CPM8(ElementBaseClass, ABC):
                 J_inv = np.asarray([[J_ij[1, 1], -J_ij[0, 1]],
                                     [-J_ij[1, 0], J_ij[0, 0]]], dtype=float) / det_J
 
-                # pupxy = [pupx, pupy].T,  pvpxy = [pvpx, pvpy].T
                 pupxy = np.asarray([[ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr, 0, ph7pr, 0, ph8pr, 0],
                                     [ph1ps, 0, ph2ps, 0, ph3ps, 0, ph4ps, 0, ph5ps, 0, ph6ps, 0, ph7ps, 0, ph8ps, 0]], dtype=float)
                 pvpxy = np.asarray([[0, ph1pr, 0, ph2pr, 0, ph3pr, 0, ph4pr, 0, ph5pr, 0, ph6pr, 0, ph7pr, 0, ph8pr],
@@ -429,7 +428,7 @@ class CPM8(ElementBaseClass, ABC):
                 # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
                 B = np.insert(B1, 1, B2[1, :], axis=0)
                 B[2, :] += B2[0, :]
-                self.K += np.matmul(np.matmul(B.T, self.D), B) * w_r * w_s * det_J  # TODO: ??? 这里不会约分掉det_J???
+                self.K += B.T @ self.D @ B * w_r * w_s * det_J
 
         """
         以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
@@ -462,7 +461,7 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        return T.T @ self.K @ T * self.cha_dict[self.sec_id]  # 只适用于等厚度的壳
+        return T.T @ self.K @ T
 
     def ElementStress(self, displacement):
         """

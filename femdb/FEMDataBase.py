@@ -3,12 +3,7 @@
 
 from utils.Singleton import Singleton
 from femdb.LoadCase import *
-from femdb.Material import *
-from element.Node import *
-from femdb.Sets import *
-from femdb.Property import *
-from femdb.Section import *
-from femdb.ElementGroup import *
+from femdb.ElementFactory import *
 from collections import OrderedDict
 from scipy import sparse
 
@@ -220,7 +215,7 @@ class FEMDataBase(object):
 
             # 同样, 也并不是所有单元都有实常数, 首先判断是否为空
             real_const_id = iter_ele.real_const_id
-            real_const = {"RealConst": real_const_id}
+            real_const = {"RealConst": self.real_const_hash[real_const_id]}
 
             # 所有计算单刚的参数均已设置完毕, 可以计算单刚
             iter_ele.SetAllCharacterAndCalD({**mat_dict, **sec_characters, **real_const, **self.shell_thickness_map})

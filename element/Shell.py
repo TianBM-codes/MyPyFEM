@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 import time
 
-import numpy as np
-
 from element.Plate import *
 from element.Membrane import *
 
@@ -138,6 +136,7 @@ class DKTShell(ElementBaseClass, ABC):
         计算单元质量阵
         :return:
         """
+        pass
 
     def CalculateBasic(self):
         pass
@@ -590,3 +589,21 @@ if __name__ == "__main__":
     print(f"theory mass:{4 * t_ele.cha_dict[MaterialKey.Density] * t_ele.cha_dict[MaterialKey.Thickness]}")
     time2 = time.time()
     print(" {:<.5f} seconds".format(time2-time1))
+
+    """
+    测试不同壳单元的刚度阵为什么差这么多
+    """
+    t_ele = CookQuaShell()
+    t_ele.sec_id = 10001
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.node_coords = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [0.8, 0.8, 0],
+        [0.5, 1, 0]
+    ], dtype=float)
+    t_ele.CalculateBasic()
+    t_ele.CalElementDMatrix()
+    Ke2 = t_ele.ElementStiffness()
+
+    print("finish")

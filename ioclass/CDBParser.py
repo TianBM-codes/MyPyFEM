@@ -199,11 +199,6 @@ class CDBParser(object):
                 ele_node_list = list(OrderedDict.fromkeys(search_ids))
                 iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
                 iter_ele.SetNodeSearchIndex(np.asarray(ele_node_list))
-
-                # 除了组成单元所需的节点以外都是辅助节点, 默认e_node_count至parsed_nodes_count外的都是辅助节点
-                # for idx in range(e_node_count, parsed_nodes_count):
-                #     self.femdb.node_list[self.femdb.node_hash[node_ids[idx]]].is_assist_node = True
-
                 iter_ele.SetId(ele_num)
                 iter_ele.SetNodes(np.asarray(list(OrderedDict.fromkeys(node_ids))))
                 iter_ele.mat_id = mat_num

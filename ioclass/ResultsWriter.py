@@ -62,9 +62,9 @@ class ResultsWriter(object):
     def __init__(self):
         self.femdb = FEMDataBase()
 
-    def WriteVTPFile(self, path):
+    def WriteVTUFile(self, path):
         """
-        将结果写至vtp文件
+        将结果写至vtu文件
         Reference:
         1. https://github.com/nschloe/meshio
         """
