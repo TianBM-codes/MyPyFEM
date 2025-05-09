@@ -91,8 +91,8 @@ class Domain(object):
         # 检查各个节点和单元Set是否有重名, 如果有重名, 那么是建模问题, 可以
         n_set_names = []
         e_set_names = []
-        for n_set in self.femdb.node_sets:
-            n_set_names.append(n_set.GetName())
+        # for n_set in self.femdb.node_sets:
+        #     n_set_names.append(n_set.GetName())
         for e_set in self.femdb.ele_sets:
             e_set_names.append(e_set.GetName())
         if len(set(n_set_names)) != len(n_set_names):
@@ -302,11 +302,11 @@ class Domain(object):
         GlobalNodeHash = self.femdb.node_hash
         per_node_dof = self.femdb.per_node_dof
         for kk, ele in enumerate(self.femdb.elements):
-            nodes = ele.node_ids
+            ele_nodes = ele.node_ids
             stiff_array = self.stiff_list[kk]
-            for ii, nodeA in enumerate(nodes):
+            for ii, nodeA in enumerate(ele_nodes):
                 equA = GlobalNodeHash[nodeA] * per_node_dof
-                for jj, nodeB in enumerate(nodes):
+                for jj, nodeB in enumerate(ele_nodes):
                     equB = GlobalNodeHash[nodeB] * per_node_dof
                     for m in range(per_node_dof):
                         for n in range(per_node_dof):
@@ -398,7 +398,8 @@ class Domain(object):
                 node_set = c_load.set_name
                 f_dir = c_load.direction
                 f_value = c_load.value
-                nodes = self.femdb.GetSpecificFEMObject(FEMObject.NodeSet, node_set).GetNodeIds()
+                # nodes = self.femdb.GetSpecificFEMObject(FEMObject.NodeSet, node_set).GetNodeIds()
+                nodes = self.femdb.node_sets[node_set]
                 for nd in nodes:
                     cnode = self.femdb.node_list[self.femdb.node_hash[nd]]
                     f_eq_num = cnode.GetEquationNumbers()[f_dir]
@@ -444,29 +445,23 @@ class Domain(object):
         @return:
         """
         # 指定约束位移, 现在的位移只支持关键字约束
-        suffix = GlobalInfor[GlobalVariant.InputFileSuffix]
         node_dof_count = self.femdb.per_node_dof
         # node_count = len(self.femdb.node_list)
         # self.right_hand = np.zeros(node_count * node_dof_count)
-        if suffix == InputFileType.INP:
-            for bd in self.femdb.load_case.GetBoundaries():
-                node_set_name = bd.GetSetName()
-                node_set = self.femdb.GetSpecificFEMObject(FEMObject.NodeSet, node_set_name)
-                node_ids = node_set.GetNodeIds()
-                bd_type = bd.GetBoundaryType()
-                for nd in node_ids:
-                    nd_idx = self.femdb.node_hash[nd]
-                    if bd_type == "ENCASTRE":
-                        base_idx = nd_idx * node_dof_count
-                        for ii in node_dof_count:
-                            self.femdb.global_stiff_matrix[base_idx + ii, base_idx + ii] += 2e21
-                            # self.right_hand[base_idx + ii] = 0
-                    else:
-                        raise KeyError(f"don't support boundary type: {bd_type}")
-
-        else:
-            mlogger.fatal("UnSupport Boundary")
-            sys.exit(1)
+        for bd in self.femdb.load_case.GetBoundaries():
+            node_set_name = bd.GetSetName()
+            node_set = self.femdb.GetSpecificFEMObject(FEMObject.NodeSet, node_set_name)
+            node_ids = node_set.GetNodeIds()
+            bd_type = bd.GetBoundaryType()
+            for nd in node_ids:
+                nd_idx = self.femdb.node_hash[nd]
+                if bd_type in ["ENCASTRE"]:
+                    base_idx = nd_idx * node_dof_count
+                    for ii in node_dof_count:
+                        self.femdb.global_stiff_matrix[base_idx + ii, base_idx + ii] += 2e21
+                        self.right_hand[base_idx + ii] = 0
+                else:
+                    raise KeyError(f"don't support boundary type: {bd_type}")
 
     def NewMarkExplict(self):
         """

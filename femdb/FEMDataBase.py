@@ -28,7 +28,6 @@ class FEMDataBase(object):
         self.ele_grp_hash = {}
         self.elements = []
         self.biggest_grp = ""  # 最大的组, 含义是哪个组内包含的单元最多
-        self.et_hash = {}
         self.equation_number = None
 
         # 单元真实id对应group_hash中对应单元组中的index, (key:real_id) => (value: index), 所以存在多对一的情况
@@ -36,8 +35,8 @@ class FEMDataBase(object):
         self.ele_count = 0  # 单元个数
 
         # Preprocess Sets
-        self.node_sets = []
-        self.ele_sets = []
+        self.node_sets = {}
+        self.ele_sets = {}
 
         # Preprocess Fem
         self.properties = []

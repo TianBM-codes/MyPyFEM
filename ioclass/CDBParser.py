@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 from femdb.FEMDataBase import *
-import fortranformat as ff
-import copy
 from collections import OrderedDict
+from element.Node import Node
+from femdb.Section import BeamSection
+import fortranformat as ff
 
 
 class CDBParser(object):
@@ -112,16 +113,16 @@ class CDBParser(object):
 
                 elif self.iter_line.startswith("D,"):
                     # 一般会约束很多很多自由度, 所以先暂时不跳出分支
-                    nodes, directs, values = [], [], []
+                    d_nodes, directs, values = [], [], []
                     bd = AnsysBoundary()
                     while self.iter_line.startswith("D,"):
                         splits = self.iter_line.split(",")
-                        nodes.append(int(splits[1]))
+                        d_nodes.append(int(splits[1]))
                         directs.append(splits[2].strip())
                         values.append(float(splits[3].strip()))
                         self.iter_line = cdb_f.readline()
 
-                    bd.SetConstraintInfor(nodes, directs, values)
+                    bd.SetConstraintInfor(d_nodes, directs, values)
                     self.femdb.load_case.AddBoundary(bd)
 
                 elif self.iter_line.startswith("F,"):

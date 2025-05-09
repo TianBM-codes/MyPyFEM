@@ -426,6 +426,8 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.K = np.zeros((24, 24))
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
+        self.local_coord = None
+        self.global_t_matrix = np.zeros((24, 24))
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -544,10 +546,66 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
 
     def ElementMass(self):
-        pass
+        """
+        计算单元的质量阵(协调质量阵)
+        :return:
+        """
+        """
+        先转换到局部坐标
+        """
+        m_coords = self.local_coord[:, :2]
+        self.M = np.zeros((24, 24), dtype=float)
+        rho = self.cha_dict[MaterialKey.Density]
+        thickness = self.cha_dict[MaterialKey.Thickness]
+        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        for ri in range(2):
+            for si in range(2):
+                r, s = sample_pt[ri], sample_pt[si]
+                N1 = 0.25 * (1 - r) * (1 - s)
+                N2 = 0.25 * (1 + r) * (1 - s)
+                N3 = 0.25 * (1 + r) * (1 + s)
+                N4 = 0.25 * (1 - r) * (1 + s)
+                H = np.zeros((3, 12))
+                H[0, 0] = N1
+                H[1, 1] = N1
+                H[2, 2] = N1
+                H[0, 3] = N2
+                H[1, 4] = N2
+                H[2, 5] = N2
+                H[0, 6] = N3
+                H[1, 7] = N3
+                H[2, 8] = N3
+                H[0, 9] = N4
+                H[1, 10] = N4
+                H[2, 11] = N4
+
+                dNdr = np.array([[0.25 * (1 + s), -0.25 * (1 + s), 0.25 * (s - 1), 0.25 * (1 - s)],
+                                 [0.25 * (1 + r), 0.25 * (1 - r), 0.25 * (r - 1), -0.25 * (1 + r)]], dtype=float)
+                g_weight = weight[ri] * weight[si]
+
+                det_J = np.linalg.det(dNdr @ m_coords)
+                iter_mass = H.T @ H * rho * det_J * g_weight * thickness  # 12*12
+                for jj in range(4):
+                    for kk in range(4):
+                        row_idx = jj * 6
+                        col_idx = kk * 6
+                        self.M[row_idx:row_idx + 3, col_idx:col_idx + 3] += \
+                            iter_mass[jj:jj + 3, kk:kk + 3]
+
+        return self.global_t_matrix.T @ self.M @ self.global_t_matrix
 
     def CalculateBasic(self):
-        pass
+        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        R_matrix = T_matrix.T
+        self.global_t_matrix[0:3, 0:3] = R_matrix
+        self.global_t_matrix[3:6, 3:6] = R_matrix
+        self.global_t_matrix[6:9, 6:9] = R_matrix
+        self.global_t_matrix[9:12, 9:12] = R_matrix
+        self.global_t_matrix[12:15, 12:15] = R_matrix
+        self.global_t_matrix[15:18, 15:18] = R_matrix
+        self.global_t_matrix[18:21, 18:21] = R_matrix
+        self.global_t_matrix[21:24, 21:24] = R_matrix
+        self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
 
 
 if __name__ == "__main__":

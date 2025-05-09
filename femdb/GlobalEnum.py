@@ -192,6 +192,7 @@ class AnalyseType(Enum):
     LinearStatic = 1
     ModalAnalyse = 2
     Transient = 3
+    OldLinearStatic = 4
 
 
 class InputFileType(Enum):

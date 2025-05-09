@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-import copy
 from femdb.FEMDataBase import *
+from element.Node import Node
+from femdb.Property import Property
+from femdb.Section import Section
+from femdb.Sets import EleSet
 
 """
 文件解析类是和Domain一样同样包含Element和数据库的类
@@ -93,6 +96,9 @@ class InpParser(object):
                         break
                     self.iter_line = inp_f.readline().strip()
 
+        """
+        单元属性、材料、厚度等信息在文件解析中完成, 而不是在FEMDataBase中完成
+        """
         for section in self.sections:
             ele_set_name = section.ele_set_name
             mat_name = section.mat_name

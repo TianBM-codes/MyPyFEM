@@ -76,7 +76,58 @@ class MyPyFEM:
         reader.ParseFileAndInitFEMDB()
         self.parsed_time = time.time()
 
-        if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
+        if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.OldLinearStatic:
+            domain = Domain(self.check_model)
+            domain.AssignElementCharacter()
+            time_1 = time.time()
+            domain.CalAllElementStiffness()
+            time_2 = time.time()
+            domain.AssembleStiffnessMatrixByPenalty()
+            time_3 = time.time()
+            domain.CalAllElementMassMatrix()
+            time_4 = time.time()
+            domain.AssembleMassMatrixByPerturbation()
+            time_5 = time.time()
+            domain.AddBoundaryByPenalty()
+            time_6 = time.time()
+            domain.NewMarkExplict()
+            time_7 = time.time()
+            writer = ResultsWriter()
+            writer.WriteSeriesResult(str(self.output_dir), str(self.output_name))
+            p_end = time.time()
+
+            """
+            Print FEMDB Information
+            """
+            summary = domain.femdb.GetModelSummary()
+            mlogger.debug(" " + "-" * 40)
+            summary_format = r"{:>25s} --> {:<}"
+            mlogger.debug(" Model Summary:")
+            for key, value in summary.items():
+                mlogger.debug(summary_format.format(key, value))
+            mlogger.debug(" " + "-" * 40)
+
+            """
+            Define Output Format And Print Each Step Time Elapsed
+            """
+            time_format = r"{:>25s} --> {:<.3f} seconds"
+            last_line_format = "{:>25s} --> {:<.3f} seconds"
+
+            mlogger.debug(" Elapsed Time Summary:")
+            mlogger.debug(time_format.format("Parse File", self.parsed_time - self.program_begin))
+            mlogger.debug(time_format.format("Calculate D", time_1 - self.parsed_time))
+            mlogger.debug(time_format.format("Calculate All Stiff", time_2 - time_1))
+            mlogger.debug(time_format.format("Assemble Global Stiff", time_3 - time_2))
+            mlogger.debug(time_format.format("Calculate All Mass", time_4 - time_3))
+            mlogger.debug(time_format.format("Assemble Global Mass", time_5 - time_4))
+            mlogger.debug(time_format.format("Add Boundary Effect", time_6 - time_5))
+            mlogger.debug(time_format.format("NewMark Analysis", time_7 - time_6))
+            mlogger.debug(time_format.format("Write Output", p_end - time_7))
+            mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
+            mlogger.debug(" " + "-" * 40)
+            mlogger.debug(" Finish Analysis\n")
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.OldLinearStatic:
             """
             求解线弹性问题, 输出节点位移以及应力
             """
