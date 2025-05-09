@@ -65,45 +65,45 @@ class Domain(object):
         self.eq_nums = []
         self.check_model = check_model
 
-    def AssignElementCharacter(self):
-        """
-        不同类型的输入文件会调用不同的函数
-        对于cdb文件的准备计算函数
-        1. 计算各个截面属性, 赋值给对应单元
-        2. 计算单元刚度阵
-        3. 计算总刚矩阵维度, 初始化总刚(type: np.ndarray)
-        """
-        input_type = GlobalInfor[GlobalVariant.InputFileSuffix]
-        if input_type == InputFileType.CDB:
-            self.femdb.AssignElementProperty()
-        elif input_type == InputFileType.INP:
-            self.AssignElementCharacterAbaqus()
-        elif input_type == InputFileType.BDF:
-            pass
+    # def AssignElementCharacter(self):
+    #     """
+    #     不同类型的输入文件会调用不同的函数
+    #     对于cdb文件的准备计算函数
+    #     1. 计算各个截面属性, 赋值给对应单元
+    #     2. 计算单元刚度阵
+    #     3. 计算总刚矩阵维度, 初始化总刚(type: np.ndarray)
+    #     """
+    #     input_type = GlobalInfor[GlobalVariant.InputFileSuffix]
+    #     if input_type == InputFileType.CDB:
+    #         self.femdb.AssignElementProperty()
+    #     elif input_type == InputFileType.INP:
+    #         self.AssignElementCharacterAbaqus()
+    #     elif input_type == InputFileType.BDF:
+    #         pass
 
-    def AssignElementCharacterAbaqus(self):
-        """
-        为计算做准备, 此时文件已经解析完成, 所有set和单元材料均已解析, 是准备开始计算的第一步
-        1. 将Section属性赋予每个单元, 包括材料、几何尺寸等, 执行此操作要对section进行循环,
-        2. 计算单元刚度矩阵
-        3. 计算总刚矩阵维度, 初始化总刚(type: np.ndarray)
-        """
-        # 检查各个节点和单元Set是否有重名, 如果有重名, 那么是建模问题, 可以
-        n_set_names = []
-        e_set_names = []
-        # for n_set in self.femdb.node_sets:
-        #     n_set_names.append(n_set.GetName())
-        for e_set in self.femdb.ele_sets:
-            e_set_names.append(e_set.GetName())
-        if len(set(n_set_names)) != len(n_set_names):
-            mlogger.fatal(r"包含重名的节点集合")
-            sys.exit(1)
-        if len(set(e_set_names)) != len(e_set_names):
-            mlogger.fatal(r"包含重名的单元集合")
-            sys.exit(1)
-
-        # 分配属性参数, 并计算单元刚度阵
-        self.femdb.AssignElementProperty()
+    # def AssignElementCharacterAbaqus(self):
+    #     """
+    #     为计算做准备, 此时文件已经解析完成, 所有set和单元材料均已解析, 是准备开始计算的第一步
+    #     1. 将Section属性赋予每个单元, 包括材料、几何尺寸等, 执行此操作要对section进行循环,
+    #     2. 计算单元刚度矩阵
+    #     3. 计算总刚矩阵维度, 初始化总刚(type: np.ndarray)
+    #     """
+    #     # 检查各个节点和单元Set是否有重名, 如果有重名, 那么是建模问题, 可以
+    #     n_set_names = []
+    #     e_set_names = []
+    #     # for n_set in self.femdb.node_sets:
+    #     #     n_set_names.append(n_set.GetName())
+    #     for e_set in self.femdb.ele_sets:
+    #         e_set_names.append(e_set.GetName())
+    #     if len(set(n_set_names)) != len(n_set_names):
+    #         mlogger.fatal(r"包含重名的节点集合")
+    #         sys.exit(1)
+    #     if len(set(e_set_names)) != len(e_set_names):
+    #         mlogger.fatal(r"包含重名的单元集合")
+    #         sys.exit(1)
+    #
+    #     # 分配属性参数, 并计算单元刚度阵
+    #     self.femdb.AssignElementProperty()
 
     def CalBoundaryEffect(self):
         """
@@ -370,6 +370,24 @@ class Domain(object):
 
     def SolveDisplacement(self):
         """
+        求解节点位移
+        """
+        node_dof_count = self.femdb.per_node_dof
+        right_hand = np.zeros(node_dof_count*len(self.femdb.node_list))
+        c_load = self.femdb.load_case.c_loads
+        force_nodes = [ii[0] for ii in c_load]
+        directories = [ii[1] for ii in c_load]
+        amps = [ii[2] for ii in c_load]
+
+        for ii, nd in enumerate(force_nodes):
+            eqa = self.femdb.node_hash[nd] * node_dof_count
+            xyz = directories[ii]
+            right_hand[eqa+xyz] = amps[ii]
+
+        self.femdb.linear_u = pypardiso.spsolve(self.femdb.global_stiff_matrix.tocsc(), right_hand)
+
+    def SolveDisplacementOld(self):
+        """
         将边界条件添加至节点, 有很多方法施加, 各自对不同的情况有利, 见Reference 1
         用本质边界条件修正刚度阵, 从而先求出未知自由度位移Ua, 结合已经给定自由度的位移即求解了所有自由度的位移
         约束分为显示约束和隐式约束
@@ -505,7 +523,7 @@ class Domain(object):
         a6 = delta_t * (1 - delta)
         a7 = delta * delta_t
         K_hat = self.femdb.global_stiff_matrix + a0 * self.femdb.global_mass_matrix
-        solve = factorized(K_hat.tocsc())
+        solver = factorized(K_hat.tocsc())
 
         """
         开始计算各个时间步的值
@@ -515,7 +533,7 @@ class Domain(object):
         a = [acc_0]
         for ii in range(steps_count - 1):
             f_hat = his_vals[:, ii + 1] + self.femdb.global_mass_matrix @ (a0 * u[ii] + a2 * v[ii] + a3 * a[ii])
-            u_next = solve(f_hat)
+            u_next = solver(f_hat)
             a_next = a0 * (u_next - u[ii]) - a2 * v[ii] - a3 * a[ii]
             v_next = v[ii] + a6 * a[ii] + a7 * a_next
             u.append(u_next)

@@ -391,7 +391,9 @@ class InpParser(object):
                 else:
                     self.iter_line = f_handle.readline().strip()
                     keywords = self.iter_line.split(",")
-                    self.fem_db.load_case.AddAbaqusCLoad(keywords[0].strip(), int(keywords[1]), float(keywords[2]))
+                    c_nodes = self.node_set[keywords[0].strip()]
+                    for iter_node in c_nodes:
+                        self.fem_db.load_case.AddConcentratedLoad(iter_node, int(keywords[1]), float(keywords[2]))
 
                 self.iter_line = f_handle.readline().strip()
             else:

@@ -76,24 +76,21 @@ class MyPyFEM:
         reader.ParseFileAndInitFEMDB()
         self.parsed_time = time.time()
 
-        if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.OldLinearStatic:
+        if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
             domain = Domain(self.check_model)
-            domain.AssignElementCharacter()
             time_1 = time.time()
             domain.CalAllElementStiffness()
             time_2 = time.time()
             domain.AssembleStiffnessMatrixByPenalty()
             time_3 = time.time()
-            domain.CalAllElementMassMatrix()
             time_4 = time.time()
-            domain.AssembleMassMatrixByPerturbation()
             time_5 = time.time()
             domain.AddBoundaryByPenalty()
             time_6 = time.time()
-            domain.NewMarkExplict()
+            domain.SolveDisplacement()
             time_7 = time.time()
             writer = ResultsWriter()
-            writer.WriteSeriesResult(str(self.output_dir), str(self.output_name))
+            writer.WriteVTUFile(self.output_files[0])
             p_end = time.time()
 
             """

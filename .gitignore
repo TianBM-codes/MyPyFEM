@@ -19,4 +19,12 @@ RunExample.py
 *.vtu
 *.full
 *.jpg
+*.app_cache
+*.com
+*.ipm
+*.log
+*.msg
+*.odb
+*.prt
+*.sta
 /.VSCodeCounter

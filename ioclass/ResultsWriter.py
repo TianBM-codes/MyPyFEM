@@ -69,6 +69,7 @@ class ResultsWriter(object):
         1. https://github.com/nschloe/meshio
         """
         # 模型部分
+        per_node_dof = self.femdb.per_node_dof
         coords = np.asarray([node.coord for node in self.femdb.node_list])
         all_eles = {}
 
@@ -81,7 +82,8 @@ class ResultsWriter(object):
                 all_eles[ele_type] = [iter_relation]
 
         # 位移结果
-        dis_value = np.asarray([node.dof_disp[:3] for node in self.femdb.node_list])
+        # dis_value = np.asarray([node.dof_disp[:3] for node in self.femdb.node_list])
+        dis_value = np.reshape(self.femdb.linear_u, (-1, per_node_dof))[:, :3]
         displacement = {"displacement": dis_value}
         meshio.write_points_cells(
             filename=path,

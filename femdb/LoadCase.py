@@ -141,22 +141,22 @@ class LoadCase(object):
         """
         self.boundaries.append(boundary)
 
-    def AddAbaqusCLoad(self, set_name, direction, value):
-        """
-        ABAQUS类型的添加集中力
-        """
-        self.c_loads.append(InpConcentratedLoad(set_name, direction, value))
+    # def AddAbaqusCLoad(self, set_name, direction, value):
+    #     """
+    #     ABAQUS类型的添加集中力
+    #     """
+    #     self.c_loads.append(InpConcentratedLoad(set_name, direction, value))
 
-    def AddAnsysCLoad(self, node: int, direction: str, value: float):
-        """
-        ANSYS类型的添加集中力
-        :param node: 节点的真实ID
-        :param direction: 集中力的方向
-        :param value: 集中力的大小
-        """
-        cf = CdbConcentratedLoad()
-        cf.SetCForce(node, direction, value)
-        self.c_loads.append(cf)
+    # def AddAnsysCLoad(self, node: int, direction: str, value: float):
+    #     """
+    #     ANSYS类型的添加集中力
+    #     :param node: 节点的真实ID
+    #     :param direction: 集中力的方向
+    #     :param value: 集中力的大小
+    #     """
+    #     cf = CdbConcentratedLoad()
+    #     cf.SetCForce(node, direction, value)
+    #     self.c_loads.append(cf)
 
     def GetBoundaries(self):
         return self.boundaries
@@ -172,3 +172,9 @@ class LoadCase(object):
         @return:
         """
         self.history_loads.append((node, directory, scale, amps))
+
+    def AddConcentratedLoad(self, node, directory, amp):
+        """
+        添加集中力载荷
+        """
+        self.c_loads.append((node, directory, amp))
