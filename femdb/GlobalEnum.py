@@ -106,27 +106,6 @@ Abaqus2VTKType = {
     "CPE6": "triangle6",
 }
 
-Ansys2VTKType = {
-    # trusses
-    # solid
-    45: "hexahedron",
-    "185_4": "tetra",
-    "185_6": "wedge",
-    "185_8": "hexahedron",
-    # beams
-    188: "line",
-    189: "line3",
-    # shell
-    "181_3": "triangle",
-    "181_4": "quad",
-    "63_4": "quad",
-    "63_3": "triangle"
-}
-
-"""
-将Material、Property、Section以及RealConst打包塞给每一个单元
-"""
-
 
 class MaterialKey(Enum):
     """ 材料参数关键字集合 """

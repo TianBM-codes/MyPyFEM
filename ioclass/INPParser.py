@@ -1,15 +1,41 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+import numpy as np
 from femdb.FEMDataBase import *
 from element.Node import Node
-from femdb.Property import Property
-from femdb.Section import Section
-from femdb.Sets import EleSet
+from ElementFactory import *
 
 """
 文件解析类是和Domain一样同样包含Element和数据库的类
 """
+
+
+class EleSet(object):
+    def __init__(self, e_name, eles_ids):
+        """
+        如果used是False, 那么这个集合是没有被用到过的. 如果某些单元集合被赋予过属性, 那么used为True
+        """
+        self.name = e_name
+        self.eles_ids = np.asarray(eles_ids, dtype=np.int32)
+
+    def __str__(self):
+        return "name: {}, from {} to {}, count is: {}".format(
+            self.name, self.eles_ids[0], self.eles_ids[-1], len(self.eles_ids))
+
+    def GetName(self):
+        return self.name
+
+    def GetEleIds(self):
+        return self.eles_ids
+
+
+class Section(object):
+
+    def __init__(self, ele_set_name, mat_name, cha_dict):
+        self.ele_set_name = ele_set_name
+        self.mat_name = mat_name
+        self.cha_dict = cha_dict
 
 
 def ReadSectionLine(line):
@@ -85,7 +111,7 @@ class InpParser(object):
                 elif self.iter_line.startswith("*Step,"):
                     self.ReadLoadCase(inp_f)
 
-                elif self.iter_line.startswith("*AbaqusBoundary"):
+                elif self.iter_line.startswith("*Boundary"):
                     self.ReadBoundary(inp_f)
 
                 elif self.iter_line.startswith("*Amplitude"):
@@ -218,8 +244,6 @@ class InpParser(object):
                 for par in keywords:
                     if par:
                         pars[PropertyKey.ThicknessOrArea] = float(par)
-                section = Property(els_name, mat_name, pars)
-                self.fem_db.properties.append(section)
                 self.iter_line = f_handle.readline().strip()
 
             elif self.iter_line.startswith("*Beam Section"):
@@ -237,7 +261,6 @@ class InpParser(object):
                 self.iter_line = f_handle.readline().strip()
                 normal_dir = [float(di) for di in self.iter_line.split(",")]
                 assert len(normal_dir) == 3
-                self.fem_db.properties.append(Property(els_name, mat_name, [section, features, normal_dir]))
                 self.iter_line = f_handle.readline().strip()
 
             elif self.iter_line.startswith("*Shell Section"):
@@ -393,7 +416,7 @@ class InpParser(object):
                     keywords = self.iter_line.split(",")
                     c_nodes = self.node_set[keywords[0].strip()]
                     for iter_node in c_nodes:
-                        self.fem_db.load_case.AddConcentratedLoad(iter_node, int(keywords[1]), float(keywords[2]))
+                        self.fem_db.load_case.AddConcentratedLoad(iter_node, int(keywords[1]) - 1, float(keywords[2]))
 
                 self.iter_line = f_handle.readline().strip()
             else:
@@ -411,13 +434,25 @@ class InpParser(object):
         keywords = self.iter_line.split(",")
         if len(keywords) == 2:
             # 如果改行为一个逗号间隔, 那么约束方式是用字符串来标识的
-            self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), b_type=keywords[1].strip()))
-        elif len(keywords) == 3:
+            # self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), b_type=keywords[1].strip()))
             # 如果该行用两个逗号间隔, 那么是固定该自由度为零
-            self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), 0.0))
-        elif len(keywords) == 4:
             # 如果该行为三个逗号间隔, 那么为指定位移形式
-            self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), int(keywords[1]), float(keywords[3])))
+            nds = self.node_set[keywords[0].strip()]
+            d_nodes = []
+            directs = []
+            values = []
+            if "ENCASTRE" in keywords[1]:
+                for nd in nds:
+                    for ii in range(self.fem_db.per_node_dof):
+                        d_nodes.append(nd)
+                        directs.append(ii)
+                        values.append(0)
+                bd = np.column_stack([d_nodes, directs, values])
+                self.fem_db.load_case.AddBoundary(bd)
+            else:
+                raise KeyError(f"UnSupport Boundary Key: {self.iter_line}")
+        else:
+            raise ValueError(f"In Read Boundary: {self.iter_line}")
         self.iter_line = f_handle.readline().strip()
 
     def ReadAmplitude(self, f_handle):
@@ -457,6 +492,6 @@ class InpParser(object):
 
 if __name__ == "__main__":
     # print(ReadSectionLine("*Beam Section, elset=_PickedSet8, material=Material-1, temperature=GRADIENTS, section=PIPE\n"))
-    input_file = r"../numerical example/ABAQUS/Model701.inp"
+    input_file = r"../numerical example/ABAQUS/Job-1.inp"
     npp = InpParser(input_path=input_file)
     npp.ParseFileAndInitFEMDB()

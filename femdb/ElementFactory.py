@@ -3,18 +3,20 @@
 import sys
 
 # 1D Elements
-from element.Truss import *
-from element.Beam import *
+from element.ElementBase import ElementBaseClass
+from element.Truss import T3D2
+from element.Beam import Beam188, Beam189
 
 # 2D Elements
-from element.Shell import *
-from element.Plane import *
+from element.Shell import CookQuaShell, CookTriShell
+from element.Plane import CPS3, CPS4
 
 # 3D Elements
-from element.Plate import *
-from element.Tetra import *
-from element.Wedge import *
-from element.Hexa import *
+from element.Tetra import C3D4
+from element.Wedge import C3D6
+from element.Hexa import C3D8
+
+from femdb.GlobalEnum import *
 
 
 class ElementFactory:
@@ -48,7 +50,8 @@ class ElementFactory:
 
         # 3D Element
         elif e_type in ["S3"]:
-            return DKTShell(e_id), 3
+            # return DKTShell(e_id), 3
+            return CookTriShell(e_id), 3
         elif e_type in ["S4", "S4R", "S4RT"]:
             # return DKQShell(e_id), 4
             return CookQuaShell(e_id), 4
@@ -120,5 +123,4 @@ class ElementFactory:
         elif e_type in [181, 63]:
             return 6
 
-        mlogger.fatal("No Such ElementType: {}".format(e_type))
-        sys.exit(1)
+        raise KeyError("No Such ElementType: {}".format(e_type))

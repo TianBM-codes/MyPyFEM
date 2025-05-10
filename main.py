@@ -78,17 +78,14 @@ class MyPyFEM:
 
         if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.LinearStatic:
             domain = Domain(self.check_model)
-            time_1 = time.time()
             domain.CalAllElementStiffness()
-            time_2 = time.time()
+            time_1 = time.time()
             domain.AssembleStiffnessMatrixByPenalty()
-            time_3 = time.time()
-            time_4 = time.time()
-            time_5 = time.time()
+            time_2 = time.time()
             domain.AddBoundaryByPenalty()
-            time_6 = time.time()
+            time_3 = time.time()
             domain.SolveDisplacement()
-            time_7 = time.time()
+            time_4 = time.time()
             writer = ResultsWriter()
             writer.WriteVTUFile(self.output_files[0])
             p_end = time.time()
@@ -112,71 +109,11 @@ class MyPyFEM:
 
             mlogger.debug(" Elapsed Time Summary:")
             mlogger.debug(time_format.format("Parse File", self.parsed_time - self.program_begin))
-            mlogger.debug(time_format.format("Calculate D", time_1 - self.parsed_time))
-            mlogger.debug(time_format.format("Calculate All Stiff", time_2 - time_1))
-            mlogger.debug(time_format.format("Assemble Global Stiff", time_3 - time_2))
-            mlogger.debug(time_format.format("Calculate All Mass", time_4 - time_3))
-            mlogger.debug(time_format.format("Assemble Global Mass", time_5 - time_4))
-            mlogger.debug(time_format.format("Add Boundary Effect", time_6 - time_5))
-            mlogger.debug(time_format.format("NewMark Analysis", time_7 - time_6))
-            mlogger.debug(time_format.format("Write Output", p_end - time_7))
-            mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
-            mlogger.debug(" " + "-" * 40)
-            mlogger.debug(" Finish Analysis\n")
-
-        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.OldLinearStatic:
-            """
-            求解线弹性问题, 输出节点位移以及应力
-            """
-            domain = Domain(self.check_model)
-            domain.AssignElementCharacter()
-            time_2 = time.time()
-
-            domain.CalBoundaryEffect()
-            domain.CalculateEquationNumber()
-            time_3 = time.time()
-
-            domain.CalAllElementStiffness()
-            time_4 = time.time()
-
-            domain.AssembleStiffnessMatrixByElimination()
-            time_5 = time.time()
-
-            domain.SolveDisplacement()
-            time_6 = time.time()
-
-            domain.CalculateNodeStress()
-            time_7 = time.time()
-
-            writer = ResultsWriter()
-            writer.WriteVTUFile(self.output_files[0])
-            # writer.WriteUNVFile(self.output_files[1])
-            p_end = time.time()
-
-            """
-            Print FEMDB Information
-            """
-            summary = domain.femdb.GetModelSummary()
-            mlogger.debug(" " + "-" * 40)
-            summary_format = r"{:>25s} --> {:<}"
-            mlogger.debug(" Model Summary:")
-            for key, value in summary.items():
-                mlogger.debug(summary_format.format(key, value))
-            mlogger.debug(" " + "-" * 40)
-
-            # Define Output Format And Print Each Step Time Elapsed
-            time_format = r"{:>25s} --> {:<.3f} seconds"
-            last_line_format = "{:>25s} --> {:<.3f} seconds"
-
-            mlogger.debug(" Elapsed Time Summary:")
-            mlogger.debug(time_format.format("Parse File", self.parsed_time - self.program_begin))
-            mlogger.debug(time_format.format("Calculate D", time_2 - self.parsed_time))
-            mlogger.debug(time_format.format("Cal Equation Num", time_3 - time_2))
-            mlogger.debug(time_format.format("Cal All Stiffness", time_4 - time_3))
-            mlogger.debug(time_format.format("Assemble Stiffness", time_5 - time_4))
-            mlogger.debug(time_format.format("Solve Displacement", time_6 - time_5))
-            mlogger.debug(time_format.format("Calculate Stress", time_7 - time_6))
-            mlogger.debug(time_format.format("Write Output File", p_end - time_7))
+            mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
+            mlogger.debug(time_format.format("Assemble Global Stiff", time_2 - time_1))
+            mlogger.debug(time_format.format("Add Boundary Effect", time_3 - time_2))
+            mlogger.debug(time_format.format("Solve Displacement", time_4 - time_3))
+            mlogger.debug(time_format.format("Write Output", p_end - time_4))
             mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
             mlogger.debug(" " + "-" * 40)
             mlogger.debug(" Finish Analysis\n")
@@ -186,7 +123,6 @@ class MyPyFEM:
             求解线弹性问题, 输出节点位移以及应力
             """
             domain = Domain(self.check_model)
-            domain.AssignElementCharacter()
             time_1 = time.time()
             domain.CalAllElementStiffness()
             time_2 = time.time()

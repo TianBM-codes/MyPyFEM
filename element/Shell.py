@@ -16,7 +16,6 @@ class DKTShell(ElementBaseClass, ABC):
         self.nodes_count = 3  # Each element has 3 nodes
         self._nodes = [None for _ in range(self.nodes_count)]
         self.vtu_type = "triangle"
-        self.e_type = 181
         self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
 
@@ -151,7 +150,6 @@ class DKQShell(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 4 nodes
         self.vtu_type = "quad"
-        self.e_type = 181
         self.K = np.zeros((24, 24))
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
@@ -287,7 +285,6 @@ class CookTriShell(ElementBaseClass, ABC):
         self.nodes_count = 3  # Each element has 3 nodes
         self._nodes = [None for _ in range(self.nodes_count)]
         self.vtu_type = "triangle"
-        self.e_type = 181
         self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
 
@@ -422,7 +419,6 @@ class CookQuaShell(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 4 nodes
         self.vtu_type = "quad"
-        self.e_type = 181
         self.K = np.zeros((24, 24))
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
@@ -613,8 +609,7 @@ if __name__ == "__main__":
     测试四边形壳单元刚度阵
     """
     t_ele = DKQShell()
-    t_ele.sec_id = 10001
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
     t_ele.node_coords = np.array([
         [0, 0, 0],
         [1, 0, 0],
@@ -652,8 +647,7 @@ if __name__ == "__main__":
     测试不同壳单元的刚度阵为什么差这么多
     """
     t_ele = CookQuaShell()
-    t_ele.sec_id = 10001
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
     t_ele.node_coords = np.array([
         [0, 0, 0],
         [1, 0, 0],

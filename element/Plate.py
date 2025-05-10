@@ -144,7 +144,6 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
         self.nodes_count = 4  # Each element has 8 nodes
         self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
-        self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -152,14 +151,12 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.sec_id:
-            h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         a = e * h ** 3 / 12 / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
@@ -203,7 +200,6 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
         self.nodes_count = 4  # Each element has 8 nodes
         self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
-        self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -211,14 +207,12 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.sec_id:
-            h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         a = e * h ** 3 / 12 / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
@@ -229,7 +223,6 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
         dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
         """
         tri_plate = KirchhoffTrianglePlate()
-        tri_plate.sec_id = self.sec_id
         tri_plate.cha_dict = self.cha_dict
         tri_plate.CalElementDMatrix()
         Kb = np.zeros((24, 24), dtype=float)
@@ -297,7 +290,6 @@ class MITC4(ElementBaseClass, ABC):
         self.nodes_count = 4  # Each element has 8 nodes
         self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
-        self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -436,7 +428,6 @@ class MITC3(ElementBaseClass, ABC):
         self.nodes_count = 3  # Each element has 3 nodes
         self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
-        self.thickness = None
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -522,7 +513,6 @@ class DKTPlate(ElementBaseClass, ABC):
         self.nodes_count = 3  # Each element has 3 nodes
         self.K = np.zeros([9, 9], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
-        self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
 
     def CalElementDMatrix(self, an_type=None):
@@ -531,14 +521,12 @@ class DKTPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.sec_id:
-            h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         a = e * h ** 3 / 12 / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
@@ -660,14 +648,12 @@ class DKQPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.sec_id:
-            h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         a = e * h ** 3 / 12 / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
@@ -803,8 +789,7 @@ class DKQPlate(ElementBaseClass, ABC):
 
 if __name__ == "__main__":
     t_ele = KirchhoffQuaPlate()
-    t_ele.sec_id = 10001
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
     t_ele.node_coords = np.array([
         [2, 0, 0],
         [1, 0, 0],
@@ -816,8 +801,7 @@ if __name__ == "__main__":
     Ke = t_ele.ElementStiffness()
 
     t_ele2 = DKQPlate()
-    t_ele2.sec_id = 10001
-    t_ele2.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele2.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
     t_ele2.node_coords = np.array([
         [2, 0],
         [1, 0],

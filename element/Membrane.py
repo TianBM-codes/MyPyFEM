@@ -23,7 +23,6 @@ class CSTDrill(ElementBaseClass, ABC):
         self.nodes_count = 6  # Each element has 6 nodes
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
-        self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
         self.h = None
 
@@ -32,12 +31,10 @@ class CSTDrill(ElementBaseClass, ABC):
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
         e = self.cha_dict[MaterialKey.E]
-        if self.sec_id:
-            self.h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             self.h = self.cha_dict["RealConst"][0]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         niu = self.cha_dict[MaterialKey.Niu]
         a = e * self.h / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
@@ -106,7 +103,6 @@ class Q4Mem(ElementBaseClass, ABC):
         self.nodes_count = 4
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
-        self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
         self.integ = IntegForm2D2P()
@@ -130,14 +126,12 @@ class Q4Mem(ElementBaseClass, ABC):
         @return:
         """
         e = self.cha_dict[MaterialKey.E]
-        if self.sec_id:
-            self.h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             self.h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             self.h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         niu = self.cha_dict[MaterialKey.Niu]
         a = e * self.h / (1 - niu ** 2)
         self.D = a * np.array([[1, niu, 0],
@@ -245,7 +239,6 @@ class CPM6(ElementBaseClass, ABC):
         self.nodes_count = 6  # Each element has 6 nodes
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
-        self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
     def CalElementDMatrix(self, an_type=None):
@@ -254,14 +247,12 @@ class CPM6(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.sec_id:
-            h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         a = e / (1 - niu ** 2) * h
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
@@ -355,7 +346,6 @@ class CPM8(ElementBaseClass, ABC):
         self.nodes_count = 8  # Each element has 6 nodes
         self.K = np.zeros([16, 16], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
-        self.thickness = None
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
     def CalElementDMatrix(self, an_type=None):
@@ -364,14 +354,12 @@ class CPM8(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.sec_id:
-            h = self.cha_dict[self.sec_id]
-        elif self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst'):
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and sec_id")
+            raise KeyError("Don't Contain RealConst and Thickness")
         a = e / (1 - niu ** 2) * h
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
@@ -477,8 +465,7 @@ class CPM8(ElementBaseClass, ABC):
 
 if __name__ == "__main__":
     t_ele = Q4Mem()
-    t_ele.sec_id = 10001
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, 10001: 0.01}
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
     t_ele.node_coords = np.array([
         [0, 0, 0],
         [1, 0, 0],

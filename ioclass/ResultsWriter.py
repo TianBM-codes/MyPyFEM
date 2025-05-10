@@ -82,7 +82,6 @@ class ResultsWriter(object):
                 all_eles[ele_type] = [iter_relation]
 
         # 位移结果
-        # dis_value = np.asarray([node.dof_disp[:3] for node in self.femdb.node_list])
         dis_value = np.reshape(self.femdb.linear_u, (-1, per_node_dof))[:, :3]
         displacement = {"displacement": dis_value}
         meshio.write_points_cells(
@@ -155,16 +154,15 @@ class ResultsWriter(object):
             """
             uf.write('}\n'
                      '{ Element;\n')
-            uf.write(f'(  {self.femdb.ele_count};)\n')
-            for _, group in self.femdb.ele_grp_hash.items():
-                eles = group.Elements()
-                for ele in eles:
-                    node_str = ""
-                    for nd in ele.node_ids:
-                        node_str = node_str + str(nd) + ", "
-                    node_str = node_str[:-2] + ";"
-                    ele_line = "({},{}, 1, 0, 0, {})\n".format(ele.id, ele.unv_code, node_str)
-                    uf.write(ele_line)
+            uf.write(f'(  {len(self.femdb.elements)};)\n')
+            eles = self.femdb.elements
+            for ele in eles:
+                node_str = ""
+                for nd in ele.node_ids:
+                    node_str = node_str + str(nd) + ", "
+                node_str = node_str[:-2] + ";"
+                ele_line = "({},{}, 1, 0, 0, {})\n".format(ele.id, ele.unv_code, node_str)
+                uf.write(ele_line)
 
             """
             写入位移结果

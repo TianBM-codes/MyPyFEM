@@ -24,7 +24,7 @@ class BeamCalculator:
     """
 
     @staticmethod
-    def CalculateMomentOfInertiaOfArea(sec_type: str, sec_data: list[float]) -> dict:
+    def CalculateMomentOfInertiaOfArea(sec_type: BeamSectionType, sec_data: list[float]) -> dict:
         """
         计算梁横截面惯性矩, 抗扭刚度
         """
@@ -68,7 +68,7 @@ class BeamCalculator:
             sys.exit(1)
 
     @staticmethod
-    def CalEffectiveShearArea(sec_type: BeamSectionType, sec_data: tuple) -> dict:
+    def CalEffectiveShearArea(sec_type: BeamSectionType, sec_data: list[float]) -> dict:
         """
         计算截面的面积属性, 包括面积、两个方向的抗剪等效面积, 圆的输入是半径
         """

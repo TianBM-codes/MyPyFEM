@@ -4,7 +4,10 @@
 from femdb.FEMDataBase import *
 from collections import OrderedDict
 from element.Node import Node
-from femdb.Section import BeamSection
+from femdb.ElementFactory import *
+from element.Beam import BeamCalculator
+
+import numpy as np
 import fortranformat as ff
 
 
@@ -22,6 +25,8 @@ class CDBParser(object):
         self.ele_count = 0
         self.check_model = check_model
         self.real_constant_hash = {}
+        self.material_map = {}
+        self.section_map = {}
 
     def ParseFileAndInitFEMDB(self):
         """
@@ -54,8 +59,13 @@ class CDBParser(object):
                 elif self.iter_line.startswith("ET,"):
                     splits = self.iter_line.split(",")
                     assert len(splits) == 3
-                    self.et_hash[int(splits[1].strip())] = int(splits[2].strip())
+                    e_type = int(splits[2].strip())
+                    self.et_hash[int(splits[1].strip())] = e_type
                     self.iter_line = cdb_f.readline()
+                    dof_count = ElementFactory.GetElementNodeDofCount(e_type)
+                    self.femdb.per_node_dof = dof_count
+                    if dof_count == 2:
+                        self.femdb.an_dimension = AnalyseDimension.TwoDimension
 
                 elif self.iter_line.startswith("RLBLOCK,"):
                     """
@@ -114,24 +124,60 @@ class CDBParser(object):
                 elif self.iter_line.startswith("D,"):
                     # 一般会约束很多很多自由度, 所以先暂时不跳出分支
                     d_nodes, directs, values = [], [], []
-                    bd = AnsysBoundary()
                     while self.iter_line.startswith("D,"):
                         splits = self.iter_line.split(",")
-                        d_nodes.append(int(splits[1]))
-                        directs.append(splits[2].strip())
-                        values.append(float(splits[3].strip()))
+                        d_node = [int(splits[1])]
+                        d_val = [float(splits[3].strip())]
+                        d_dir = splits[2].strip()
+                        if "UX" in d_dir:
+                            dir_idx = [0]
+                        elif "UY" in d_dir:
+                            dir_idx = [1]
+                        elif "UZ" in d_dir:
+                            dir_idx = [2]
+                        elif "ROTX" in d_dir:
+                            dir_idx = [3]
+                        elif "ROTY" in d_dir:
+                            dir_idx = [4]
+                        elif "ROTZ" in d_dir:
+                            dir_idx = [5]
+                        elif "ALL" in d_dir:
+                            if self.femdb.per_node_dof == 2:
+                                dir_idx = [0, 1]
+                                d_node = [int(splits[1])] * 2
+                                d_val = [float(splits[3].strip())] * 2
+                            elif self.femdb.per_node_dof == 3:
+                                dir_idx = [0, 1, 2]
+                                d_node = [int(splits[1])] * 3
+                                d_val = [float(splits[3].strip())] * 3
+                            else:
+                                dir_idx = [0, 1, 2, 3, 4, 5]
+                                d_node = [int(splits[1])] * 6
+                                d_val = [float(splits[3].strip())] * 6
+                        else:
+                            raise KeyError(f"Boundary Type:{d_dir}")
+
+                        d_nodes.extend(d_node)
+                        directs.extend(dir_idx)
+                        values.extend(d_val)
                         self.iter_line = cdb_f.readline()
 
-                    bd.SetConstraintInfor(d_nodes, directs, values)
+                    bd = np.column_stack([d_nodes, directs, values])
                     self.femdb.load_case.AddBoundary(bd)
 
                 elif self.iter_line.startswith("F,"):
                     # 一般F也不止施加在一个自由度上, 所以用while暂不跳出分支
                     while self.iter_line.startswith("F,"):
                         splits = self.iter_line.split(",")
-                        self.femdb.load_case.AddAnsysCLoad(
-                            int(splits[1]), splits[2].strip(), float(splits[3].strip())
-                        )
+                        if "FX" in splits[2]:
+                            idx = 0
+                        elif "FY" in splits[2]:
+                            idx = 1
+                        elif "FZ" in splits[2]:
+                            idx = 2
+                        else:
+                            raise KeyError(f"Don't Support Force Key:{splits[2]}")
+                        self.femdb.load_case.AddConcentratedLoad(int(splits[1]), idx, float(splits[3].strip()))
                         self.iter_line = cdb_f.readline()
 
                 else:
@@ -141,8 +187,16 @@ class CDBParser(object):
                     # 不支持的关键字或注释直接读取下一行, 不可以strip(), 否则空行会被认作程序结束
                     self.iter_line = cdb_f.readline()
 
-        self.femdb.et_hash = self.et_hash
-        self.femdb.real_const_hash = self.real_constant_hash
+        """
+        单元属性、材料、厚度等信息在文件解析中完成, 而不是在FEMDataBase中完成, 要达到的目的: 所有计算单元矩阵的参数均已设置完毕
+        同样, 也并不是所有单元都有实常数
+        """
+        for iter_ele in self.femdb.elements:
+            mat_dict = self.material_map[iter_ele.mat_id]
+            real_const_id = iter_ele.real_const_id
+            real_const = {"RealConst": self.real_constant_hash.get(real_const_id, {})}
+            sec_vals = self.section_map.get(iter_ele.sec_id, {})
+            iter_ele.SetAllCharacterAndCalD({**mat_dict, **real_const, **sec_vals})
 
     def ReadEBlock(self, f_handle):
         """
@@ -260,7 +314,7 @@ class CDBParser(object):
                         # 读取同一种材料结束, 读取下一种材料或者读取材料结束, 程序跳出材料分支
                         # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
-                        self.femdb.material_map[cur_mat_id] = value_dict
+                        self.material_map[cur_mat_id] = value_dict
                         self.iter_line = f_handle.readline()
                         break
                     if splits[3].startswith("EX"):
@@ -276,7 +330,7 @@ class CDBParser(object):
                     if jump_out:
                         # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
-                        self.femdb.material_map[cur_mat_id] = value_dict
+                        self.material_map[cur_mat_id] = value_dict
                         break
 
     def ReadSection(self, f_handle):
@@ -285,7 +339,7 @@ class CDBParser(object):
         """
         while True:
             splits = self.iter_line.strip().split(",")
-            sec_id = int(splits[1])
+            sec_num = int(splits[1])
             if splits[2] == "BEAM":
                 beam_type = splits[3]
                 msec_data = f_handle.readline().strip().split(",")
@@ -293,15 +347,16 @@ class CDBParser(object):
                 f_handle.readline()  # section offset
                 f_handle.readline()  # section control
                 if beam_type == "RECT":
-                    self.femdb.sections.append(BeamSection(sec_id, BeamSectionType.Rectangle, sec_data))
+                    inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.Rectangle, sec_data)
+                    area_character = BeamCalculator.CalEffectiveShearArea(BeamSectionType.Rectangle, sec_data)
+                    self.section_map[int(sec_num)] = {**inertia_character, **area_character}
+
                 else:
                     mlogger.fatal("UnSupport Beam Type:{}".format(beam_type))
                     sys.exit(1)
-
                 self.iter_line = f_handle.readline()
 
             elif splits[2].startswith("SHELL"):
-                sec_num = splits[1]
                 f_handle.readline()  # secoffset
                 self.iter_line = f_handle.readline()  # sec block
                 if self.iter_line.startswith("SECBLOCK"):
@@ -309,12 +364,12 @@ class CDBParser(object):
                     splits = self.iter_line.split(",")
                     thickness = splits[0]
                     f_handle.readline()  # sec control
-                    self.femdb.shell_thickness_map[int(sec_num)] = float(thickness)
+                    self.section_map[int(sec_num)] = {MaterialKey.Thickness: float(thickness)}
                 elif self.iter_line.startswith("SECDATA"):
                     splits = self.iter_line.split(",")
                     thickness = splits[1]
                     f_handle.readline()  # sec control
-                    self.femdb.shell_thickness_map[int(sec_num)] = float(thickness)
+                    self.section_map[int(sec_num)] = {MaterialKey.Thickness: float(thickness)}
                 else:
                     raise KeyError(f"Failed to parse shell section:{splits[2]}")
 
