@@ -4,7 +4,7 @@
 import numpy as np
 from femdb.FEMDataBase import *
 from element.Node import Node
-from ElementFactory import *
+from femdb.ElementFactory import *
 
 """
 文件解析类是和Domain一样同样包含Element和数据库的类

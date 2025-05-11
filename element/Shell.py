@@ -6,9 +6,9 @@ from element.Plate import *
 from element.Membrane import *
 
 
-class DKTShell(ElementBaseClass, ABC):
+class TriangleShell63(ElementBaseClass, ABC):
     """
-    DKTShell Element class
+    TriangleShell63 Element class
     """
 
     def __init__(self, eid=None):
@@ -141,9 +141,9 @@ class DKTShell(ElementBaseClass, ABC):
         pass
 
 
-class DKQShell(ElementBaseClass, ABC):
+class QuadShell63(ElementBaseClass, ABC):
     """
-    DKQShell Element class
+    QuadShell63 Element class
     """
 
     def __init__(self, eid=None):
@@ -608,7 +608,7 @@ if __name__ == "__main__":
     """
     测试四边形壳单元刚度阵
     """
-    t_ele = DKQShell()
+    t_ele = QuadShell63()
     t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
     t_ele.node_coords = np.array([
         [0, 0, 0],
@@ -625,7 +625,7 @@ if __name__ == "__main__":
     测试四边形壳单元的质量阵
     """
     time1 = time.time()
-    t_ele = DKQShell()
+    t_ele = QuadShell63()
     t_ele.cha_dict = {MaterialKey.Niu: 0.3,
                       MaterialKey.E: 2e11,
                       MaterialKey.Thickness: 0.1,

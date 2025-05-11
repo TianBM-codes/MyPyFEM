@@ -474,4 +474,18 @@ if __name__ == "__main__":
     ], dtype=float)
     t_ele.CalElementDMatrix()
     Ke1 = t_ele.ElementStiffness()
-    print(Ke1)
+    # print(Ke1)
+
+    """
+    测试膜单元
+    """
+    t_ele = CPM8()
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
+    t_ele.node_coords = np.array([
+        [0, 0],
+        [1, 0],
+        [1, 1],
+        [0.5, 1]
+    ], dtype=float)
+    t_ele.CalElementDMatrix()
+    Ke2 = t_ele.ElementStiffness()

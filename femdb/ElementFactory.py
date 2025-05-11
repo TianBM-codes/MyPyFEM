@@ -50,17 +50,17 @@ class ElementFactory:
 
         # 3D Element
         elif e_type in ["S3"]:
-            # return DKTShell(e_id), 3
+            # return TriangleShell63(e_id), 3
             return CookTriShell(e_id), 3
         elif e_type in ["S4", "S4R", "S4RT"]:
-            # return DKQShell(e_id), 4
+            # return QuadShell63(e_id), 4
             return CookQuaShell(e_id), 4
         elif e_type in [181, 63]:
             if opt == 4:
-                # return DKQShell(e_id), 4
+                # return QuadShell63(e_id), 4
                 return CookQuaShell(e_id), 4
             elif opt == 3:
-                # return DKTShell(e_id), 3
+                # return TriangleShell63(e_id), 3
                 return CookTriShell(e_id), 3
             else:
                 mlogger.fatal("Shell 181/63 don't support opt {}".format(opt))
