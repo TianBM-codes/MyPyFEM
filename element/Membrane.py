@@ -347,6 +347,7 @@ class CPM8(ElementBaseClass, ABC):
         self.K = np.zeros([16, 16], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
+        self.B_global = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -373,6 +374,7 @@ class CPM8(ElementBaseClass, ABC):
 
         # 八节点四边形单元用3阶高斯积分公式
         points, weights = GaussIntegrationPoint.GetSamplePointAndWeight(3)
+        B_local = []
         for ri in range(3):
             for si in range(3):
                 r, s = points[ri], points[si]
@@ -413,9 +415,10 @@ class CPM8(ElementBaseClass, ABC):
                 B1 = np.matmul(J_inv, pupxy)
                 B2 = np.matmul(J_inv, pvpxy)
 
-                # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
+                # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*16
                 B = np.insert(B1, 1, B2[1, :], axis=0)
                 B[2, :] += B2[0, :]
+                B_local.append(B)
                 self.K += B.T @ self.D @ B * w_r * w_s * det_J
 
         """
@@ -449,6 +452,7 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
+        self.B_global = B_local * T
         return T.T @ self.K @ T
 
     def ElementStress(self, displacement):

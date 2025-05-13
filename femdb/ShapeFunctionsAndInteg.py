@@ -89,6 +89,22 @@ def shpFunc2D4Node(integForm) -> Dict[int, ShapeFunction]:
     return shpFunc
 
 
+def quad8NodeFunctions(r, s):
+    """8节点四边形单元形函数"""
+    N = np.zeros(8)
+    # 角点形函数
+    N[0] = 0.25 * (1 - r) * (1 - s) * (-r - s - 1)  # 节点1
+    N[1] = 0.25 * (1 + r) * (1 - s) * (r - s - 1)  # 节点2
+    N[2] = 0.25 * (1 + r) * (1 + s) * (r + s - 1)  # 节点3
+    N[3] = 0.25 * (1 - r) * (1 + s) * (-r + s - 1)  # 节点4
+    # 边中点形函数
+    N[4] = 0.5 * (1 - r ** 2) * (1 - s)  # 节点5（底边）
+    N[5] = 0.5 * (1 + s) * (1 - r ** 2)  # 节点6（右边）
+    N[6] = 0.5 * (1 - r ** 2) * (1 + s)  # 节点7（顶边）
+    N[7] = 0.5 * (1 - s) * (1 - r ** 2)  # 节点8（左边）
+    return N
+
+
 def shpFunc2D8Node(integForm: IntegForm2D2P) -> Dict[int, ShapeFunction]:
     """二维8节点Serendipity单元的形状函数"""
     shpFunc = {}
