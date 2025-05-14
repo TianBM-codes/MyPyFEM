@@ -217,9 +217,25 @@ class Domain(object):
         求解模型节点的应力
         :return:
         """
+        per_node_dof = self.femdb.per_node_dof
+        self.femdb.linear_mises = np.zeros(len(self.femdb.node_list))
         for ele in self.femdb.elements:
-            u = self.femdb.linear_u[ele.search_node_ids]
-            ele.CalculateElementStress(u)
+            search_idx = []
+            for ii in ele.search_node_ids:
+                start = ii*per_node_dof
+                end = (ii+1)*per_node_dof
+                search_idx.extend(np.arange(start, end, 1).tolist())
+
+            u = self.femdb.linear_u[search_idx].flatten()
+            sigma_x, sigma_y, sigma_z, tau_yz, tau_xz, tau_xy = ele.CalculateElementStress(u)
+            term1 = (sigma_x - sigma_y) ** 2
+            term2 = (sigma_y - sigma_z) ** 2
+            term3 = (sigma_z - sigma_x) ** 2
+            term4 = 6 * (tau_xy ** 2 + tau_yz ** 2 + tau_xz ** 2)
+            von_mises = np.sqrt(0.5 * (term1 + term2 + term3 + term4))
+
+            for ii, n_search_id in enumerate(ele.search_node_ids):
+                self.femdb.linear_mises[n_search_id] += von_mises[ii] / self.femdb.node_connected_element_count[n_search_id]
 
     def AddBoundaryByPenalty(self):
         """
@@ -305,38 +321,6 @@ class Domain(object):
         self.femdb.history_v = v
         self.femdb.history_a = a
         self.femdb.history_step_count = len(u)
-
-    def CalculateNodeStress(self):
-        """
-        计算节点的应力
-        """
-        for _, ele_group in self.femdb.ele_grp_hash.items():
-            eles = ele_group.Elements()
-            for iter_ele in eles:
-                # 计算各个单元的节点位移
-                search_node_ids = iter_ele.search_node_ids
-                ele_displacement = []
-                for idx in range(iter_ele.nodes_count):
-                    nid = search_node_ids[idx]
-                    node = self.femdb.GetNodeBySearchId(nid)
-                    ele_displacement.append(node.dof_disp)
-
-                # 根据节点位移, 以单元为计算单位, 计算单元节点应力
-                # stress = iter_ele.ElementStress(np.asarray(ele_displacement))
-                # for idx in range(iter_ele.nodes_count):
-                #     nid = search_node_ids[idx]
-                #     node = self.femdb.GetNodeBySearchId(nid)
-                #     node.AppendStressResult(stress[idx,:])
-
-        # for node in self.femdb.node_list:
-        #     node.AverageStress()
-
-    """ 
-    以下的函数为计算输出部分, 后处理部分
-    """
-
-    def GetDisplacementBySearchId(self, nd_id):
-        return self.femdb.node_list[nd_id].displacement
 
 
 if __name__ == "__main__":

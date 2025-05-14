@@ -86,8 +86,10 @@ class MyPyFEM:
             time_3 = time.time()
             domain.SolveDisplacement()
             time_4 = time.time()
+            domain.SolveStress()
+            time_5 = time.time()
             writer = ResultsWriter()
-            writer.WriteVTUFile(self.output_files[0])
+            writer.WriteStaticAnalysisVTUFile(self.output_files[0])
             p_end = time.time()
 
             """
@@ -113,7 +115,8 @@ class MyPyFEM:
             mlogger.debug(time_format.format("Assemble Global Stiff", time_2 - time_1))
             mlogger.debug(time_format.format("Add Boundary Effect", time_3 - time_2))
             mlogger.debug(time_format.format("Solve Displacement", time_4 - time_3))
-            mlogger.debug(time_format.format("Write Output", p_end - time_4))
+            mlogger.debug(time_format.format("Solve Node Stress", time_5 - time_4))
+            mlogger.debug(time_format.format("Write Output", p_end - time_5))
             mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
             mlogger.debug(" " + "-" * 40)
             mlogger.debug(" Finish Analysis\n")

@@ -62,7 +62,7 @@ class ResultsWriter(object):
     def __init__(self):
         self.femdb = FEMDataBase()
 
-    def WriteVTUFile(self, path):
+    def WriteStaticAnalysisVTUFile(self, path):
         """
         将结果写至vtu文件
         Reference:
@@ -83,12 +83,12 @@ class ResultsWriter(object):
 
         # 位移结果
         dis_value = np.reshape(self.femdb.linear_u, (-1, per_node_dof))[:, :3]
-        displacement = {"displacement": dis_value}
+        node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises}
         meshio.write_points_cells(
             filename=path,
             points=coords,
             cells=all_eles,
-            point_data=displacement,
+            point_data=node_res,
             # cell_data=cell_data,
             # field_data=field_data
         )

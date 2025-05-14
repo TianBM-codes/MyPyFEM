@@ -782,7 +782,7 @@ class DKQPlate(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
-        gauss_stress = self.D @ self.B_global @ displacement
+        gauss_stress = self.D @ self.B @ displacement
         node_stress = ExtrapolateMatrix4to4() @ gauss_stress
         return node_stress
 

@@ -423,7 +423,7 @@ class CookQuaShell(ElementBaseClass, ABC):
         self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
         self.local_coord = None
-        self.global_t_matrix = np.zeros((24, 24))
+        self.local2global_matrix = np.zeros((24, 24))
         self.plate = DKQPlate(self.id)
         self.membrane = CPM8(self.id)
         self.T_matrix = None
@@ -516,21 +516,18 @@ class CookQuaShell(ElementBaseClass, ABC):
 
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
-        return self.global_t_matrix.T @ self.K @ self.global_t_matrix
+        return self.local2global_matrix.T @ self.K @ self.local2global_matrix
 
     def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
-        global_to_local = np.zeros((12, 12))
-        global_to_local[0:3, 0:3] = self.T_matrix
-        global_to_local[3:6, 3:6] = self.T_matrix
-        global_to_local[6:9, 6:9] = self.T_matrix
-        global_to_local[9:12, 9:12] = self.T_matrix
-        local_dis = global_to_local @ displacement
-        plate_stress = self.plate.CalculateElementStress(local_dis)
-        membrane_stress = self.membrane.CalculateElementStress(local_dis)
-        sigma = np.zeros()
+        local_dis = self.local2global_matrix.T @ displacement
+        membrane_stress = self.membrane.CalculateElementStress(local_dis[[0, 1, 5, 6, 7, 11, 12, 13, 17, 18, 19, 23]])
+        plate_stress = self.plate.CalculateElementStress(local_dis[[2, 3, 4, 8, 9, 10, 14, 15, 16, 20, 21, 22]])
+        sigma_xx, sigma_yy, tau_xy = membrane_stress[:, 0], membrane_stress[:, 1], membrane_stress[:, 2]
+        sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
+        return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])
 
     def ElementMass(self):
         """
@@ -579,7 +576,7 @@ class CookQuaShell(ElementBaseClass, ABC):
                         self.M[row_idx:row_idx + 3, col_idx:col_idx + 3] += \
                             iter_mass[jj:jj + 3, kk:kk + 3]
 
-        return self.global_t_matrix.T @ self.M @ self.global_t_matrix
+        return self.local2global_matrix.T @ self.M @ self.local2global_matrix
 
     def CalculateBasic(self):
         """
@@ -591,14 +588,14 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         这里的T_matrix是全局==>局部，转置就是局部==>全局
         """
-        self.global_t_matrix[0:3, 0:3] = R_matrix
-        self.global_t_matrix[3:6, 3:6] = R_matrix
-        self.global_t_matrix[6:9, 6:9] = R_matrix
-        self.global_t_matrix[9:12, 9:12] = R_matrix
-        self.global_t_matrix[12:15, 12:15] = R_matrix
-        self.global_t_matrix[15:18, 15:18] = R_matrix
-        self.global_t_matrix[18:21, 18:21] = R_matrix
-        self.global_t_matrix[21:24, 21:24] = R_matrix
+        self.local2global_matrix[0:3, 0:3] = R_matrix
+        self.local2global_matrix[3:6, 3:6] = R_matrix
+        self.local2global_matrix[6:9, 6:9] = R_matrix
+        self.local2global_matrix[9:12, 9:12] = R_matrix
+        self.local2global_matrix[12:15, 12:15] = R_matrix
+        self.local2global_matrix[15:18, 15:18] = R_matrix
+        self.local2global_matrix[18:21, 18:21] = R_matrix
+        self.local2global_matrix[21:24, 21:24] = R_matrix
         self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ self.T_matrix
 
 

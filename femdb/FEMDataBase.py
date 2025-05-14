@@ -35,7 +35,7 @@ class FEMDataBase(object):
 
         # Result
         self.linear_u = None
-        self.linear_stress = None
+        self.linear_mises = None
         self.history_u = None
         self.history_v = None
         self.history_a = None
