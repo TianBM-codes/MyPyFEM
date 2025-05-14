@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Dict
+from femdb.Integration import GaussIntegrationPoint
 
 
 class IntegForm2D2P:
@@ -89,22 +90,6 @@ def shpFunc2D4Node(integForm) -> Dict[int, ShapeFunction]:
     return shpFunc
 
 
-def quad8NodeFunctions(r, s):
-    """8节点四边形单元形函数"""
-    N = np.zeros(8)
-    # 角点形函数
-    N[0] = 0.25 * (1 - r) * (1 - s) * (-r - s - 1)  # 节点1
-    N[1] = 0.25 * (1 + r) * (1 - s) * (r - s - 1)  # 节点2
-    N[2] = 0.25 * (1 + r) * (1 + s) * (r + s - 1)  # 节点3
-    N[3] = 0.25 * (1 - r) * (1 + s) * (-r + s - 1)  # 节点4
-    # 边中点形函数
-    N[4] = 0.5 * (1 - r ** 2) * (1 - s)  # 节点5（底边）
-    N[5] = 0.5 * (1 + s) * (1 - r ** 2)  # 节点6（右边）
-    N[6] = 0.5 * (1 - r ** 2) * (1 + s)  # 节点7（顶边）
-    N[7] = 0.5 * (1 - s) * (1 - r ** 2)  # 节点8（左边）
-    return N
-
-
 def shpFunc2D8Node(integForm: IntegForm2D2P) -> Dict[int, ShapeFunction]:
     """二维8节点Serendipity单元的形状函数"""
     shpFunc = {}
@@ -159,3 +144,59 @@ def shpFunc2D8Node(integForm: IntegForm2D2P) -> Dict[int, ShapeFunction]:
         shpFunc[i] = sf
 
     return shpFunc
+
+
+def Quad8NodeShapeFunction(r, s):
+    """8节点四边形单元形函数"""
+    N = np.zeros(8)
+    # 角点形函数
+    N[0] = 0.25 * (1 - r) * (1 - s) * (-r - s - 1)  # 节点1
+    N[1] = 0.25 * (1 + r) * (1 - s) * (r - s - 1)  # 节点2
+    N[2] = 0.25 * (1 + r) * (1 + s) * (r + s - 1)  # 节点3
+    N[3] = 0.25 * (1 - r) * (1 + s) * (-r + s - 1)  # 节点4
+    # 边中点形函数
+    N[4] = 0.5 * (1 - r ** 2) * (1 - s)  # 节点5（底边）
+    N[5] = 0.5 * (1 + s) * (1 - r ** 2)  # 节点6（右边）
+    N[6] = 0.5 * (1 - r ** 2) * (1 + s)  # 节点7（顶边）
+    N[7] = 0.5 * (1 - s) * (1 - r ** 2)  # 节点8（左边）
+    return N
+
+
+def Quad4NodeShapeFunction(r, s):
+    """
+    4节点4边形形函数
+    :param r:
+    :param s:
+    :return:
+    """
+    N = np.zeros(4)
+    N[0] = 0.25 * (1 - r) * (1 - s)  # 角点1 (r=-1,s=-1)
+    N[1] = 0.25 * (1 + r) * (1 - s)  # 角点2 (r=1,s=-1)
+    N[2] = 0.25 * (1 + r) * (1 + s)  # 角点3 (r=1,s=1)
+    N[3] = 0.25 * (1 - r) * (1 + s)  # 角点4 (r=-1,s=1)
+    return N
+
+
+_EXTRAPOLATE_4TO4_CACHE = None
+
+
+def ExtrapolateMatrix4to4():
+    """
+    外推矩阵, 从4个高斯点应力外推4个节点应力
+    :return:
+    """
+    global _EXTRAPOLATE_4TO4_CACHE
+    if _EXTRAPOLATE_4TO4_CACHE is None:
+        sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        gauss_coords = [(sample_pt[ri], sample_pt[si]) for ri in range(2) for si in range(2)]
+        A = np.array([Quad4NodeShapeFunction(r, s) for r, s in gauss_coords])
+        _EXTRAPOLATE_4TO4_CACHE = np.linalg.inv(A)
+    return _EXTRAPOLATE_4TO4_CACHE
+
+
+if __name__ == "__main__":
+    t_sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+    t_gauss_coords = [(t_sample_pt[ri], t_sample_pt[si]) for ri in range(2) for si in range(2)]
+    t_A = np.array([Quad4NodeShapeFunction(r, s) for r, s in t_gauss_coords])
+    t_invA = np.linalg.inv(t_A)
+    print(ExtrapolateMatrix4to4() @ t_A)

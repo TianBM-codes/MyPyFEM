@@ -27,6 +27,7 @@ class CDBParser(object):
         self.real_constant_hash = {}
         self.material_map = {}
         self.section_map = {}
+        self.node_search_ids_list = []
 
     def ParseFileAndInitFEMDB(self):
         """
@@ -198,6 +199,12 @@ class CDBParser(object):
             sec_vals = self.section_map.get(iter_ele.sec_id, {})
             iter_ele.SetAllCharacterAndCalD({**mat_dict, **real_const, **sec_vals})
 
+        """
+        计算每个节点有多少个单元相连, 目的是在计算应力平均的时候直接除以N
+        """
+        _, node_connected_element_count = np.unique(self.node_search_ids_list, return_counts=True)
+        self.femdb.node_connected_element_count = node_connected_element_count
+
     def ReadEBlock(self, f_handle):
         """
         读取单元信息
@@ -252,6 +259,7 @@ class CDBParser(object):
                     search_ids[idx] = self.femdb.node_hash[node_ids[idx]]
 
                 ele_node_list = list(OrderedDict.fromkeys(search_ids))
+                self.node_search_ids_list.extend(ele_node_list)
                 iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
                 iter_ele.SetNodeSearchIndex(np.asarray(ele_node_list))
                 iter_ele.SetId(ele_num)
@@ -404,5 +412,7 @@ class CDBParser(object):
 
 
 if __name__ == "__main__":
-    list1 = [109, 169, 143, 143, 130, 130, 130, 130]
-    print(np.asarray(list(OrderedDict.fromkeys(list1))))
+    path = "../numerical example/ANSYS/zhijiaRenumber.cdb"
+    cps = CDBParser(path, False)
+    cps.ParseFileAndInitFEMDB()
+

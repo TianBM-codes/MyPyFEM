@@ -80,7 +80,7 @@ class CPS4(ElementBaseClass, ABC):
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -154,7 +154,7 @@ class CPS3(ElementBaseClass, ABC):
 
         return self.B.T * self.D * self.B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Reference:
         1. 《有限单元法》王勖成 P175

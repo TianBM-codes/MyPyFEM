@@ -45,8 +45,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.unv_code = None  # SiPESC平台显示的UNV结果, 单元代号
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
-        self.B = None  # 应变矩阵, 用于求解应力
         self.M = None  # 质量矩阵
+        self.B_global = None  # 应变矩阵, 用于求解应力
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
@@ -83,7 +83,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
-    def ElementStress(self, displacement: np.array):
+    def CalculateElementStress(self, displacement: np.array):
         """ Calculate element stress """
         pass
 

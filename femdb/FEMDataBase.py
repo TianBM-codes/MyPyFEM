@@ -23,6 +23,7 @@ class FEMDataBase(object):
         self.per_node_dof = None  # 现只支持所有节点同一个自由度数
         self.elements = []
         self.equation_number = None
+        self.node_connected_element_count = None
 
         # Preprocess Fem
         self.global_stiff_matrix = None
@@ -34,6 +35,7 @@ class FEMDataBase(object):
 
         # Result
         self.linear_u = None
+        self.linear_stress = None
         self.history_u = None
         self.history_v = None
         self.history_a = None

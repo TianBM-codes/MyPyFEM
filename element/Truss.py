@@ -57,7 +57,7 @@ class T3D2(ElementBaseClass, ABC):
                                      [-CxCy, -Cy2, -CyCz, CxCy, Cy2 + eps, CyCz],
                                      [-CxCz, -CyCz, -Cz2, CxCz, CyCz, Cz2 + eps]])
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """

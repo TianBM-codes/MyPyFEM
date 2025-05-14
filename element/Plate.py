@@ -3,6 +3,7 @@
 import sys
 
 from element.ElementBase import *
+from femdb.ShapeFunctionsAndInteg import Quad4NodeShapeFunction, ExtrapolateMatrix4to4
 from abc import ABC
 
 
@@ -176,7 +177,7 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
             Ke += B.T @ self.D @ B * detj * wgt
         return Ke
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -265,7 +266,7 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
 
         return Kb / 2
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         壳的刚度阵由膜单元和板单元构成
         """
@@ -408,7 +409,7 @@ class MITC4(ElementBaseClass, ABC):
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -483,7 +484,7 @@ class MITC3(ElementBaseClass, ABC):
 
         return B.T * self.D * B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -616,7 +617,7 @@ class DKTPlate(ElementBaseClass, ABC):
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -641,6 +642,7 @@ class DKQPlate(ElementBaseClass, ABC):
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
+        self.B = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -769,16 +771,20 @@ class DKQPlate(ElementBaseClass, ABC):
                 B = np.asarray([j11 * pHxpr + j12 * pHxps,
                                 j21 * pHypr + j22 * pHyps,
                                 j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
+                self.B.append(B)
 
                 # 这里的除以det_J是因为B放大了detJ倍, 为了减少计算量
                 self.K += B.T @ self.D @ B * weight[si] / detJ
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
+        gauss_stress = self.D @ self.B_global @ displacement
+        node_stress = ExtrapolateMatrix4to4() @ gauss_stress
+        return node_stress
 
     def ElementMass(self):
         pass

@@ -68,7 +68,7 @@ class C3D4(ElementBaseClass):
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """

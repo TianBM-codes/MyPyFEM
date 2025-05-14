@@ -81,7 +81,7 @@ class CSTDrill(ElementBaseClass, ABC):
 
         return Ke
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -102,7 +102,7 @@ class Q4Mem(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
-        self.vtu_type = "triangle"
+        self.vtu_type = "quad"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
 
         self.integ = IntegForm2D2P()
@@ -213,7 +213,7 @@ class Q4Mem(ElementBaseClass, ABC):
 
         return Ke
 
-    def ElementStress(self, displacement: np.array):
+    def CalculateElementStress(self, displacement: np.array):
         """"""
         pass
 
@@ -318,7 +318,7 @@ class CPM6(ElementBaseClass, ABC):
 
         return T.T @ self.K @ T
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -345,9 +345,8 @@ class CPM8(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 8  # Each element has 6 nodes
         self.K = np.zeros([16, 16], dtype=float)  # 刚度矩阵
-        self.vtu_type = "triangle"
+        self.vtu_type = "quad"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
-        self.B_global = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -452,13 +451,19 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        self.B_global = B_local * T
+        self.B_global = B_local @ T
         return T.T @ self.K @ T
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
+        points, _ = GaussIntegrationPoint.GetSamplePointAndWeight(3)
+        gauss_coords = [(points[ri], points[si]) for ri in range(3) for si in range(3)]
+        A = np.array([Quad4NodeShapeFunction(r, s) for r, s in gauss_coords])
+        gauss_stress = self.D @ self.B_global @ displacement
+        node_stress = np.linalg.solve(A.T @ A, A.T @ gauss_stress)
+        return node_stress
 
     def ElementMass(self):
         pass

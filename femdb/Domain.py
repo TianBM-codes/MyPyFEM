@@ -212,6 +212,15 @@ class Domain(object):
         # TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
         self.femdb.linear_u = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
 
+    def SolveStress(self):
+        """
+        求解模型节点的应力
+        :return:
+        """
+        for ele in self.femdb.elements:
+            u = self.femdb.linear_u[ele.search_node_ids]
+            ele.CalculateElementStress(u)
+
     def AddBoundaryByPenalty(self):
         """
         罚函数的方法施加约束

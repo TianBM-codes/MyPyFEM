@@ -201,7 +201,7 @@ class Beam188(ElementBaseClass, ABC):
 
         return np.matmul(np.matmul(trans_mat.T, K), trans_mat)
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -279,7 +279,7 @@ class Beam189(ElementBaseClass, ABC):
                                      [-CxCy, -Cy2, -CyCz, CxCy, Cy2, CyCz],
                                      [-CxCz, -CyCz, -Cz2, CxCz, CyCz, Cz2]])
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """

@@ -59,7 +59,7 @@ class C3D6(ElementBaseClass, ABC):
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """

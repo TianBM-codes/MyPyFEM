@@ -72,7 +72,7 @@ class C3D8(ElementBaseClass, ABC):
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         计算节点应力(已知高斯点处的应变矩阵, 以及节点位移)
         Sigma = Gaussian2Global * B * Global2Gaussian * u

@@ -126,7 +126,7 @@ class TriangleShell63(ElementBaseClass, ABC):
 
         return self.K
 
-    def ElementStress(self, displacement: np.array):
+    def CalculateElementStress(self, displacement: np.array):
         """"""
         pass
 
@@ -203,7 +203,7 @@ class QuadShell63(ElementBaseClass, ABC):
         KShell = self.global_t_matrix.T @ KShell @ self.global_t_matrix
         return K1 + KShell
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -398,7 +398,7 @@ class CookTriShell(ElementBaseClass, ABC):
 
         return self.K
 
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
@@ -424,6 +424,9 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.unv_code = 40500
         self.local_coord = None
         self.global_t_matrix = np.zeros((24, 24))
+        self.plate = DKQPlate(self.id)
+        self.membrane = CPM8(self.id)
+        self.T_matrix = None
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -443,44 +446,39 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         壳的刚度阵由膜单元和板单元构成
         """
-        plate = DKQPlate(self.id)
-        membrane = CPM8(self.id)
-
         """
         先转换到局部坐标
         """
-        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
-        m_coords = local_coord[:, :2]
-        mid_node = np.asarray([(local_coord[0, :] + local_coord[1, :]) * 0.5,
-                               (local_coord[1, :] + local_coord[2, :]) * 0.5,
-                               (local_coord[2, :] + local_coord[3, :]) * 0.5,
-                               (local_coord[3, :] + local_coord[0, :]) * 0.5], dtype=float)[:, :2]
+        m_coords = self.local_coord[:, :2]
+        mid_node = np.asarray([(self.local_coord[0, :] + self.local_coord[1, :]) * 0.5,
+                               (self.local_coord[1, :] + self.local_coord[2, :]) * 0.5,
+                               (self.local_coord[2, :] + self.local_coord[3, :]) * 0.5,
+                               (self.local_coord[3, :] + self.local_coord[0, :]) * 0.5], dtype=float)[:, :2]
 
         """
         设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
         """
-        membrane.node_coords = np.append(m_coords, mid_node, axis=0)
-        membrane.T_matrix = T_matrix
-        plate.node_coords = m_coords
-        plate.T_matrix = T_matrix
+        self.membrane.node_coords = np.append(m_coords, mid_node, axis=0)
+        self.membrane.T_matrix = self.T_matrix
+        self.plate.node_coords = m_coords
+        self.plate.T_matrix = self.T_matrix
 
         """
         设置膜单元和版单元的材料
         """
-        membrane.cha_dict = self.cha_dict
-        membrane.sec_id = self.sec_id
-        plate.cha_dict = self.cha_dict
-        plate.sec_id = self.sec_id
-        membrane.CalElementDMatrix()
-        plate.CalElementDMatrix()
+        self.membrane.cha_dict = self.cha_dict
+        self.membrane.sec_id = self.sec_id
+        self.plate.cha_dict = self.cha_dict
+        self.plate.sec_id = self.sec_id
+        self.membrane.CalElementDMatrix()
+        self.plate.CalElementDMatrix()
 
         """
-        Assembly Stiffness Matrix, membrane: u,v,theta_z, plate: omega, theta_x, theta_y
+        Assembly Stiffness Matrix, self.membrane: u,v,theta_z, self.plate: omega, theta_x, theta_y
         """
         # e = 10e-8
-        k_mtx_m = membrane.ElementStiffness()
-        k_mtx_p = plate.ElementStiffness()
+        k_mtx_m = self.membrane.ElementStiffness()
+        k_mtx_p = self.plate.ElementStiffness()
 
         index_m_g = [(0, 1), (5, 7), (11, 13), (17, 19)]
         index_m = [(0, 1), (2, 4), (5, 7), (8, 10)]
@@ -518,28 +516,21 @@ class CookQuaShell(ElementBaseClass, ABC):
 
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
-        """
-        这里的T_matrix是全局==>局部，转职就是局部==>全局
-        """
-        R_matrix = T_matrix.T
-        global_t_matrix = np.zeros((24, 24))
-        global_t_matrix[0:3, 0:3] = R_matrix
-        global_t_matrix[3:6, 3:6] = R_matrix
-        global_t_matrix[6:9, 6:9] = R_matrix
-        global_t_matrix[9:12, 9:12] = R_matrix
-        global_t_matrix[12:15, 12:15] = R_matrix
-        global_t_matrix[15:18, 15:18] = R_matrix
-        global_t_matrix[18:21, 18:21] = R_matrix
-        global_t_matrix[21:24, 21:24] = R_matrix
+        return self.global_t_matrix.T @ self.K @ self.global_t_matrix
 
-        self.K = global_t_matrix.T @ self.K @ global_t_matrix
-
-        return self.K
-
-    def ElementStress(self, displacement):
+    def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
+        global_to_local = np.zeros((12, 12))
+        global_to_local[0:3, 0:3] = self.T_matrix
+        global_to_local[3:6, 3:6] = self.T_matrix
+        global_to_local[6:9, 6:9] = self.T_matrix
+        global_to_local[9:12, 9:12] = self.T_matrix
+        local_dis = global_to_local @ displacement
+        plate_stress = self.plate.CalculateElementStress(local_dis)
+        membrane_stress = self.membrane.CalculateElementStress(local_dis)
+        sigma = np.zeros()
 
     def ElementMass(self):
         """
@@ -591,8 +582,15 @@ class CookQuaShell(ElementBaseClass, ABC):
         return self.global_t_matrix.T @ self.M @ self.global_t_matrix
 
     def CalculateBasic(self):
-        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        R_matrix = T_matrix.T
+        """
+        计算该类中多个函数会用到的变量
+        :return:
+        """
+        self.T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        R_matrix = self.T_matrix.T
+        """
+        这里的T_matrix是全局==>局部，转置就是局部==>全局
+        """
         self.global_t_matrix[0:3, 0:3] = R_matrix
         self.global_t_matrix[3:6, 3:6] = R_matrix
         self.global_t_matrix[6:9, 6:9] = R_matrix
@@ -601,7 +599,7 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.global_t_matrix[15:18, 15:18] = R_matrix
         self.global_t_matrix[18:21, 18:21] = R_matrix
         self.global_t_matrix[21:24, 21:24] = R_matrix
-        self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
+        self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ self.T_matrix
 
 
 if __name__ == "__main__":
@@ -641,7 +639,7 @@ if __name__ == "__main__":
     print("calculated mass:", np.sum(np.diag(M)))
     print(f"theory mass:{4 * t_ele.cha_dict[MaterialKey.Density] * t_ele.cha_dict[MaterialKey.Thickness]}")
     time2 = time.time()
-    print(" {:<.5f} seconds".format(time2-time1))
+    print(" {:<.5f} seconds".format(time2 - time1))
 
     """
     测试不同壳单元的刚度阵为什么差这么多

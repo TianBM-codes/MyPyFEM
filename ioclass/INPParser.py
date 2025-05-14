@@ -72,6 +72,7 @@ class InpParser(object):
         self.eleId2Idx = {}
         self.node_set = {}
         self.check_model = check_model
+        self.node_search_ids_list = []
 
     def ParseFileAndInitFEMDB(self):
         """
@@ -136,6 +137,11 @@ class InpParser(object):
             for ele_id in ele_ids:
                 idx = self.eleId2Idx[ele_id]
                 self.fem_db.elements[idx].cha_dict = ele_cha_dict
+        """
+        计算每个节点有多少个单元相连, 目的是在计算应力平均的时候直接除以N
+        """
+        _, node_connected_element_count = np.unique(self.node_search_ids_list, return_counts=True)
+        self.fem_db.node_connected_element_count = node_connected_element_count
 
     def ReadPart(self, f_handle):
         """
@@ -201,10 +207,9 @@ class InpParser(object):
 
                     # 读取数据完毕，首先设置单元包括的节点的搜索id
                     iter_ele.SetNodes(nds)
-                    search_ids = np.array([], dtype=np.uint32)
-                    for nd in nds:
-                        search_ids = np.append(search_ids, self.fem_db.node_hash[nd])
+                    search_ids = np.array([self.fem_db.node_hash[ii] for ii in nds], dtype=np.uint32)
                     iter_ele.SetNodeSearchIndex(search_ids)
+                    self.node_search_ids_list.extend(search_ids.tolist())
 
                     # 计算单元包括的节点的坐标矩阵
                     coords = []
