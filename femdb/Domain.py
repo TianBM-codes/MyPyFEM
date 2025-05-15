@@ -219,6 +219,12 @@ class Domain(object):
         """
         per_node_dof = self.femdb.per_node_dof
         self.femdb.linear_mises = np.zeros(len(self.femdb.node_list))
+        self.femdb.sigma_xx = np.zeros(len(self.femdb.node_list))
+        self.femdb.sigma_yy = np.zeros(len(self.femdb.node_list))
+        self.femdb.sigma_zz = np.zeros(len(self.femdb.node_list))
+        self.femdb.tau_xy = np.zeros(len(self.femdb.node_list))
+        self.femdb.tau_xz = np.zeros(len(self.femdb.node_list))
+        self.femdb.tau_yz = np.zeros(len(self.femdb.node_list))
         for ele in self.femdb.elements:
             search_idx = []
             for ii in ele.search_node_ids:
@@ -236,6 +242,12 @@ class Domain(object):
 
             for ii, n_search_id in enumerate(ele.search_node_ids):
                 self.femdb.linear_mises[n_search_id] += von_mises[ii] / self.femdb.node_connected_element_count[n_search_id]
+                self.femdb.sigma_xx[n_search_id] += sigma_x[ii] / self.femdb.node_connected_element_count[n_search_id]
+                self.femdb.sigma_yy[n_search_id] += sigma_y[ii] / self.femdb.node_connected_element_count[n_search_id]
+                self.femdb.sigma_zz[n_search_id] += sigma_z[ii] / self.femdb.node_connected_element_count[n_search_id]
+                self.femdb.tau_xy[n_search_id] += tau_xy[ii] / self.femdb.node_connected_element_count[n_search_id]
+                self.femdb.tau_yz[n_search_id] += tau_yz[ii] / self.femdb.node_connected_element_count[n_search_id]
+                self.femdb.tau_xz[n_search_id] += tau_xz[ii] / self.femdb.node_connected_element_count[n_search_id]
 
     def AddBoundaryByPenalty(self):
         """

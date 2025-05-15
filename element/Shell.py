@@ -23,15 +23,16 @@ class TriangleShell63(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        a = e / ((1 + niu) * (1 - 2 * niu))
-        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-                               [niu, 1 - niu, niu, 0, 0, 0],
-                               [niu, niu, 1 - niu, 0, 0, 0],
-                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        # e = self.cha_dict[MaterialKey.E]
+        # niu = self.cha_dict[MaterialKey.Niu]
+        # a = e / ((1 + niu) * (1 - 2 * niu))
+        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+        #                        [niu, 1 - niu, niu, 0, 0, 0],
+        #                        [niu, niu, 1 - niu, 0, 0, 0],
+        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        pass
 
     def ElementStiffness(self):
         """
@@ -165,15 +166,16 @@ class QuadShell63(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        a = e / ((1 + niu) * (1 - 2 * niu))
-        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-                               [niu, 1 - niu, niu, 0, 0, 0],
-                               [niu, niu, 1 - niu, 0, 0, 0],
-                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        # e = self.cha_dict[MaterialKey.E]
+        # niu = self.cha_dict[MaterialKey.Niu]
+        # a = e / ((1 + niu) * (1 - 2 * niu))
+        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+        #                        [niu, 1 - niu, niu, 0, 0, 0],
+        #                        [niu, niu, 1 - niu, 0, 0, 0],
+        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        pass
 
     def ElementStiffness(self):
         """
@@ -292,15 +294,16 @@ class CookTriShell(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        a = e / ((1 + niu) * (1 - 2 * niu))
-        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-                               [niu, 1 - niu, niu, 0, 0, 0],
-                               [niu, niu, 1 - niu, 0, 0, 0],
-                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        # e = self.cha_dict[MaterialKey.E]
+        # niu = self.cha_dict[MaterialKey.Niu]
+        # a = e / ((1 + niu) * (1 - 2 * niu))
+        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+        #                        [niu, 1 - niu, niu, 0, 0, 0],
+        #                        [niu, niu, 1 - niu, 0, 0, 0],
+        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        pass
 
     def ElementStiffness(self):
         """
@@ -432,15 +435,16 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        a = e / ((1 + niu) * (1 - 2 * niu))
-        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-                               [niu, 1 - niu, niu, 0, 0, 0],
-                               [niu, niu, 1 - niu, 0, 0, 0],
-                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        # e = self.cha_dict[MaterialKey.E]
+        # niu = self.cha_dict[MaterialKey.Niu]
+        # a = e / ((1 + niu) * (1 - 2 * niu))
+        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+        #                        [niu, 1 - niu, niu, 0, 0, 0],
+        #                        [niu, niu, 1 - niu, 0, 0, 0],
+        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
+        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
+        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        pass
 
     def ElementStiffness(self):
         """
@@ -523,8 +527,10 @@ class CookQuaShell(ElementBaseClass, ABC):
         Calculate element stress
         """
         local_dis = self.local2global_matrix.T @ displacement
-        membrane_stress = self.membrane.CalculateElementStress(local_dis[[0, 1, 5, 6, 7, 11, 12, 13, 17, 18, 19, 23]])
-        plate_stress = self.plate.CalculateElementStress(local_dis[[2, 3, 4, 8, 9, 10, 14, 15, 16, 20, 21, 22]])
+        membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
+        plate_indices = [i * 6 + j for i in range(4) for j in [2, 3, 4]]
+        membrane_stress = self.membrane.CalculateElementStress(local_dis[membrane_indices])
+        plate_stress = self.plate.CalculateElementStress(local_dis[plate_indices])
         sigma_xx, sigma_yy, tau_xy = membrane_stress[:, 0], membrane_stress[:, 1], membrane_stress[:, 2]
         sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
         return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])

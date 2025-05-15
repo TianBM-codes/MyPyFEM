@@ -36,6 +36,14 @@ class FEMDataBase(object):
         # Result
         self.linear_u = None
         self.linear_mises = None
+
+        self.sigma_xx = None
+        self.sigma_yy = None
+        self.sigma_zz = None
+        self.tau_xy = None
+        self.tau_xz = None
+        self.tau_yz = None
+
         self.history_u = None
         self.history_v = None
         self.history_a = None
