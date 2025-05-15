@@ -526,7 +526,7 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
-        local_dis = self.local2global_matrix.T @ displacement
+        local_dis = self.local2global_matrix @ displacement
         membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
         plate_indices = [i * 6 + j for i in range(4) for j in [2, 3, 4]]
         membrane_stress = self.membrane.CalculateElementStress(local_dis[membrane_indices])

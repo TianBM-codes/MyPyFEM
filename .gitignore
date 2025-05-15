@@ -27,4 +27,5 @@ RunExample.py
 *.odb
 *.prt
 *.sta
+*.7z
 /.VSCodeCounter
