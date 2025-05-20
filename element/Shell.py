@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 import time
 
+import numpy as np
+
 from element.Plate import *
 from element.Membrane import *
 
@@ -23,15 +25,6 @@ class TriangleShell63(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        # e = self.cha_dict[MaterialKey.E]
-        # niu = self.cha_dict[MaterialKey.Niu]
-        # a = e / ((1 + niu) * (1 - 2 * niu))
-        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-        #                        [niu, 1 - niu, niu, 0, 0, 0],
-        #                        [niu, niu, 1 - niu, 0, 0, 0],
-        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
         pass
 
     def ElementStiffness(self):
@@ -166,15 +159,6 @@ class QuadShell63(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        # e = self.cha_dict[MaterialKey.E]
-        # niu = self.cha_dict[MaterialKey.Niu]
-        # a = e / ((1 + niu) * (1 - 2 * niu))
-        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-        #                        [niu, 1 - niu, niu, 0, 0, 0],
-        #                        [niu, niu, 1 - niu, 0, 0, 0],
-        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
         pass
 
     def ElementStiffness(self):
@@ -289,20 +273,19 @@ class CookTriShell(ElementBaseClass, ABC):
         self.vtu_type = "triangle"
         self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
+        self.local2global_matrix = np.zeros((18,18))
+        self.local_coord = None
+        self.T_matrix = None
+        """
+        由膜单元和板单元构成
+        """
+        self.plate = DKTPlate(-1)
+        self.membrane = CPM6(-1)
 
     def CalElementDMatrix(self, an_type=None):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        # e = self.cha_dict[MaterialKey.E]
-        # niu = self.cha_dict[MaterialKey.Niu]
-        # a = e / ((1 + niu) * (1 - 2 * niu))
-        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-        #                        [niu, 1 - niu, niu, 0, 0, 0],
-        #                        [niu, niu, 1 - niu, 0, 0, 0],
-        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
         pass
 
     def ElementStiffness(self):
@@ -310,45 +293,37 @@ class CookTriShell(ElementBaseClass, ABC):
         TODO: 转轴要不要加小量
         """
         """
-        由膜单元和板单元构成
-        """
-        plate = DKTPlate(-1)
-        membrane = CPM6(-1)
-
-        """
         先转换到局部坐标
         """
-        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
-        m_coords = local_coord[:, :2]
-        mid_node = np.asarray([(local_coord[0, :] + local_coord[1, :]) * 0.5,
-                               (local_coord[1, :] + local_coord[2, :]) * 0.5,
-                               (local_coord[2, :] + local_coord[0, :]) * 0.5], dtype=float)[:, :2]
+        m_coords = self.local_coord[:, :2]
+        mid_node = np.asarray([(self.local_coord[0, :] + self.local_coord[1, :]) * 0.5,
+                               (self.local_coord[1, :] + self.local_coord[2, :]) * 0.5,
+                               (self.local_coord[2, :] + self.local_coord[0, :]) * 0.5], dtype=float)[:, :2]
 
         """
         设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
         """
-        membrane.node_coords = np.append(m_coords, mid_node, axis=0)
-        membrane.T_matrix = T_matrix
-        plate.node_coords = m_coords
-        plate.T_matrix = T_matrix
+        self.membrane.node_coords = np.append(m_coords, mid_node, axis=0)
+        self.membrane.T_matrix = self.T_matrix
+        self.plate.node_coords = m_coords
+        self.plate.T_matrix = self.T_matrix
 
         """
         设置膜单元和版单元的材料
         """
-        membrane.cha_dict = self.cha_dict
-        membrane.sec_id = self.sec_id
-        plate.cha_dict = self.cha_dict
-        plate.sec_id = self.sec_id
-        membrane.CalElementDMatrix()
-        plate.CalElementDMatrix()
+        self.membrane.cha_dict = self.cha_dict
+        self.membrane.sec_id = self.sec_id
+        self.plate.cha_dict = self.cha_dict
+        self.plate.sec_id = self.sec_id
+        self.membrane.CalElementDMatrix()
+        self.plate.CalElementDMatrix()
 
         """
         Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
         """
         # e = 10e-8
-        k_mtx_m = membrane.ElementStiffness()
-        k_mtx_p = plate.ElementStiffness()
+        k_mtx_m = self.membrane.ElementStiffness()
+        k_mtx_p = self.plate.ElementStiffness()
 
         index_m_g = [(0, 1), (5, 7), (11, 13)]
         index_m = [(0, 1), (2, 4), (5, 7)]
@@ -385,19 +360,7 @@ class CookTriShell(ElementBaseClass, ABC):
 
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
-        """
-        这里的T_matrix是全局==>局部，转职就是局部==>全局
-        """
-        R_matrix = T_matrix.T
-        global_t_matrix = np.zeros((18, 18))
-        global_t_matrix[0:3, 0:3] = R_matrix
-        global_t_matrix[3:6, 3:6] = R_matrix
-        global_t_matrix[6:9, 6:9] = R_matrix
-        global_t_matrix[9:12, 9:12] = R_matrix
-        global_t_matrix[12:15, 12:15] = R_matrix
-        global_t_matrix[15:18, 15:18] = R_matrix
-
-        self.K = global_t_matrix.T @ self.K @ global_t_matrix
+        self.K = self.local2global_matrix.T @ self.K @ self.local2global_matrix
 
         return self.K
 
@@ -405,12 +368,31 @@ class CookTriShell(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+        local_dis = self.local2global_matrix @ displacement
+        membrane_indices = [i * 6 + j for i in range(3) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
+        plate_indices = [i * 6 + j for i in range(3) for j in [2, 3, 4]]
+        membrane_stress = self.membrane.CalculateElementStress(local_dis[membrane_indices])
+        plate_stress = self.plate.CalculateElementStress(local_dis[plate_indices])
+        sigma_xx, sigma_yy, tau_xy = membrane_stress[:, 0], membrane_stress[:, 1], membrane_stress[:, 2]
+        sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
+        return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])
 
     def ElementMass(self):
         pass
 
     def CalculateBasic(self):
-        pass
+        """
+        这里的T_matrix是全局==>局部，转职就是局部==>全局
+        """
+        self.T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
+        R_matrix = self.T_matrix.T
+        self.local2global_matrix[0:3, 0:3] = R_matrix
+        self.local2global_matrix[3:6, 3:6] = R_matrix
+        self.local2global_matrix[6:9, 6:9] = R_matrix
+        self.local2global_matrix[9:12, 9:12] = R_matrix
+        self.local2global_matrix[12:15, 12:15] = R_matrix
+        self.local2global_matrix[15:18, 15:18] = R_matrix
+        self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ self.T_matrix
 
 
 class CookQuaShell(ElementBaseClass, ABC):
@@ -435,15 +417,6 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        # e = self.cha_dict[MaterialKey.E]
-        # niu = self.cha_dict[MaterialKey.Niu]
-        # a = e / ((1 + niu) * (1 - 2 * niu))
-        # self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-        #                        [niu, 1 - niu, niu, 0, 0, 0],
-        #                        [niu, niu, 1 - niu, 0, 0, 0],
-        #                        [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-        #                        [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-        #                        [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
         pass
 
     def ElementStiffness(self):
@@ -468,7 +441,7 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.plate.T_matrix = self.T_matrix
 
         """
-        设置膜单元和版单元的材料
+        设置膜单元和板单元的材料
         """
         self.membrane.cha_dict = self.cha_dict
         self.membrane.sec_id = self.sec_id

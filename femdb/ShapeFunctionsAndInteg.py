@@ -170,15 +170,20 @@ def Quad4NodeShapeFunction(r, s):
     :return:
     """
     N = np.zeros(4)
-    N[0] = 0.25 * (1 - r) * (1 - s)  # 角点1 (r=-1,s=-1)
-    N[1] = 0.25 * (1 + r) * (1 - s)  # 角点2 (r=1,s=-1)
-    N[2] = 0.25 * (1 + r) * (1 + s)  # 角点3 (r=1,s=1)
-    N[3] = 0.25 * (1 - r) * (1 + s)  # 角点4 (r=-1,s=1)
+    # N[0] = 0.25 * (1 - r) * (1 - s)  # 角点1 (r=-1,s=-1)
+    # N[1] = 0.25 * (1 + r) * (1 - s)  # 角点2 (r=1,s=-1)
+    # N[2] = 0.25 * (1 + r) * (1 + s)  # 角点3 (r=1,s=1)
+    # N[3] = 0.25 * (1 - r) * (1 + s)  # 角点4 (r=-1,s=1)
 
     # N[0] = 0.25 * (1 - r) * (1 - s)  # 角点1 (r=-1,s=-1)
     # N[1] = 0.25 * (1 - r) * (1 + s)  # 角点4 (r=-1,s=1)
     # N[2] = 0.25 * (1 + r) * (1 - s)  # 角点2 (r=1,s=-1)
     # N[3] = 0.25 * (1 + r) * (1 + s)  # 角点3 (r=1,s=1)
+
+    N[0] = 0.25 * (1 - r) * (1 + s)  # 角点1 (r=-1,s=-1)
+    N[1] = 0.25 * (1 + r) * (1 + s)  # 角点2 (r=1,s=-1)
+    N[2] = 0.25 * (1 + r) * (1 - s)  # 角点3 (r=1,s=1)
+    N[3] = 0.25 * (1 - r) * (1 - s)  # 角点4 (r=-1,s=1)
     return N
 
 
@@ -192,8 +197,10 @@ def ExtrapolateMatrix4to4():
     """
     global _EXTRAPOLATE_4TO4_CACHE
     if _EXTRAPOLATE_4TO4_CACHE is None:
-        sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-        gauss_coords = [(sample_pt[ri], sample_pt[si]) for ri in range(2) for si in range(2)]
+        # sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        sample_pt_r = (-0.577350269189626, 0.577350269189626, 0.577350269189626, -0.577350269189626)
+        sample_pt_s = (0.577350269189626, 0.577350269189626, -0.577350269189626, -0.577350269189626)
+        gauss_coords = [(sample_pt_r[ii], sample_pt_s[ii]) for ii in range(4)]
         A = np.array([Quad4NodeShapeFunction(r, s) for r, s in gauss_coords])
         _EXTRAPOLATE_4TO4_CACHE = np.linalg.inv(A)
     return _EXTRAPOLATE_4TO4_CACHE

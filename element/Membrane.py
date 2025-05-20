@@ -240,6 +240,7 @@ class CPM6(ElementBaseClass, ABC):
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
+        self.B = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -264,6 +265,7 @@ class CPM6(ElementBaseClass, ABC):
         """
         assert self.node_coords.shape == (6, 2)  # 6节点, 2个坐标分量
         points, weights = GaussIntegrationPoint.GetTrianglePointAndWeight(3)
+        B_local = []
         for ii in range(len(points)):
             r, s = points[ii]
             w = weights[ii]
@@ -294,7 +296,8 @@ class CPM6(ElementBaseClass, ABC):
             # 组装B阵, [pupx, pvpy, pupy+pvpx], B Matrix 3*12
             B = np.insert(B1, 1, B2[1, :], axis=0)
             B[2, :] += B2[0, :]
-            self.K += np.matmul(np.matmul(B.T, self.D), B) * w * det_J
+            self.K += B.T @ self.D @ B * w * det_J
+            B_local.append(B)
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
         a1 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
@@ -316,12 +319,14 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
+        self.B_global = B_local @ T
         return T.T @ self.K @ T
 
     def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
+        gauss_stress = self.D @ self.B_global @ displacement
 
     def ElementMass(self):
         pass

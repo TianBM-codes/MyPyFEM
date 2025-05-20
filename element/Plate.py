@@ -712,69 +712,73 @@ class DKQPlate(ElementBaseClass, ABC):
         e7 = (0.25 * y34 ** 2 - 0.5 * x34 ** 2) / L7_square
         e8 = (0.25 * y41 ** 2 - 0.5 * x41 ** 2) / L8_square
 
-        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        # sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        sample_pt_r = (-0.577350269189626, 0.577350269189626, 0.577350269189626, -0.577350269189626)
+        sample_pt_s = (0.577350269189626, 0.577350269189626, -0.577350269189626, -0.577350269189626)
+        weight = (1, 1, 1, 1)
 
         # 在4个高斯点上积分
-        for ri in range(2):
-            for si in range(2):
-                r, s = sample_pt[ri], sample_pt[si]
-                pN1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
-                pN2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
-                pN3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
-                pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r * (1 - s)
-                pN5pr = -r * (1 + s)
-                pN6pr = 0.5 * (s ** 2 - 1)
-                pN7pr = r * (s - 1)
-                pN8pr = 0.5 * (1 - s ** 2)
+        for ii in range(4):
+            r, s = sample_pt_r[ii], sample_pt_s[ii]
+            pN1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
+            pN2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
+            pN3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
+            pN4pr = 0.25 * (s ** 2 - s) + 0.5 * r * (1 - s)
+            pN5pr = -r * (1 + s)
+            pN6pr = 0.5 * (s ** 2 - 1)
+            pN7pr = r * (s - 1)
+            pN8pr = 0.5 * (1 - s ** 2)
 
-                pN1ps = 0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
-                pN2ps = 0.25 * (r ** 2 - r) + 0.5 * s * (1 - r)
-                pN3ps = 0.25 * (r - r ** 2) + 0.5 * s * (1 - r)
-                pN4ps = -0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
-                pN5ps = 0.5 * (1 - r ** 2)
-                pN6ps = s * (r - 1)
-                pN7ps = 0.5 * (r ** 2 - 1)
-                pN8ps = -s * (1 + r)
+            pN1ps = 0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
+            pN2ps = 0.25 * (r ** 2 - r) + 0.5 * s * (1 - r)
+            pN3ps = 0.25 * (r - r ** 2) + 0.5 * s * (1 - r)
+            pN4ps = -0.25 * (r ** 2 + r) + 0.5 * s * (1 + r)
+            pN5ps = 0.5 * (1 - r ** 2)
+            pN6ps = s * (r - 1)
+            pN7ps = 0.5 * (r ** 2 - 1)
+            pN8ps = -s * (1 + r)
 
-                pHxpr = np.asarray([1.5 * (a5 * pN5pr - a8 * pN8pr), b5 * pN5pr + b8 * pN8pr, pN1pr - c5 * pN5pr - c8 * pN8pr,
-                                    1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN2pr - c6 * pN6pr - c5 * pN5pr,
-                                    1.5 * (a7 * pN7pr - a6 * pN6pr), b7 * pN7pr + b6 * pN6pr, pN3pr - c7 * pN7pr - c6 * pN6pr,
-                                    1.5 * (a8 * pN8pr - a7 * pN7pr), b8 * pN8pr + b7 * pN7pr, pN4pr - c8 * pN8pr - c7 * pN7pr], dtype=float)
+            pHxpr = np.asarray([1.5 * (a5 * pN5pr - a8 * pN8pr), b5 * pN5pr + b8 * pN8pr, pN1pr - c5 * pN5pr - c8 * pN8pr,
+                                1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN2pr - c6 * pN6pr - c5 * pN5pr,
+                                1.5 * (a7 * pN7pr - a6 * pN6pr), b7 * pN7pr + b6 * pN6pr, pN3pr - c7 * pN7pr - c6 * pN6pr,
+                                1.5 * (a8 * pN8pr - a7 * pN7pr), b8 * pN8pr + b7 * pN7pr, pN4pr - c8 * pN8pr - c7 * pN7pr], dtype=float)
 
-                pHxps = np.asarray([1.5 * (a5 * pN5ps - a8 * pN8ps), b5 * pN5ps + b8 * pN8ps, pN1ps - c5 * pN5ps - c8 * pN8ps,
-                                    1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN2ps - c6 * pN6ps - c5 * pN5ps,
-                                    1.5 * (a7 * pN7ps - a6 * pN6ps), b7 * pN7ps + b6 * pN6ps, pN3ps - c7 * pN7ps - c6 * pN6ps,
-                                    1.5 * (a8 * pN8ps - a7 * pN7ps), b8 * pN8ps + b7 * pN7ps, pN4ps - c8 * pN8ps - c7 * pN7ps], dtype=float)
+            pHxps = np.asarray([1.5 * (a5 * pN5ps - a8 * pN8ps), b5 * pN5ps + b8 * pN8ps, pN1ps - c5 * pN5ps - c8 * pN8ps,
+                                1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN2ps - c6 * pN6ps - c5 * pN5ps,
+                                1.5 * (a7 * pN7ps - a6 * pN6ps), b7 * pN7ps + b6 * pN6ps, pN3ps - c7 * pN7ps - c6 * pN6ps,
+                                1.5 * (a8 * pN8ps - a7 * pN7ps), b8 * pN8ps + b7 * pN7ps, pN4ps - c8 * pN8ps - c7 * pN7ps], dtype=float)
 
-                pHypr = np.asarray([1.5 * (d5 * pN5pr - d8 * pN8pr), -pN1pr + e5 * pN5pr + e8 * pN8pr, -b5 * pN5pr - b8 * pN8pr,
-                                    1.5 * (d6 * pN6pr - d5 * pN5pr), -pN2pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr,
-                                    1.5 * (d7 * pN7pr - d6 * pN6pr), -pN3pr + e7 * pN7pr + e6 * pN6pr, -b7 * pN7pr - b6 * pN6pr,
-                                    1.5 * (d8 * pN8pr - d7 * pN7pr), -pN4pr + e8 * pN8pr + e7 * pN7pr, -b8 * pN8pr - b7 * pN7pr], dtype=float)
+            pHypr = np.asarray([1.5 * (d5 * pN5pr - d8 * pN8pr), -pN1pr + e5 * pN5pr + e8 * pN8pr, -b5 * pN5pr - b8 * pN8pr,
+                                1.5 * (d6 * pN6pr - d5 * pN5pr), -pN2pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr,
+                                1.5 * (d7 * pN7pr - d6 * pN6pr), -pN3pr + e7 * pN7pr + e6 * pN6pr, -b7 * pN7pr - b6 * pN6pr,
+                                1.5 * (d8 * pN8pr - d7 * pN7pr), -pN4pr + e8 * pN8pr + e7 * pN7pr, -b8 * pN8pr - b7 * pN7pr], dtype=float)
 
-                pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -pHxps[1],
-                                    1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -pHxps[4],
-                                    1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -pHxps[7],
-                                    1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -pHxps[10]], dtype=float)
+            pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -pHxps[1],
+                                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -pHxps[4],
+                                1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -pHxps[7],
+                                1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -pHxps[10]], dtype=float)
 
-                # Jacobi 2*2
-                J11 = 0.25 * (x12 - x34 + r * (x12 + x34))
-                J12 = 0.25 * (y12 - y34 + r * (y12 + y34))
-                J21 = 0.25 * (x23 - x41 + s * (x12 + x34))
-                J22 = 0.25 * (y23 - y41 + s * (y12 + y34))
-                detJ = 0.125 * (x13 * y24 - x24 * y13 - r * (x12 * y34 + x34 * y12) + s * (x41 * y23 - x23 * y41))
+            # Jacobi 2*2
+            J11 = 0.25 * (x12 - x34 + r * (x12 + x34))
+            J12 = 0.25 * (y12 - y34 + r * (y12 + y34))
+            J21 = 0.25 * (x23 - x41 + s * (x12 + x34))
+            J22 = 0.25 * (y23 - y41 + s * (y12 + y34))
+            detJ = 0.125 * (x13 * y24 - x24 * y13 - r * (x12 * y34 + x34 * y12) + s * (x41 * y23 - x23 * y41))
 
-                j11 = J22
-                j12 = -J12
-                j21 = -J21
-                j22 = J11
+            j11 = J22
+            j12 = -J12
+            j21 = -J21
+            j22 = J11
 
-                B = np.asarray([j11 * pHxpr + j12 * pHxps,
-                                j21 * pHypr + j22 * pHyps,
-                                j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
-                self.B.append(B)
+            B = np.asarray([j11 * pHxpr + j12 * pHxps,
+                            j21 * pHypr + j22 * pHyps,
+                            j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
+            self.B.append(B)
 
-                # 这里的除以det_J是因为B放大了detJ倍, 为了减少计算量
-                self.K += B.T @ self.D @ B * weight[si] / detJ
+            # 这里的除以det_J是因为B放大了detJ倍, 为了减少计算量
+            self.K += B.T @ self.D @ B * weight[ii] / detJ
+        # for ri in range(2):
+        #     for si in range(2):
 
         return self.K
 
