@@ -243,7 +243,7 @@ class Beam189(ElementBaseClass, ABC):
         # 单元参数
         delta = np.asarray(np.diff(self.node_coords, axis=0))[0]
         E = self.cha_dict[MaterialKey.E]
-        A = self.cha_dict[PropertyKey.ThicknessOrArea]
+        A = self.cha_dict[MaterialKey.Area]
         G = self.cha_dict[MaterialKey.G]
         L = np.sqrt(np.dot(delta.T, delta))
         I = BeamCalculator.CalculateMomentOfInertiaOfArea(self.sec_type, self.sec_data)

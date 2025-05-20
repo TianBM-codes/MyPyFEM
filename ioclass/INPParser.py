@@ -99,7 +99,7 @@ class InpParser(object):
                 if self.iter_line.startswith("*Part,") or self.iter_line.startswith("*part") or self.iter_line.startswith("*PART"):
                     self.ReadPart(inp_f)
 
-                elif self.iter_line.startswith("*Material,"):
+                elif self.iter_line.startswith("*Material,") or self.iter_line.startswith("*MATERIAL,"):
                     self.ReadMaterial(inp_f)
 
                 # 在Part外也会可有Nset和Elset, 比如设置约束或力的时候
@@ -248,7 +248,7 @@ class InpParser(object):
                 pars = {}
                 for par in keywords:
                     if par:
-                        pars[PropertyKey.ThicknessOrArea] = float(par)
+                        pars[MaterialKey.Area] = float(par)
                 self.iter_line = f_handle.readline().strip()
 
             elif self.iter_line.startswith("*Beam Section"):
@@ -268,18 +268,31 @@ class InpParser(object):
                 assert len(normal_dir) == 3
                 self.iter_line = f_handle.readline().strip()
 
-            elif self.iter_line.startswith("*Shell Section"):
+            elif self.iter_line.startswith("*Shell Section") or self.iter_line.startswith("*SHELL SECTION"):
                 """
                 在当前程序解析属性的时候, 如果用到某个EleSet, 那么这个EleSet就是有用的
                 """
                 ret_dict = ReadSectionLine(self.iter_line)
-                els_name = ret_dict["elset"]
-                mat_name = ret_dict["material"]
+                if "elset" in ret_dict:
+                    els_name = ret_dict["elset"]
+                elif "ELSET" in ret_dict:
+                    els_name = ret_dict["ELSET"]
+                else:
+                    raise KeyError("Elset doesn't in ret_dict")
+
+                if "material" in ret_dict:
+                    mat_name = ret_dict["material"]
+                elif "MATERIAL" in ret_dict:
+                    mat_name = ret_dict["MATERIAL"]
+                elif "Material" in ret_dict:
+                    mat_name = ret_dict["Material"]
+                else:
+                    raise KeyError("material doesn't in ret_dict")
+
                 self.iter_line = f_handle.readline().strip()
                 shell_cha_dict = {MaterialKey.Thickness: float(self.iter_line.split(",")[0])}
                 shell_sec = Section(els_name, mat_name, shell_cha_dict)
                 self.sections.append(shell_sec)
-
             else:
                 """
                 对于暂不支持的内容直接读取下一行, 文件的结尾, 读取结束
@@ -299,11 +312,11 @@ class InpParser(object):
         self.iter_line = f_handle.readline().strip()
         new_material = False
         while True:
-            if self.iter_line == "*Density":
+            if self.iter_line == "*Density" or self.iter_line == "*DENSITY":
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.Density] = float(self.iter_line.split(",")[0])
                 self.iter_line = f_handle.readline().strip()
-            elif self.iter_line == "*Elastic":
+            elif self.iter_line.startswith("*Elastic") or self.iter_line.startswith("*ELASTIC"):
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.E] = float(self.iter_line.split(",")[0])
                 pars_dict[MaterialKey.Niu] = float(self.iter_line.split(",")[1])
@@ -320,7 +333,7 @@ class InpParser(object):
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.SpecificHeat] = float(self.iter_line.split(",")[0])
                 self.iter_line = f_handle.readline().strip()
-            elif self.iter_line.startswith("*Material,"):
+            elif self.iter_line.startswith("*Material,") or self.iter_line.startswith("*MATERIAL"):
                 new_material = True
                 self.materials[mat_name] = pars_dict
                 break
@@ -373,7 +386,7 @@ class InpParser(object):
         set_name = keywords[1].split("=")[1]
         is_generate = False
         for kw in keywords:
-            if kw.strip() == "generate":
+            if "generate" in kw.strip():
                 is_generate = True
                 break
         self.iter_line = f_handle.readline().strip()
@@ -497,6 +510,10 @@ class InpParser(object):
 
 if __name__ == "__main__":
     # print(ReadSectionLine("*Beam Section, elset=_PickedSet8, material=Material-1, temperature=GRADIENTS, section=PIPE\n"))
-    input_file = r"../numerical example/ABAQUS/Job-1.inp"
+    # input_file = r"../numerical example/ABAQUS/Job-1.inp"
+    import os
+    os.environ["QT_API"] = "pyqt5"
+
+    input_file = f"D:/WorkSpace/FEM/NumericalCases/examples/ABAQUS/static/linear/Plane/aircraft-wing.inp"
     npp = InpParser(input_path=input_file)
     npp.ParseFileAndInitFEMDB()

@@ -117,14 +117,7 @@ class MaterialKey(Enum):
     Conductivity = 6  # 热传导系数
     Expansion = 7
     SpecificHeat = 8
-
-
-class PropertyKey(Enum):
-    """
-    属性关键字集合, 从100开始是因为需要与MaterialKey相结合, 不能发生重复
-    TODO: ANSYS的real const和Abaqus的property是不是相同含义
-    """
-    ThicknessOrArea = 100
+    Area = 9
 
 
 class SectionKey(Enum):

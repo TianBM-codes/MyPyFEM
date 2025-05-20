@@ -482,7 +482,7 @@ class MITC3(ElementBaseClass, ABC):
                       [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
                       [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]], dtype=float)
 
-        return B.T * self.D * B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
+        return B.T * self.D * B * det_J * 0.5 * self.cha_dict[MaterialKey.Thickness]
 
     def CalculateElementStress(self, displacement):
         """

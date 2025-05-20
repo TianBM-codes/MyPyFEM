@@ -55,6 +55,7 @@ class CPS4(ElementBaseClass, ABC):
         dN4dr, dN4ds =  0.25 * (1 - s), -0.25 * (1 + r)
         """
         assert self.node_coords.shape == (4, 2)
+        self.CalElementDMatrix()
 
         # Gaussian Weight
         sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
@@ -76,7 +77,7 @@ class CPS4(ElementBaseClass, ABC):
                               [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2], 0, B_pre[1, 3]],
                               [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2], B_pre[1, 3], B_pre[0, 3]]], dtype=float)
 
-                self.K = self.K + g_weight * B.T * self.D * B * det_J * self.cha_dict[PropertyKey.ThicknessOrArea]
+                self.K = self.K + g_weight * B.T @ self.D @ B * det_J * self.cha_dict[MaterialKey.Thickness]
 
         return self.K
 
@@ -139,6 +140,7 @@ class CPS3(ElementBaseClass, ABC):
         dN3dr, dN3ds =  0,  1
         """
         assert self.node_coords.shape == (3, 2)
+        self.CalElementDMatrix()
 
         dNdr = np.array([[-1, 1, 0],
                          [-1, 0, 1]], dtype=float)
@@ -152,7 +154,12 @@ class CPS3(ElementBaseClass, ABC):
                            [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
                            [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]], dtype=float)
 
-        return self.B.T * self.D * self.B * det_J * 0.5 * self.cha_dict[PropertyKey.ThicknessOrArea]
+        # print(self.cha_dict)
+        # print(self.B)
+        # print(self.D)
+        # print(det_J)
+        # print(self.cha_dict[MaterialKey.Thickness])
+        return self.B.T @ self.D @ self.B * det_J * 0.5 * self.cha_dict[MaterialKey.Thickness]
 
     def CalculateElementStress(self, displacement):
         """

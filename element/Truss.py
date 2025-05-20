@@ -41,7 +41,7 @@ class T3D2(ElementBaseClass, ABC):
         # 单元参数
         delta = np.asarray(np.diff(self.node_coords, axis=0))[0]
         E = self.cha_dict[MaterialKey.E]
-        A = self.cha_dict[PropertyKey.ThicknessOrArea]
+        A = self.cha_dict[MaterialKey.Thickness]
         L = np.sqrt(np.dot(delta.T, delta))
 
         # 几何关系
@@ -75,7 +75,7 @@ class T3D2(ElementBaseClass, ABC):
 
 if __name__ == "__main__":
     t_ele = T3D2(-1)
-    t_ele.ele_mat_dict = {MaterialKey.E: 1, PropertyKey.ThicknessOrArea: np.sqrt(3)}
+    t_ele.ele_mat_dict = {MaterialKey.E: 1, MaterialKey.Area: np.sqrt(3)}
     t_ele.node_coords = np.array([[0, 0, 0],
                                   [1, 1, 1]], dtype=float)
     print(t_ele.ElementStiffness())
