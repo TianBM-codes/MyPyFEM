@@ -86,7 +86,7 @@ class MyPyFEM:
             time_3 = time.time()
             domain.SolveDisplacement()
             time_4 = time.time()
-            # domain.SolveStress()
+            domain.SolveStress()
             time_5 = time.time()
             writer = ResultsWriter()
             writer.WriteStaticAnalysisVTUFile(self.output_files[0])

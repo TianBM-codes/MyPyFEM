@@ -515,6 +515,7 @@ class DKTPlate(ElementBaseClass, ABC):
         self.K = np.zeros([9, 9], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
+        self.B = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -613,6 +614,7 @@ class DKTPlate(ElementBaseClass, ABC):
                             j21 * pHyps + j22 * pHypr,
                             j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
 
+            self.B.append(B)
             self.K += B.T @ self.D @ B * weight[ii] / detJ
 
         return self.K
@@ -621,6 +623,7 @@ class DKTPlate(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+        gauss_stress = self.D @ self.B @ displacement
 
     def ElementMass(self):
         pass

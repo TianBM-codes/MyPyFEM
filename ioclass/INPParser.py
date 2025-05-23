@@ -96,26 +96,26 @@ class InpParser(object):
             self.iter_line = inp_f.readline()
             while True:
                 # Part中的Nset和Eset一般都是该Part内部节点和单元的集合
-                if self.iter_line.startswith("*Part,") or self.iter_line.startswith("*part") or self.iter_line.startswith("*PART"):
+                if self.iter_line.lower().startswith("*part,"):
                     self.ReadPart(inp_f)
 
-                elif self.iter_line.startswith("*Material,") or self.iter_line.startswith("*MATERIAL,"):
+                elif self.iter_line.lower().startswith("*material,"):
                     self.ReadMaterial(inp_f)
 
                 # 在Part外也会可有Nset和Elset, 比如设置约束或力的时候
-                elif self.iter_line.startswith("*Nset,"):
+                elif self.iter_line.lower().startswith("*nset,"):
                     self.ReadNSet(inp_f)
 
-                elif self.iter_line.startswith("*Elset,"):
+                elif self.iter_line.lower().startswith("*elset,"):
                     self.ReadElset(inp_f)
 
-                elif self.iter_line.startswith("*Step,"):
+                elif self.iter_line.lower().startswith("*step,"):
                     self.ReadLoadCase(inp_f)
 
-                elif self.iter_line.startswith("*Boundary"):
+                elif self.iter_line.lower().startswith("*boundary"):
                     self.ReadBoundary(inp_f)
 
-                elif self.iter_line.startswith("*Amplitude"):
+                elif self.iter_line.lower().startswith("*amplitude"):
                     self.ReadAmplitude(inp_f)
 
                 else:
@@ -150,8 +150,8 @@ class InpParser(object):
         :param f_handle: 文件句柄
         """
         self.iter_line = f_handle.readline().strip()
-        while self.iter_line != "*End Part":
-            if (self.iter_line == "*Node") or (self.iter_line == "*NODE"):
+        while self.iter_line.lower() != "*end part":
+            if self.iter_line.lower() == "*node":
                 node_index = 0  # Domain中的index
                 self.iter_line = f_handle.readline().strip()
                 while not self.iter_line.startswith("*"):
@@ -172,7 +172,7 @@ class InpParser(object):
                     self.iter_line = f_handle.readline().strip()
 
             # 相同单元类型不同属性的话, 通过Section中的Set来区分
-            elif self.iter_line.startswith("*Element,") or self.iter_line.startswith("*ELEMENT,"):
+            elif self.iter_line.lower().startswith("*element,"):
                 # 解析单元类型关键字, 如果出现某些单元, 那么整个分析将变为2D分析
                 e_type = self.iter_line.split(",")[1].split("=")[-1]
                 dof_count = ElementFactory.GetElementNodeDofCount(e_type)
@@ -228,13 +228,13 @@ class InpParser(object):
                     self.ele_count += 1
                     self.iter_line = f_handle.readline().strip()
 
-            elif self.iter_line.startswith("*Nset,") or self.iter_line.startswith("*NSET,"):
+            elif self.iter_line.lower().startswith("*nset,"):
                 self.ReadNSet(f_handle)
 
-            elif self.iter_line.startswith("*Elset") or self.iter_line.startswith("ELSET"):
+            elif self.iter_line.lower().startswith("*elset"):
                 self.ReadElset(f_handle)
 
-            elif self.iter_line.startswith("*Solid Section"):
+            elif self.iter_line.lower().startswith("*solid section"):
                 """
                 在当前程序解析属性的时候, 如果用到某个EleSet, 那么这个EleSet就是有用的
                 """
@@ -251,7 +251,7 @@ class InpParser(object):
                         pars[MaterialKey.Area] = float(par)
                 self.iter_line = f_handle.readline().strip()
 
-            elif self.iter_line.startswith("*Beam Section"):
+            elif self.iter_line.lower().startswith("*beam section"):
                 """
                 在当前程序解析属性的时候, 如果用到某个EleSet, 那么这个EleSet就是有用的
                 Beam需要指定界面类型, 以及该类型的尺寸参数, 以及法线方向
@@ -268,7 +268,7 @@ class InpParser(object):
                 assert len(normal_dir) == 3
                 self.iter_line = f_handle.readline().strip()
 
-            elif self.iter_line.startswith("*Shell Section") or self.iter_line.startswith("*SHELL SECTION"):
+            elif self.iter_line.lower().startswith("*shell section"):
                 """
                 在当前程序解析属性的时候, 如果用到某个EleSet, 那么这个EleSet就是有用的
                 """
@@ -312,28 +312,28 @@ class InpParser(object):
         self.iter_line = f_handle.readline().strip()
         new_material = False
         while True:
-            if self.iter_line == "*Density" or self.iter_line == "*DENSITY":
+            if self.iter_line.lower() == "*density":
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.Density] = float(self.iter_line.split(",")[0])
                 self.iter_line = f_handle.readline().strip()
-            elif self.iter_line.startswith("*Elastic") or self.iter_line.startswith("*ELASTIC"):
+            elif self.iter_line.lower().startswith("*elastic"):
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.E] = float(self.iter_line.split(",")[0])
                 pars_dict[MaterialKey.Niu] = float(self.iter_line.split(",")[1])
                 self.iter_line = f_handle.readline().strip()
-            elif self.iter_line == "*Conductivity":
+            elif self.iter_line.lower() == "*conductivity":
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.Conductivity] = float(self.iter_line.split(",")[0])
                 self.iter_line = f_handle.readline().strip()
-            elif self.iter_line == "*Expansion":
+            elif self.iter_line.lower() == "*expansion":
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.Expansion] = float(self.iter_line.split(",")[0])
                 self.iter_line = f_handle.readline().strip()
-            elif self.iter_line == "*Specific Heat":
+            elif self.iter_line.lower() == "*specific heat":
                 self.iter_line = f_handle.readline().strip()
                 pars_dict[MaterialKey.SpecificHeat] = float(self.iter_line.split(",")[0])
                 self.iter_line = f_handle.readline().strip()
-            elif self.iter_line.startswith("*Material,") or self.iter_line.startswith("*MATERIAL"):
+            elif self.iter_line.lower().startswith("*material,"):
                 new_material = True
                 self.materials[mat_name] = pars_dict
                 break
@@ -512,6 +512,7 @@ if __name__ == "__main__":
     # print(ReadSectionLine("*Beam Section, elset=_PickedSet8, material=Material-1, temperature=GRADIENTS, section=PIPE\n"))
     # input_file = r"../numerical example/ABAQUS/Job-1.inp"
     import os
+
     os.environ["QT_API"] = "pyqt5"
 
     input_file = f"D:/WorkSpace/FEM/NumericalCases/examples/ABAQUS/static/linear/Plane/aircraft-wing.inp"

@@ -206,6 +206,25 @@ def ExtrapolateMatrix4to4():
     return _EXTRAPOLATE_4TO4_CACHE
 
 
+_EXTRAPOLATE_3TO3_CACHE = None
+
+
+def ExtrapolateMatrix3to3():
+    """
+    外推矩阵, 从3个高斯点应力外推3个节点应力
+    :return:
+    """
+    global _EXTRAPOLATE_3TO3_CACHE
+    if _EXTRAPOLATE_3TO3_CACHE is None:
+        # sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        sample_pt_r = (-0.577350269189626, 0.577350269189626, 0.577350269189626, -0.577350269189626)
+        sample_pt_s = (0.577350269189626, 0.577350269189626, -0.577350269189626, -0.577350269189626)
+        gauss_coords = [(sample_pt_r[ii], sample_pt_s[ii]) for ii in range(4)]
+        A = np.array([Quad4NodeShapeFunction(r, s) for r, s in gauss_coords])
+        _EXTRAPOLATE_3TO3_CACHE = np.linalg.inv(A)
+    return _EXTRAPOLATE_3TO3_CACHE
+
+
 if __name__ == "__main__":
     t_sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
     t_gauss_coords = [(t_sample_pt[ri], t_sample_pt[si]) for ri in range(2) for si in range(2)]
