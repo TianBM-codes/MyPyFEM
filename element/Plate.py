@@ -3,7 +3,7 @@
 import sys
 
 from element.ElementBase import *
-from femdb.ShapeFunctionsAndInteg import Quad4NodeShapeFunction, ExtrapolateMatrix4to4
+from femdb.ShapeFunctionsAndInteg import Quad4NodeShapeFunction, ExtrapolateMatrix4to4, ExtrapolateMatrix3to3
 from abc import ABC
 
 
@@ -624,6 +624,8 @@ class DKTPlate(ElementBaseClass, ABC):
         Calculate element stress
         """
         gauss_stress = self.D @ self.B @ displacement
+        node_stress = ExtrapolateMatrix3to3() @ gauss_stress
+        return node_stress
 
     def ElementMass(self):
         pass

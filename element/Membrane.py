@@ -327,6 +327,9 @@ class CPM6(ElementBaseClass, ABC):
         Calculate element stress
         """
         gauss_stress = self.D @ self.B_global @ displacement
+        node_stress = ExtrapolateMatrix3to3() @ gauss_stress
+        return node_stress
+
 
     def ElementMass(self):
         pass

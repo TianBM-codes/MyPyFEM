@@ -211,17 +211,28 @@ _EXTRAPOLATE_3TO3_CACHE = None
 
 def ExtrapolateMatrix3to3():
     """
-    外推矩阵, 从3个高斯点应力外推3个节点应力
-    :return:
+    获取外推矩阵（带缓存功能）, 从3个高斯点应力外推3个节点应力
     """
     global _EXTRAPOLATE_3TO3_CACHE
     if _EXTRAPOLATE_3TO3_CACHE is None:
-        # sample_pt, _ = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-        sample_pt_r = (-0.577350269189626, 0.577350269189626, 0.577350269189626, -0.577350269189626)
-        sample_pt_s = (0.577350269189626, 0.577350269189626, -0.577350269189626, -0.577350269189626)
-        gauss_coords = [(sample_pt_r[ii], sample_pt_s[ii]) for ii in range(4)]
-        A = np.array([Quad4NodeShapeFunction(r, s) for r, s in gauss_coords])
-        _EXTRAPOLATE_3TO3_CACHE = np.linalg.inv(A)
+        # 获取三角形积分点（3阶）
+        gauss_pts, _ = GaussIntegrationPoint.GetTrianglePointAndWeight(3)
+        # 构造形函数矩阵
+        N_matrix = []
+        for r, s in gauss_pts:
+            t = 1 - r - s
+            N = [
+                t * (2 * t - 1),  # N1
+                r * (2 * r - 1),  # N2
+                s * (2 * s - 1),  # N3
+                4 * r * t,  # N4
+                4 * r * s,  # N5
+                4 * s * t  # N6
+            ]
+            N_matrix.append(N)
+            # 计算伪逆并缓存
+        _EXTRAPOLATE_3TO3_CACHE = np.linalg.pinv(np.array(N_matrix))
+
     return _EXTRAPOLATE_3TO3_CACHE
 
 
