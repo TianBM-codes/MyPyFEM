@@ -113,7 +113,10 @@ class CDBParser(object):
                     self.ReadEBlock(cdb_f)
 
                 elif self.iter_line.startswith("MPDATA,"):
-                    self.ReadMaterial(cdb_f)
+                    self.ReadMaterial(cdb_f, "MPDATA,")
+
+                elif self.iter_line.startswith("MP,"):
+                    self.ReadMaterial(cdb_f, "MP,")
 
                 elif self.iter_line.startswith("SECTYPE,"):
                     self.ReadSection(cdb_f)
@@ -298,7 +301,7 @@ class CDBParser(object):
             mlogger.fatal("UnSupport without SOLID keyword")
             sys.exit(1)
 
-    def ReadMaterial(self, f_handle):
+    def ReadMaterial(self, f_handle, key):
         """
         读取材料信息
         """
@@ -308,7 +311,13 @@ class CDBParser(object):
             still_same_mat = True
             if self.iter_line.startswith("MPTEMP"):
                 self.iter_line = f_handle.readline()
-            cur_mat_id = int(self.iter_line.split(",")[4].strip())
+            if key == "MPDATA,":
+                cur_mat_id = int(self.iter_line.split(",")[4].strip())
+            elif key == "MP,":
+                cur_mat_id = int(self.iter_line.split(",")[2].strip())
+            else:
+                raise KeyError(key)
+
             value_dict = {}
             while still_same_mat:
                 # 暂时只读取"MPDATA"关键字
@@ -331,6 +340,24 @@ class CDBParser(object):
                         value_dict[MaterialKey.Density] = float(splits[6])
                     elif splits[3].startswith("NUXY"):
                         value_dict[MaterialKey.Niu] = float(splits[6])
+                    self.iter_line = f_handle.readline()
+                elif self.iter_line.startswith("MP,"):
+                    # 首先判断是否为同一种材料属性
+                    splits = self.iter_line.split(",")
+                    iter_mat_id = int(splits[2])
+                    if iter_mat_id != cur_mat_id:
+                        # 读取同一种材料结束, 读取下一种材料或者读取材料结束, 程序跳出材料分支
+                        # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
+                        value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
+                        self.material_map[cur_mat_id] = value_dict
+                        self.iter_line = f_handle.readline()
+                        break
+                    if splits[1].startswith("EX"):
+                        value_dict[MaterialKey.E] = float(splits[3])
+                    elif splits[1].startswith("DENS"):
+                        value_dict[MaterialKey.Density] = float(splits[3])
+                    elif splits[1].startswith("NUXY"):
+                        value_dict[MaterialKey.Niu] = float(splits[3])
                     self.iter_line = f_handle.readline()
                 else:
                     # 当前行为其他信息, 跳出读材料分支, 读取其他
@@ -415,4 +442,3 @@ if __name__ == "__main__":
     path = "../numerical example/ANSYS/zhijiaRenumber.cdb"
     cps = CDBParser(path, False)
     cps.ParseFileAndInitFEMDB()
-

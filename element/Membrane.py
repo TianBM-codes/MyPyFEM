@@ -31,7 +31,7 @@ class CSTDrill(ElementBaseClass, ABC):
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
         e = self.cha_dict[MaterialKey.E]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             self.h = self.cha_dict["RealConst"][0]
         else:
             raise KeyError("Don't Contain RealConst and Thickness")
@@ -126,7 +126,7 @@ class Q4Mem(ElementBaseClass, ABC):
         @return:
         """
         e = self.cha_dict[MaterialKey.E]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             self.h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             self.h = self.cha_dict[MaterialKey.Thickness]
@@ -248,7 +248,7 @@ class CPM6(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
@@ -362,7 +362,7 @@ class CPM8(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]

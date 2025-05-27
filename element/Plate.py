@@ -152,7 +152,7 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
@@ -208,7 +208,7 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
@@ -523,7 +523,7 @@ class DKTPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
@@ -655,7 +655,7 @@ class DKQPlate(ElementBaseClass, ABC):
         """
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst'):
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
