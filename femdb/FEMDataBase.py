@@ -25,6 +25,16 @@ class FEMDataBase(object):
         self.equation_number = None
         self.node_connected_element_count = None
 
+        # node & element sets
+        self.element_set_name_hash = {}
+        self.node_set_name_hash = {}
+        self.element_sets = []
+        self.node_sets = []
+
+        # constrain equation
+        self.equation_constrain_couple = []
+        self.equation_constrain_idx = []
+
         # Preprocess Fem
         self.global_stiff_matrix = None
         self.global_mass_matrix = None

@@ -112,6 +112,48 @@ class CDBParser(object):
                 elif self.iter_line.startswith("EBLOCK,"):
                     self.ReadEBlock(cdb_f)
 
+                elif self.iter_line.startswith("CMBLOCK"):
+                    splits = self.iter_line.strip().split(",")
+                    comp_name = splits[1]
+                    comp_type = splits[2]
+                    set_data_count = int(splits[3])
+                    fortran_format = cdb_f.readline().strip()  # skip format of node line
+                    f_reader = ff.FortranRecordReader(fortran_format)
+                    set_data_line = f_reader.read(cdb_f.readline())
+                    set_data = []
+                    input_times = 0
+                    while True:
+                        if len(set_data_line) != 0:
+                            iter_v = set_data_line.pop(0)
+
+                        if iter_v is not None:
+                            if iter_v > 0:
+                                set_data.append(iter_v)
+                                input_times += 1
+                            else:
+                                set_data.extend(list(range(set_data[-1] + 1, -iter_v + 1)))
+                                input_times += 1
+
+                        if len(set_data_line) == 0 and input_times < set_data_count:
+                            set_data_line = f_reader.read(cdb_f.readline())
+
+                        if iter_v is None:
+                            if input_times < set_data_count:
+                                self.iter_line = cdb_f.readline()
+                                set_data_line = f_reader.read(self.iter_line)
+                            else:
+                                self.iter_line = cdb_f.readline()
+                                break
+
+                    if comp_type == 'NODE':
+                        self.femdb.node_set_name_hash[comp_name] = len(self.femdb.node_sets)
+                        self.femdb.node_sets.append(set_data)
+                    elif comp_type == 'ELEMENT':
+                        self.femdb.element_set_name_hash[comp_name] = len(self.femdb.element_sets)
+                        self.femdb.element_sets.append(set_data)
+                    else:
+                        raise KeyError(f"CMBLOCK Key: {comp_type}")
+
                 elif self.iter_line.startswith("MPDATA,"):
                     self.ReadMaterial(cdb_f, "MPDATA,")
 
@@ -123,6 +165,16 @@ class CDBParser(object):
 
                 elif self.iter_line.startswith("ACEL,"):
                     # TODO: 处理加速度, 重力
+                    self.iter_line = cdb_f.readline()
+
+                elif self.iter_line.startswith("CERIG"):
+                    splits = self.iter_line.strip().split(",")
+                    self.femdb.equation_constrain_couple.append((int(splits[1]), int(splits[2])))
+                    constrain_type = splits[3].lstrip()
+                    if constrain_type == 'UXYZ':
+                        self.femdb.equation_constrain_idx.append([0, 1, 2])
+                    else:
+                        raise KeyError(f"{constrain_type}")
                     self.iter_line = cdb_f.readline()
 
                 elif self.iter_line.startswith("D,"):
@@ -439,6 +491,7 @@ class CDBParser(object):
 
 
 if __name__ == "__main__":
-    path = "../numerical example/ANSYS/zhijiaRenumber.cdb"
+    # path = "../numerical example/ANSYS/zhijiaRenumber.cdb"
+    path = "../NumericalCases/Projects/qizhongji/last/MQ1330.cdb"
     cps = CDBParser(path, False)
     cps.ParseFileAndInitFEMDB()

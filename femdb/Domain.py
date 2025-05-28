@@ -63,7 +63,7 @@ class Domain(object):
         # 以下为刚度阵相关
         self.stiff_list = []
         self.mass_list = []
-        self.eq_nums = []
+        # self.eq_nums = []
         self.check_model = check_model
 
     def CalAllElementStiffness(self):
@@ -72,10 +72,12 @@ class Domain(object):
         计算所有单元的刚度阵, 对所有的单元组进行循环
         方便的查看各步骤运行时间: '%Y-%m-%d %H:%M:%S.%f')[:-3]
         """
+        calculated_eles_count = 0
         for iter_ele in self.femdb.elements:
-            self.eq_nums.append(iter_ele.GetElementEquationNumber())
+            # self.eq_nums.append(iter_ele.GetElementEquationNumber())
             iter_ele.CalculateBasic()
             stiff = iter_ele.ElementStiffness()
+            calculated_eles_count += 1
             if self.check_model:
                 if iter_ele.id == 786:
                     print("")
@@ -83,6 +85,8 @@ class Domain(object):
                 if has_zero_row:
                     # raise ValueError(f"Element {iter_ele.id} has zero row")
                     print(f"Element {iter_ele.id} has zero row")
+                # if calculated_eles_count % 2000 == 0:
+                #     print(f"calculated ele's stiff count: {calculated_eles_count}")
             self.stiff_list.append(stiff)
 
     def AssembleStiffnessMatrixByPenalty(self):
@@ -228,8 +232,8 @@ class Domain(object):
         for ele in self.femdb.elements:
             search_idx = []
             for ii in ele.search_node_ids:
-                start = ii*per_node_dof
-                end = (ii+1)*per_node_dof
+                start = ii * per_node_dof
+                end = (ii + 1) * per_node_dof
                 search_idx.extend(np.arange(start, end, 1).tolist())
 
             u = self.femdb.linear_u[search_idx].flatten()
