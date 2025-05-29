@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 import sys
 
-# 1D Elements
+# 0D Elements
 from element.ElementBase import ElementBaseClass
+from element.Mass import Mass
+
+# 1D Elements
 from element.Truss import T3D2
 from element.Beam import Beam188, Beam189
 
@@ -17,6 +20,7 @@ from element.Wedge import C3D6
 from element.Hexa import C3D8
 
 from femdb.GlobalEnum import *
+from GlobalFEMVariant import ModelInfo
 
 
 class ElementFactory:
@@ -36,7 +40,8 @@ class ElementFactory:
         """
         # 0D Element
         if e_type in [21]:
-            return
+            return Mass(e_id), 1, ModelInfo.PER_NODE_DOF ** 2
+
         # 1D Element
         elif e_type in ["T3D2"]:
             return T3D2(e_id), 2, 36
@@ -53,21 +58,16 @@ class ElementFactory:
 
         # 3D Element
         elif e_type in ["S3"]:
-            # return TriangleShell63(e_id), 3
             return CookTriShell(e_id), 3, 324
         elif e_type in ["S4", "S4R", "S4RT"]:
-            # return QuadShell63(e_id), 4
             return CookQuaShell(e_id), 4, 576
         elif e_type in [181, 63]:
             if opt == 4:
-                # return QuadShell63(e_id), 4
                 return CookQuaShell(e_id), 4, 576
             elif opt == 3:
-                # return TriangleShell63(e_id), 3
                 return CookTriShell(e_id), 3, 324
             else:
-                mlogger.fatal("Shell 181/63 don't support opt {}".format(opt))
-                sys.exit(1)
+                raise KeyError("Shell 181/63 don't support opt {}".format(opt))
 
         elif e_type in ["C3D8", 45]:
             return C3D8(e_id), 8, 576
@@ -89,11 +89,9 @@ class ElementFactory:
             elif opt == 4:
                 return C3D4(e_id), 4, 144
             else:
-                mlogger.fatal("Wrong opt parameter: {}".format(opt))
-                sys.exit(1)
+                raise KeyError("Wrong opt parameter: {}".format(opt))
 
-        mlogger.fatal("Fatal Error: No Such ElementType: {}".format(e_type))
-        sys.exit(1)
+        raise KeyError("Fatal Error: No Such ElementType: {}".format(e_type))
 
     @staticmethod
     def GetElementNodeDofCount(e_type):
@@ -102,8 +100,12 @@ class ElementFactory:
         :param e_type: 对于Abaqus是字符串, 对于ANSYS是int
         :return: 单元的自由度个数
         """
+        # 0D Element
+        if e_type in [21]:
+            return ModelInfo.PER_NODE_DOF
+
         # 1D Element
-        if e_type in ["T3D2"]:
+        elif e_type in ["T3D2"]:
             return 3
         elif e_type in ["B31", 188]:
             return 6

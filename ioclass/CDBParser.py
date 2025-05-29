@@ -6,6 +6,7 @@ from collections import OrderedDict
 from element.Node import Node
 from femdb.ElementFactory import *
 from element.Beam import BeamCalculator
+from GlobalFEMVariant import ModelInfo
 
 import numpy as np
 import fortranformat as ff
@@ -64,7 +65,8 @@ class CDBParser(object):
                     self.et_hash[int(splits[1].strip())] = e_type
                     self.iter_line = cdb_f.readline()
                     dof_count = ElementFactory.GetElementNodeDofCount(e_type)
-                    self.femdb.per_node_dof = dof_count
+                    if dof_count is not None:
+                        ModelInfo.PER_NODE_DOF = dof_count
                     if dof_count == 2:
                         self.femdb.an_dimension = AnalyseDimension.TwoDimension
 
@@ -201,11 +203,11 @@ class CDBParser(object):
                         elif "ROTZ" in d_dir:
                             dir_idx = [5]
                         elif "ALL" in d_dir:
-                            if self.femdb.per_node_dof == 2:
+                            if ModelInfo.PER_NODE_DOF == 2:
                                 dir_idx = [0, 1]
                                 d_node = [int(splits[1])] * 2
                                 d_val = [float(splits[3].strip())] * 2
-                            elif self.femdb.per_node_dof == 3:
+                            elif ModelInfo.PER_NODE_DOF == 3:
                                 dir_idx = [0, 1, 2]
                                 d_node = [int(splits[1])] * 3
                                 d_val = [float(splits[3].strip())] * 3

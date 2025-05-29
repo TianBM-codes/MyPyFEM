@@ -2,10 +2,9 @@
 # -*- coding: utf-8 -*-
 
 from element.ElementBase import *
-import numpy as np
 from abc import ABC
-
-from femdb.FEMDataBase import FEMDataBase
+from GlobalFEMVariant import ModelInfo
+import numpy as np
 
 
 class Mass(ElementBaseClass, ABC):
@@ -22,7 +21,7 @@ class Mass(ElementBaseClass, ABC):
 
     def CalElementDMatrix(self, an_type=None):
         """
-        桁架单元无需计算D阵
+        质量单元无需计算D阵
         """
         pass
 
@@ -31,16 +30,14 @@ class Mass(ElementBaseClass, ABC):
         Reference:
         """
         assert self.node_coords.shape == (1, 3)
-        femdb = FEMDataBase()
-        node_dof = femdb.per_node_dof
         eps = 1e-7
-        return eps * np.eye(node_dof)
+        return eps * np.eye(ModelInfo.PER_NODE_DOF)
 
     def CalculateElementStress(self, displacement):
         """
         Calculate element stress, 刚体没有形变, 所以没有应力
         """
-        return np.zeros((1, 6))
+        return np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
 
     def ElementMass(self):
         pass

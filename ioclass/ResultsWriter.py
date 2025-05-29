@@ -69,7 +69,6 @@ class ResultsWriter(object):
         1. https://github.com/nschloe/meshio
         """
         # 模型部分
-        per_node_dof = self.femdb.per_node_dof
         coords = np.asarray([node.coord for node in self.femdb.node_list])
         all_eles = {}
 
@@ -82,7 +81,7 @@ class ResultsWriter(object):
                 all_eles[ele_type] = [iter_relation]
 
         # 位移结果
-        dis_value = np.reshape(self.femdb.linear_u, (-1, per_node_dof))[:, :3]
+        dis_value = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
         # node_res = {"displacement":dis_value}
         node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises,
                     "sigma_xx": self.femdb.sigma_xx, "sigma_yy": self.femdb.sigma_yy, "sigma_zz": self.femdb.sigma_zz,
@@ -119,10 +118,9 @@ class ResultsWriter(object):
             u = self.femdb.history_u[ii]
             v = self.femdb.history_v[ii]
             a = self.femdb.history_a[ii]
-            per_node_dof = self.femdb.per_node_dof
-            time_result = {"displacement": np.reshape(u, (-1, per_node_dof))[:, :3],
-                           "velocity": np.reshape(v, (-1, per_node_dof))[:, :3],
-                           "acceleration": np.reshape(a, (-1, per_node_dof))[:, :3]}
+            time_result = {"displacement": np.reshape(u, (-1, ModelInfo.PER_NODE_DOF))[:, :3],
+                           "velocity": np.reshape(v, (-1, ModelInfo.PER_NODE_DOF))[:, :3],
+                           "acceleration": np.reshape(a, (-1, ModelInfo.PER_NODE_DOF))[:, :3]}
             meshio.write_points_cells(
                 filename=path,
                 points=coords,
@@ -200,5 +198,5 @@ class ResultsWriter(object):
 
 
 if __name__ == "__main__":
-    a = np.asarray([[1, 2, 3], [4, 5, 6]])
-    print(np.reshape(a, (-1, 6)))
+    a_ = np.asarray([[1, 2, 3], [4, 5, 6]])
+    print(np.reshape(a_, (-1, 6)))

@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from femdb.FEMDataBase import *
+from GlobalFEMVariant import ModelInfo
 from scipy.sparse.linalg import factorized
 from femdb.GlobalEnum import *
 import pypardiso
@@ -57,7 +58,7 @@ class Domain(object):
         self.Ub = []  # 约束指定位移
         self.Ua = None  # 未被约束的自由度
         self.Ra = None  # 未被约束的自由度上的力或力矩
-        self.right_hand = None  # 右端项, 长度等于node_count * per_node_dof
+        self.right_hand = None  # 右端项, 长度等于node_count * ModelInfo.PER_NODE_DOF
         # 以下为刚度阵相关
         self.stiff_list = []
         self.mass_list = []
@@ -105,14 +106,13 @@ class Domain(object):
         cols = np.zeros(self.femdb.matrix_num_size)
         datas = np.zeros(self.femdb.matrix_num_size)
         GlobalNodeHash = self.femdb.node_hash
-        per_node_dof = self.femdb.per_node_dof
         for kk, ele in enumerate(self.femdb.elements):
             # ele_nodes = ele.node_ids
             ele_nodes = ele.search_node_ids
             stiff_array = self.stiff_list[kk]
             n_nodes = len(ele_nodes)
-            block_size = n_nodes * per_node_dof
-            el_dofs = np.array([x * per_node_dof + np.arange(per_node_dof)
+            block_size = n_nodes * ModelInfo.PER_NODE_DOF
+            el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
                                 for x in ele_nodes]).flatten()
             rows_block, cols_block = np.meshgrid(el_dofs, el_dofs)
             entries_count = block_size ** 2
@@ -122,7 +122,7 @@ class Domain(object):
 
             iter_loc += entries_count
 
-        matrix_size = len(self.femdb.node_list) * per_node_dof
+        matrix_size = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
                                                            shape=(matrix_size, matrix_size)).tocsc()
         if GlobalInfor[GlobalVariant.PlotGlobalStiffness]:
@@ -147,25 +147,24 @@ class Domain(object):
         cols = []
         datas = []
         GlobalNodeHash = self.femdb.node_hash
-        per_node_dof = self.femdb.per_node_dof
         for kk, ele in enumerate(self.femdb.elements):
             nodes = ele.node_ids
             mass_array = self.mass_list[kk]
             for ii, nodeA in enumerate(nodes):
-                equA = GlobalNodeHash[nodeA] * per_node_dof
+                equA = GlobalNodeHash[nodeA] * ModelInfo.PER_NODE_DOF
                 for jj, nodeB in enumerate(nodes):
-                    equB = GlobalNodeHash[nodeB] * per_node_dof
-                    for m in range(per_node_dof):
-                        for n in range(per_node_dof):
+                    equB = GlobalNodeHash[nodeB] * ModelInfo.PER_NODE_DOF
+                    for m in range(ModelInfo.PER_NODE_DOF):
+                        for n in range(ModelInfo.PER_NODE_DOF):
                             TolRow = equA + m
                             TolCol = equB + n
-                            eRow = ii * per_node_dof + m
-                            eCol = jj * per_node_dof + n
+                            eRow = ii * ModelInfo.PER_NODE_DOF + m
+                            eCol = jj * ModelInfo.PER_NODE_DOF + n
                             if mass_array[eRow, eCol] != 0:
                                 rows.append(TolRow)
                                 cols.append(TolCol)
                                 datas.append(mass_array[eRow, eCol])
-        matrix_size = len(self.femdb.node_list) * per_node_dof
+        matrix_size = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
 
         """
         给质量阵添加扰动项，避免计算奇异
@@ -201,14 +200,13 @@ class Domain(object):
         1. 《有限元分析的概念与应用》-第四版 (Robert D.Cook) P36 P421
         2. 《有限元法 理论、格式与求解方法》 (Bathe) P138 P178
         """
-        node_dof_count = self.femdb.per_node_dof
         c_load = self.femdb.load_case.c_loads
         force_nodes = [ii[0] for ii in c_load]
         directories = [ii[1] for ii in c_load]
         amps = [ii[2] for ii in c_load]
 
         for ii, nd in enumerate(force_nodes):
-            eqa = self.femdb.node_hash[nd] * node_dof_count
+            eqa = self.femdb.node_hash[nd] * ModelInfo.PER_NODE_DOF
             xyz = directories[ii]
             self.right_hand[eqa + xyz] = amps[ii]
 
@@ -220,7 +218,6 @@ class Domain(object):
         求解模型节点的应力
         :return:
         """
-        per_node_dof = self.femdb.per_node_dof
         self.femdb.linear_mises = np.zeros(len(self.femdb.node_list))
         self.femdb.sigma_xx = np.zeros(len(self.femdb.node_list))
         self.femdb.sigma_yy = np.zeros(len(self.femdb.node_list))
@@ -231,8 +228,8 @@ class Domain(object):
         for ele in self.femdb.elements:
             search_idx = []
             for ii in ele.search_node_ids:
-                start = ii * per_node_dof
-                end = (ii + 1) * per_node_dof
+                start = ii * ModelInfo.PER_NODE_DOF
+                end = (ii + 1) * ModelInfo.PER_NODE_DOF
                 search_idx.extend(np.arange(start, end, 1).tolist())
 
             u = self.femdb.linear_u[search_idx].flatten()
@@ -257,9 +254,8 @@ class Domain(object):
         罚函数的方法施加约束
         @return:
         """
-        node_dof_count = self.femdb.per_node_dof
         node_count = len(self.femdb.node_list)
-        self.right_hand = np.zeros(node_count * node_dof_count)
+        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF)
 
         bds = self.femdb.load_case.GetBoundaries()
         for bd in bds:
@@ -268,7 +264,7 @@ class Domain(object):
                 dir_ = int(row[1])
                 val = float(row[2])
                 nd_idx = self.femdb.node_hash[nd]
-                base_idx = nd_idx * node_dof_count
+                base_idx = nd_idx * ModelInfo.PER_NODE_DOF
                 self.femdb.global_stiff_matrix[base_idx + dir_, base_idx + dir_] += 2e21
                 self.right_hand[base_idx + dir_] = val
 
@@ -289,13 +285,12 @@ class Domain(object):
         scale = [ii[2] for ii in his_load]
         steps_count = his_load[0][-1].shape[1]
         delta_t = his_load[0][-1][0, 1] - his_load[0][-1][0, 0]
-        node_dof_count = self.femdb.per_node_dof
         node_count = len(self.femdb.node_list)
-        fem_all_dofs = node_dof_count * node_count
+        fem_all_dofs = ModelInfo.PER_NODE_DOF * node_count
         his_vals = np.zeros((fem_all_dofs, steps_count), dtype=float)
 
         for ii, nd in enumerate(force_nodes):
-            eqa = self.femdb.node_hash[nd] * node_dof_count
+            eqa = self.femdb.node_hash[nd] * ModelInfo.PER_NODE_DOF
             xyz = directories[ii]
             his_vals[eqa + xyz] = his_load[ii][-1][1, :] * scale[ii]
 

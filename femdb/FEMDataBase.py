@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
 from utils.Singleton import Singleton
 from femdb.LoadCase import *
+from GlobalFEMVariant import ModelInfo
 from collections import OrderedDict
 from scipy import sparse
 
@@ -20,7 +20,6 @@ class FEMDataBase(object):
         # nodes
         self.node_list = []  # List of all nodes in the domain, 实例化数据
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
-        self.per_node_dof = None  # 现只支持所有节点同一个自由度数
         self.elements = []
         self.equation_number = None
         self.node_connected_element_count = None
@@ -82,7 +81,7 @@ class FEMDataBase(object):
         summary_dict = OrderedDict()
         summary_dict["File Path"] = str(self.file_path)
         if not self.equation_number:
-            summary_dict["Number of Equation"] = self.per_node_dof * len(self.node_list)
+            summary_dict["Number of Equation"] = ModelInfo.PER_NODE_DOF * len(self.node_list)
         else:
             summary_dict["Number Of Equation"] = self.equation_number
         summary_dict["Number Of Node"] = len(self.node_list)  # TODO: 并不是标准的节点个数, 标准节点个数应该是由单元计算出来
@@ -90,12 +89,12 @@ class FEMDataBase(object):
 
         return summary_dict
 
-    def GetNodeCoordBySearchId(self, idxes):
+    def GetNodeCoordBySearchId(self, indexes):
         """
         获取节点的坐标, 用于计算单元刚度阵
         """
         coords = []
-        for idx in idxes:
+        for idx in indexes:
             t_node = self.node_list[idx]
             coords.append((t_node.x, t_node.y, t_node.z))
         return coords

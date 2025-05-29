@@ -176,7 +176,7 @@ class InpParser(object):
                 # 解析单元类型关键字, 如果出现某些单元, 那么整个分析将变为2D分析
                 e_type = self.iter_line.split(",")[1].split("=")[-1]
                 dof_count = ElementFactory.GetElementNodeDofCount(e_type)
-                self.fem_db.per_node_dof = dof_count
+                ModelInfo.PER_NODE_DOF = dof_count
                 if dof_count == 2:
                     self.fem_db.an_dimension = AnalyseDimension.TwoDimension
 
@@ -456,7 +456,7 @@ class InpParser(object):
             values = []
             if "ENCASTRE" in keywords[1]:
                 for nd in nds:
-                    for ii in range(self.fem_db.per_node_dof):
+                    for ii in range(ModelInfo.PER_NODE_DOF):
                         d_nodes.append(nd)
                         directs.append(ii)
                         values.append(0)
@@ -506,10 +506,6 @@ class InpParser(object):
 if __name__ == "__main__":
     # print(ReadSectionLine("*Beam Section, elset=_PickedSet8, material=Material-1, temperature=GRADIENTS, section=PIPE\n"))
     # input_file = r"../numerical example/ABAQUS/Job-1.inp"
-    import os
-
-    os.environ["QT_API"] = "pyqt5"
-
     input_file = f"D:/WorkSpace/FEM/NumericalCases/examples/ABAQUS/static/linear/Plane/aircraft-wing.inp"
     npp = InpParser(input_path=input_file)
     npp.ParseFileAndInitFEMDB()
