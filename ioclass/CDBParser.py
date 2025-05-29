@@ -116,7 +116,10 @@ class CDBParser(object):
                     splits = self.iter_line.strip().split(",")
                     comp_name = splits[1]
                     comp_type = splits[2]
-                    set_data_count = int(splits[3])
+                    if "!" in splits[3]:
+                        set_data_count = int(splits[3].split("!")[0])
+                    else:
+                        set_data_count = int(splits[3])
                     fortran_format = cdb_f.readline().strip()  # skip format of node line
                     f_reader = ff.FortranRecordReader(fortran_format)
                     set_data_line = f_reader.read(cdb_f.readline())
@@ -148,7 +151,7 @@ class CDBParser(object):
                     if comp_type == 'NODE':
                         self.femdb.node_set_name_hash[comp_name] = len(self.femdb.node_sets)
                         self.femdb.node_sets.append(set_data)
-                    elif comp_type == 'ELEMENT':
+                    elif comp_type == 'ELEMENT' or comp_type == 'ELEM':
                         self.femdb.element_set_name_hash[comp_name] = len(self.femdb.element_sets)
                         self.femdb.element_sets.append(set_data)
                     else:
@@ -315,13 +318,14 @@ class CDBParser(object):
 
                 ele_node_list = list(OrderedDict.fromkeys(search_ids))
                 self.node_search_ids_list.extend(ele_node_list)
-                iter_ele, e_node_count = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
+                iter_ele, e_node_count, ele_matrix_size = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
                 iter_ele.SetNodeSearchIndex(np.asarray(ele_node_list))
                 iter_ele.SetId(ele_num)
                 iter_ele.SetNodes(np.asarray(list(OrderedDict.fromkeys(node_ids))))
                 iter_ele.mat_id = mat_num
                 iter_ele.sec_id = sec_id
                 iter_ele.real_const_id = real_constant_num
+                self.femdb.matrix_num_size += ele_matrix_size
 
                 """
                 计算单元包括的节点的坐标矩阵

@@ -102,9 +102,10 @@ class Domain(object):
         2. https://stackoverflow.com/questions/27770906/why-are-lil-matrix-and-dok-matrix-so-slow-compared-to-common-dict-of-dicts
         @return:
         """
-        rows = []
-        cols = []
-        datas = []
+        iter_loc = 0
+        rows = np.zeros(self.femdb.matrix_num_size)
+        cols = np.zeros(self.femdb.matrix_num_size)
+        datas = np.zeros(self.femdb.matrix_num_size)
         GlobalNodeHash = self.femdb.node_hash
         per_node_dof = self.femdb.per_node_dof
         for kk, ele in enumerate(self.femdb.elements):
@@ -120,9 +121,11 @@ class Domain(object):
                             TolCol = equB + n
                             eRow = ii * per_node_dof + m
                             eClo = jj * per_node_dof + n
-                            rows.append(TolRow)
-                            cols.append(TolCol)
-                            datas.append(stiff_array[eRow, eClo])
+                            rows[iter_loc] = TolRow
+                            cols[iter_loc] = TolCol
+                            datas[iter_loc] = stiff_array[eRow, eClo]
+                            iter_loc += 1
+
         matrix_size = len(self.femdb.node_list) * per_node_dof
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
                                                            shape=(matrix_size, matrix_size)).tocsc()

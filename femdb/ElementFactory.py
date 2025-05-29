@@ -26,7 +26,7 @@ class ElementFactory:
     """
 
     @staticmethod
-    def CreateElement(e_type, e_id=-1, opt=None) -> tuple[ElementBaseClass, int]:
+    def CreateElement(e_type, e_id=-1, opt=None) -> tuple[ElementBaseClass, int, int]:
         """
         静态函数, 用于返回
         :param e_type: 单元类型，这里包含了Abaqus、Nastran和Ansys的
@@ -36,55 +36,55 @@ class ElementFactory:
         """
         # 1D Element
         if e_type in ["T3D2"]:
-            return T3D2(e_id), 2
+            return T3D2(e_id), 2, 36
         elif e_type in ["B31", 188]:
-            return Beam188(e_id), 2
+            return Beam188(e_id), 2, 144
         elif e_type in [189]:
-            return Beam189(e_id), 3,
+            return Beam189(e_id), 3, 324
 
         # 2D Element
         elif e_type in ["CPS3"]:
-            return CPS3(e_id), 3
+            return CPS3(e_id), 3, 36
         elif e_type in ["CPS4"]:
-            return CPS4(e_id), 4
+            return CPS4(e_id), 4, 64
 
         # 3D Element
         elif e_type in ["S3"]:
             # return TriangleShell63(e_id), 3
-            return CookTriShell(e_id), 3
+            return CookTriShell(e_id), 3, 324
         elif e_type in ["S4", "S4R", "S4RT"]:
             # return QuadShell63(e_id), 4
-            return CookQuaShell(e_id), 4
+            return CookQuaShell(e_id), 4, 576
         elif e_type in [181, 63]:
             if opt == 4:
                 # return QuadShell63(e_id), 4
-                return CookQuaShell(e_id), 4
+                return CookQuaShell(e_id), 4, 576
             elif opt == 3:
                 # return TriangleShell63(e_id), 3
-                return CookTriShell(e_id), 3
+                return CookTriShell(e_id), 3, 324
             else:
                 mlogger.fatal("Shell 181/63 don't support opt {}".format(opt))
                 sys.exit(1)
 
         elif e_type in ["C3D8", 45]:
-            return C3D8(e_id), 8
+            return C3D8(e_id), 8, 576
         elif e_type in ["C3D8R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
         elif e_type in ["C3D6"]:
-            return C3D6(e_id), 6
+            return C3D6(e_id), 6, 324
         elif e_type in ["C3D4"]:
-            return C3D4(e_id), 4
+            return C3D4(e_id), 4, 144
         elif e_type in ["C3D20R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
         elif e_type == 185:
             if opt == 8:
-                return C3D8(e_id), 8
+                return C3D8(e_id), 8, 576
             elif opt == 6:
-                return C3D6(e_id), 6
+                return C3D6(e_id), 6, 324
             elif opt == 4:
-                return C3D4(e_id), 4
+                return C3D4(e_id), 4, 144
             else:
                 mlogger.fatal("Wrong opt parameter: {}".format(opt))
                 sys.exit(1)

@@ -36,6 +36,7 @@ class FEMDataBase(object):
         self.equation_constrain_idx = []
 
         # Preprocess Fem
+        self.matrix_num_size = 0
         self.global_stiff_matrix = None
         self.global_mass_matrix = None
         self.load_case = LoadCase()

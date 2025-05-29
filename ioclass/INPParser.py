@@ -47,7 +47,7 @@ def ReadSectionLine(line):
     for i in range(1, len(sps)):
         if "=" in sps[i]:
             keyval = sps[i].strip().split("=")
-            ret_diction[keyval[0]] = keyval[1]
+            ret_diction[keyval[0].lower()] = keyval[1]
         else:
             mlogger.fatal("Fatal Error: in ReadSectionLine {}".format(line))
             sys.exit(1)
@@ -185,7 +185,7 @@ class InpParser(object):
                 # 将*视为结束
                 self.iter_line = f_handle.readline().strip()
                 while not self.iter_line.startswith("*"):
-                    iter_ele, n_cnt = ElementFactory.CreateElement(e_type.strip())
+                    iter_ele, n_cnt, ele_matrix_size = ElementFactory.CreateElement(e_type.strip())
                     nds = np.zeros(n_cnt, dtype=np.uint32)
                     sp_line = self.iter_line.split(",")
                     if sp_line[-1] == "":
@@ -227,6 +227,7 @@ class InpParser(object):
                     self.fem_db.elements.append(iter_ele)
                     self.ele_count += 1
                     self.iter_line = f_handle.readline().strip()
+                    self.fem_db.matrix_num_size += ele_matrix_size
 
             elif self.iter_line.lower().startswith("*nset,"):
                 self.ReadNSet(f_handle)
@@ -275,17 +276,11 @@ class InpParser(object):
                 ret_dict = ReadSectionLine(self.iter_line)
                 if "elset" in ret_dict:
                     els_name = ret_dict["elset"]
-                elif "ELSET" in ret_dict:
-                    els_name = ret_dict["ELSET"]
                 else:
                     raise KeyError("Elset doesn't in ret_dict")
 
                 if "material" in ret_dict:
                     mat_name = ret_dict["material"]
-                elif "MATERIAL" in ret_dict:
-                    mat_name = ret_dict["MATERIAL"]
-                elif "Material" in ret_dict:
-                    mat_name = ret_dict["Material"]
                 else:
                     raise KeyError("material doesn't in ret_dict")
 
