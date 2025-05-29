@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-import scipy.sparse
-
 from femdb.FEMDataBase import *
 from scipy.sparse.linalg import factorized
 from femdb.GlobalEnum import *
@@ -109,22 +107,20 @@ class Domain(object):
         GlobalNodeHash = self.femdb.node_hash
         per_node_dof = self.femdb.per_node_dof
         for kk, ele in enumerate(self.femdb.elements):
-            ele_nodes = ele.node_ids
+            # ele_nodes = ele.node_ids
+            ele_nodes = ele.search_node_ids
             stiff_array = self.stiff_list[kk]
-            for ii, nodeA in enumerate(ele_nodes):
-                equA = GlobalNodeHash[nodeA] * per_node_dof
-                for jj, nodeB in enumerate(ele_nodes):
-                    equB = GlobalNodeHash[nodeB] * per_node_dof
-                    for m in range(per_node_dof):
-                        for n in range(per_node_dof):
-                            TolRow = equA + m
-                            TolCol = equB + n
-                            eRow = ii * per_node_dof + m
-                            eClo = jj * per_node_dof + n
-                            rows[iter_loc] = TolRow
-                            cols[iter_loc] = TolCol
-                            datas[iter_loc] = stiff_array[eRow, eClo]
-                            iter_loc += 1
+            n_nodes = len(ele_nodes)
+            block_size = n_nodes * per_node_dof
+            el_dofs = np.array([x * per_node_dof + np.arange(per_node_dof)
+                                for x in ele_nodes]).flatten()
+            rows_block, cols_block = np.meshgrid(el_dofs, el_dofs)
+            entries_count = block_size ** 2
+            rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()
+            cols[iter_loc:iter_loc + entries_count] = cols_block.ravel()
+            datas[iter_loc:iter_loc + entries_count] = stiff_array.ravel()
+
+            iter_loc += entries_count
 
         matrix_size = len(self.femdb.node_list) * per_node_dof
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),

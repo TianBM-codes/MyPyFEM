@@ -16,7 +16,6 @@ class TriangleShell63(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
-        self._nodes = [None for _ in range(self.nodes_count)]
         self.vtu_type = "triangle"
         self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
@@ -145,7 +144,6 @@ class QuadShell63(ElementBaseClass, ABC):
         self.nodes_count = 4  # Each element has 4 nodes
         self.vtu_type = "quad"
         self.K = np.zeros((24, 24))
-        self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
         self.local_coord = None
         self.global_t_matrix = np.zeros((24, 24))
@@ -269,7 +267,6 @@ class CookTriShell(ElementBaseClass, ABC):
     def __init__(self, eid=None):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
-        self._nodes = [None for _ in range(self.nodes_count)]
         self.vtu_type = "triangle"
         self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
@@ -405,7 +402,6 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.nodes_count = 4  # Each element has 4 nodes
         self.vtu_type = "quad"
         self.K = np.zeros((24, 24))
-        self._nodes = [None for _ in range(self.nodes_count)]
         self.unv_code = 40500
         self.local_coord = None
         self.local2global_matrix = np.zeros((24, 24))

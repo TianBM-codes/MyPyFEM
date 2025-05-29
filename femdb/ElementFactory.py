@@ -34,8 +34,11 @@ class ElementFactory:
         :param opt: 附加参数, 比如181可能是3节点壳也可能是4节点壳, solid45可能是8节点也可能是4节点
         :return: 单元、节点个数以及单刚中包含数据个数
         """
+        # 0D Element
+        if e_type in [21]:
+            return
         # 1D Element
-        if e_type in ["T3D2"]:
+        elif e_type in ["T3D2"]:
             return T3D2(e_id), 2, 36
         elif e_type in ["B31", 188]:
             return Beam188(e_id), 2, 144
