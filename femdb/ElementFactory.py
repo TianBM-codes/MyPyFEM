@@ -20,7 +20,7 @@ from element.Wedge import C3D6
 from element.Hexa import C3D8
 
 from femdb.GlobalEnum import *
-from GlobalFEMVariant import ModelInfo
+from femdb.GlobalFEMVariant import ModelInfo
 
 
 class ElementFactory:

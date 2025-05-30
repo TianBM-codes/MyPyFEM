@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 from femdb.FEMDataBase import *
-from GlobalFEMVariant import ModelInfo
-from scipy.sparse.linalg import factorized
+from femdb.GlobalFEMVariant import ModelInfo
+from scipy.sparse.linalg import factorized, spsolve
 from femdb.GlobalEnum import *
 import pypardiso
 
@@ -13,7 +13,7 @@ import pypardiso
 因此能够很高效的转为csr, 但是转为csc效率相对较低.
    2. 强烈建议不要直接使用NumPy函数运算稀疏矩阵如果你想将NumPy函数应用于这些矩阵，首先要检查SciPy是否有自己的给定稀疏矩阵类的实现, 或者首先将稀疏矩
 阵转换为NumPy数组(使用类的toarray()方法).
-   3. 要执行乘法或转置等操作，首先将矩阵转换为CSC或CSR格式，效率高CSR格式特别适用于快速矩阵矢量产品
+   3. 要执行乘法或转置等操作, 首先将矩阵转换为CSC或CSR格式, 效率高. CSR格式特别适用于快速矩阵矢量
    4. CSR，CSC和COO格式之间的所有转换都是线性复杂度.
    5. 对于已知是正定对称矩阵的情况下, 如何用scipy快速求解逆矩阵:
    https://stackoverflow.com/questions/40703042/more-efficient-way-to-invert-a-matrix-knowing-it-is-symmetric-and-positive-semi#:~:text=%3E%3E%3E%3E%20M%20%3D%20np.random.rand%20%2810%2C10%29%20%3E%3E%3E%3E%20M%20%3D,inv_M%20%3D%20np.triu%20%28inv_M%29%20%2B%20np.triu%20%28inv_M%2C%20k%3D1%29.T
@@ -62,7 +62,6 @@ class Domain(object):
         # 以下为刚度阵相关
         self.stiff_list = []
         self.mass_list = []
-        # self.eq_nums = []
         self.check_model = check_model
 
     def CalAllElementStiffness(self):
@@ -73,7 +72,6 @@ class Domain(object):
         """
         calculated_eles_count = 0
         for iter_ele in self.femdb.elements:
-            # self.eq_nums.append(iter_ele.GetElementEquationNumber())
             iter_ele.CalculateBasic()
             stiff = iter_ele.ElementStiffness()
             calculated_eles_count += 1
@@ -101,13 +99,20 @@ class Domain(object):
         2. https://stackoverflow.com/questions/27770906/why-are-lil-matrix-and-dok-matrix-so-slow-compared-to-common-dict-of-dicts
         @return:
         """
+        """
+        组装总体刚度阵, 首先考虑系数矩阵一共有多少个元素, 对于约束方程来说, 施加一个自由度约束需要添加4个量
+        """
+        ce_count = len(self.femdb.equation_constrain_couple)
+        ce_add_equations = 0
+        for ii in range(ce_count):
+            iter_ce = self.femdb.equation_constrain_idx[ii]
+            ce_add_equations += len(iter_ce)
+
         iter_loc = 0
-        rows = np.zeros(self.femdb.matrix_num_size)
-        cols = np.zeros(self.femdb.matrix_num_size)
-        datas = np.zeros(self.femdb.matrix_num_size)
-        GlobalNodeHash = self.femdb.node_hash
+        rows = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.int32)
+        cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.int32)
+        datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.float64)
         for kk, ele in enumerate(self.femdb.elements):
-            # ele_nodes = ele.node_ids
             ele_nodes = ele.search_node_ids
             stiff_array = self.stiff_list[kk]
             n_nodes = len(ele_nodes)
@@ -122,9 +127,40 @@ class Domain(object):
 
             iter_loc += entries_count
 
-        matrix_size = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+        """
+        添加RBE2约束, 拉格朗日乘子法实现约束方程, 需要增加总刚维度
+        """
+        GlobalNodeHash = self.femdb.node_hash
+        matrix_dimension = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+        row_cursor = 0
+        for ii in range(ce_count):
+            m_node, s_node = self.femdb.equation_constrain_couple[ii]
+            iter_ce_idx = self.femdb.equation_constrain_idx[ii]
+            m_node_dof = GlobalNodeHash[m_node] * ModelInfo.PER_NODE_DOF
+            s_node_dof = GlobalNodeHash[s_node] * ModelInfo.PER_NODE_DOF
+            for jj in iter_ce_idx:
+                insert_begin = self.femdb.matrix_num_count + row_cursor
+                insert_end = insert_begin + 4
+                rows[insert_begin: insert_end] = [matrix_dimension + row_cursor,
+                                                  matrix_dimension + row_cursor,
+                                                  s_node_dof + jj,
+                                                  m_node_dof + jj]
+
+                cols[insert_begin:insert_end] = [s_node_dof + jj,
+                                                 m_node_dof + jj,
+                                                 matrix_dimension + row_cursor,
+                                                 matrix_dimension + row_cursor]
+                datas[insert_begin: insert_end] = [1, -1, 1, -1]
+
+            row_cursor += 1
+
+        matrix_dimension += ce_count
+
+        """
+        完成所有三向量数据的准备, 开始组装总刚
+        """
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
-                                                           shape=(matrix_size, matrix_size)).tocsc()
+                                                           shape=(matrix_dimension, matrix_dimension)).tocsc()
         if GlobalInfor[GlobalVariant.PlotGlobalStiffness]:
             plt.spy(self.femdb.global_stiff_matrix, markersize=1)
             plt.title("GlobalStiffnessMatrix")
@@ -211,7 +247,10 @@ class Domain(object):
             self.right_hand[eqa + xyz] = amps[ii]
 
         # TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
-        self.femdb.linear_u = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
+        temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
+        # temp_results = spsolve(self.femdb.global_stiff_matrix, self.right_hand)
+        result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+        self.femdb.linear_u = temp_results[:result_range]
 
     def SolveStress(self):
         """
@@ -254,8 +293,12 @@ class Domain(object):
         罚函数的方法施加约束
         @return:
         """
+        """
+        注意要增加约束方程部分
+        """
         node_count = len(self.femdb.node_list)
-        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF)
+        ce_count = len(self.femdb.equation_constrain_couple)
+        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF + ce_count)
 
         bds = self.femdb.load_case.GetBoundaries()
         for bd in bds:

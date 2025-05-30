@@ -58,7 +58,12 @@ class BeamCalculator:
             return {SectionKey.It: It, SectionKey.Is: Is, SectionKey.Tor: Torsional}
 
         elif sec_type == BeamSectionType.CircleSolid:
-            assert len(sec_data) == 1
+            """
+            sec_data: R, N, T
+            R = Radius
+            N = Number of divisions around the circumference; 8  N  120 (where a greater value improves accuracy slightly); default = 8
+            T = Number of divisions through the radius; default = 2
+            """
             I = 0.25 * np.pi * pow(sec_data[0], 4)
             Torsional = I * 2
             return {SectionKey.It: I, SectionKey.Is: I, SectionKey.Tor: Torsional}
@@ -79,7 +84,6 @@ class BeamCalculator:
             return {SectionKey.Area: Area, SectionKey.At: E_Area, SectionKey.As: E_Area}
 
         elif sec_type == BeamSectionType.CircleSolid:
-            assert len(sec_data) == 1
             Area = np.pi * pow(sec_data[0], 2)
             E_Area = 0.9 * np.pi * sec_data[0] ** 2
             return {SectionKey.Area: Area, SectionKey.At: E_Area, SectionKey.As: E_Area}
@@ -123,17 +127,13 @@ class Beam188(ElementBaseClass, ABC):
         TODO: 有整理的pdf
         Reference:
         """
-        # 节点顺序为起始点, 终点, 方向点  TODO: 如何求解默认的, 也就是没定义梁方向的截面法向
-        assert self.node_coords.shape == (3, 3)
-
-        # 单元参数
         delta = np.asarray(self.node_coords[1, :] - self.node_coords[0, :])
         E = self.cha_dict[MaterialKey.E]
         A = self.cha_dict[SectionKey.Area]
         At = self.cha_dict[SectionKey.At]
         As = self.cha_dict[SectionKey.As]
-        G = E / (1 + 2 * self.cha_dict[MaterialKey.Niu])
-        L = np.sqrt(np.dot(delta, delta.T))
+        G = self.cha_dict[MaterialKey.G]
+        L = np.linalg.norm(delta)
         It = self.cha_dict[SectionKey.It]
         Is = self.cha_dict[SectionKey.Is]
         Tor = self.cha_dict[SectionKey.Tor]
@@ -180,35 +180,47 @@ class Beam188(ElementBaseClass, ABC):
         K[10, 4] -= EIs_L
         K[11, 5] -= EIt_L
 
-        # 笛卡尔坐标变换为自然坐标, 梁主轴方向r, 梁方向点方向s, 王勖成P331
-        normal_direct = np.asarray(self.node_coords[2, :] - (self.node_coords[0, :] + self.node_coords[1, :]) / 2)
-        cross_direct = np.cross(delta, normal_direct)
-        lxx, lxy, lxz = (delta / L)[0, :]
-        lyx, lyy, lyz = (normal_direct / np.linalg.norm(normal_direct))[0, :]
-        lzx, lzy, lzz = (cross_direct / np.linalg.norm(cross_direct))[0, :]
-        trans_mat = np.asarray([[lxx, lxy, lxz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                [lyx, lyy, lyz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                [lzx, lzy, lzz, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, lxx, lxy, lxz, 0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, lyx, lyy, lyz, 0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, lzx, lzy, lzz, 0, 0, 0, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0, lxx, lxy, lxz, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0, lyx, lyy, lyz, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0, lzx, lzy, lzz, 0, 0, 0],
-                                [0, 0, 0, 0, 0, 0, 0, 0, 0, lxx, lxy, lxz],
-                                [0, 0, 0, 0, 0, 0, 0, 0, 0, lyx, lyy, lyz],
-                                [0, 0, 0, 0, 0, 0, 0, 0, 0, lzx, lzy, lzz]], dtype=float)
+        """
+        笛卡尔坐标变换为自然坐标, 梁主轴方向r, 梁方向点方向s, 王勖成P331
+        如果没有第三个方向点, 使用默认参考方向, 如果ref与x_local共线, 则选择其他向量
+        """
+        x_local = delta / L
+        if self.node_coords.shape[0] < 3:
+            ref = np.array([0, 0, 1])
+            if np.allclose(np.cross(x_local, ref), 0):
+                ref = np.array([0, 1, 0])
+            normal_direct = ref
+        else:
+            normal_direct = np.asarray(self.node_coords[2, :] - (self.node_coords[0, :] + self.node_coords[1, :]) / 2)
 
-        return np.matmul(np.matmul(trans_mat.T, K), trans_mat)
+        z_local = np.cross(x_local, normal_direct)
+        z_local /= np.linalg.norm(z_local)
+        y_local = np.cross(z_local, x_local)
+        y_local /= np.linalg.norm(y_local)
+
+        """
+        3x3 方向余弦矩阵, 对应每个自由度组 (0~3, 3~6, 6~9, 9~12)
+        """
+        trans_mat = np.zeros((12, 12))
+        rot_mat = np.vstack([x_local, y_local, z_local])
+
+        for i in range(4):
+            trans_mat[i * 3:(i + 1) * 3, i * 3:(i + 1) * 3] = rot_mat
+
+        return trans_mat.T @ K @ trans_mat
 
     def CalculateElementStress(self, displacement):
         """
         Calculate element stress
         """
-        # fem_database = Domain()
-        # x1 = fem_database.GetDisplacement(self.search_node_id[0])
-        # x2 = fem_database.GetDisplacement(self.search_node_id[1])
         # self.stress = self.e / self.rod_length * (np.dot(np.asarray(x2), self.cos_angel) - np.dot(np.asarray(x1), self.cos_angel))
+        return np.zeros((2, 1)), np.zeros((2, 1)), np.zeros((2, 1)), np.zeros((2, 1)), np.zeros((2, 1)), np.zeros((2, 1))
+
+    def ElementMass(self):
+        pass
+
+    def CalculateBasic(self):
+        pass
 
 
 class Beam189(ElementBaseClass, ABC):

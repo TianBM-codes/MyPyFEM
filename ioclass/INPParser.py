@@ -227,7 +227,7 @@ class InpParser(object):
                     self.fem_db.elements.append(iter_ele)
                     self.ele_count += 1
                     self.iter_line = f_handle.readline().strip()
-                    self.fem_db.matrix_num_size += ele_matrix_size
+                    self.fem_db.matrix_num_count += ele_matrix_size
 
             elif self.iter_line.lower().startswith("*nset,"):
                 self.ReadNSet(f_handle)

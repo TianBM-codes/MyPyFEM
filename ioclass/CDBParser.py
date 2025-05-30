@@ -6,7 +6,7 @@ from collections import OrderedDict
 from element.Node import Node
 from femdb.ElementFactory import *
 from element.Beam import BeamCalculator
-from GlobalFEMVariant import ModelInfo
+from femdb.GlobalFEMVariant import ModelInfo
 
 import numpy as np
 import fortranformat as ff
@@ -123,32 +123,35 @@ class CDBParser(object):
                     else:
                         set_data_count = int(splits[3])
                     fortran_format = cdb_f.readline().strip()  # skip format of node line
-                    f_reader = ff.FortranRecordReader(fortran_format)
-                    set_data_line = f_reader.read(cdb_f.readline())
-                    set_data = []
-                    input_times = 0
-                    while True:
-                        if len(set_data_line) != 0:
-                            iter_v = set_data_line.pop(0)
+                    if fortran_format == '' or set_data_count == 0:
+                        self.iter_line = cdb_f.readline()
+                    else:
+                        f_reader = ff.FortranRecordReader(fortran_format)
+                        set_data_line = f_reader.read(cdb_f.readline())
+                        set_data = []
+                        input_times = 0
+                        while True:
+                            if len(set_data_line) != 0:
+                                iter_v = set_data_line.pop(0)
 
-                        if iter_v is not None:
-                            if iter_v > 0:
-                                set_data.append(iter_v)
-                                input_times += 1
-                            else:
-                                set_data.extend(list(range(set_data[-1] + 1, -iter_v + 1)))
-                                input_times += 1
+                            if iter_v is not None:
+                                if iter_v > 0:
+                                    set_data.append(iter_v)
+                                    input_times += 1
+                                else:
+                                    set_data.extend(list(range(set_data[-1] + 1, -iter_v + 1)))
+                                    input_times += 1
 
-                        if len(set_data_line) == 0 and input_times < set_data_count:
-                            set_data_line = f_reader.read(cdb_f.readline())
+                            if len(set_data_line) == 0 and input_times < set_data_count:
+                                set_data_line = f_reader.read(cdb_f.readline())
 
-                        if iter_v is None:
-                            if input_times < set_data_count:
-                                self.iter_line = cdb_f.readline()
-                                set_data_line = f_reader.read(self.iter_line)
-                            else:
-                                self.iter_line = cdb_f.readline()
-                                break
+                            if iter_v is None:
+                                if input_times < set_data_count:
+                                    self.iter_line = cdb_f.readline()
+                                    set_data_line = f_reader.read(self.iter_line)
+                                else:
+                                    self.iter_line = cdb_f.readline()
+                                    break
 
                     if comp_type == 'NODE':
                         self.femdb.node_set_name_hash[comp_name] = len(self.femdb.node_sets)
@@ -177,7 +180,7 @@ class CDBParser(object):
                     self.femdb.equation_constrain_couple.append((int(splits[1]), int(splits[2])))
                     constrain_type = splits[3].lstrip()
                     if constrain_type == 'UXYZ':
-                        self.femdb.equation_constrain_idx.append([0, 1, 2])
+                        self.femdb.equation_constrain_idx.append([0, 1, 2, 3, 4, 5])
                     else:
                         raise KeyError(f"{constrain_type}")
                     self.iter_line = cdb_f.readline()
@@ -327,7 +330,7 @@ class CDBParser(object):
                 iter_ele.mat_id = mat_num
                 iter_ele.sec_id = sec_id
                 iter_ele.real_const_id = real_constant_num
-                self.femdb.matrix_num_size += ele_matrix_size
+                self.femdb.matrix_num_count += ele_matrix_size
 
                 """
                 计算单元包括的节点的坐标矩阵
@@ -421,7 +424,6 @@ class CDBParser(object):
                     # 当前行为其他信息, 跳出读材料分支, 读取其他
                     jump_out = not (self.iter_line.startswith("MPDATA,") or self.iter_line.startswith("MPTEMP"))
                     if jump_out:
-                        # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
                         self.material_map[cur_mat_id] = value_dict
                         break
@@ -434,7 +436,7 @@ class CDBParser(object):
             splits = self.iter_line.strip().split(",")
             sec_num = int(splits[1])
             if splits[2] == "BEAM":
-                beam_type = splits[3]
+                beam_type = splits[3].lstrip()
                 msec_data = f_handle.readline().strip().split(",")
                 sec_data = [float(msec_data[idx]) for idx in range(1, len(msec_data)) if msec_data[idx]]
                 f_handle.readline()  # section offset
@@ -443,7 +445,10 @@ class CDBParser(object):
                     inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.Rectangle, sec_data)
                     area_character = BeamCalculator.CalEffectiveShearArea(BeamSectionType.Rectangle, sec_data)
                     self.section_map[int(sec_num)] = {**inertia_character, **area_character}
-
+                elif beam_type == "CSOLID":
+                    inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.CircleSolid, sec_data)
+                    area_character = BeamCalculator.CalEffectiveShearArea(BeamSectionType.CircleSolid, sec_data)
+                    self.section_map[int(sec_num)] = {**inertia_character, **area_character}
                 else:
                     mlogger.fatal("UnSupport Beam Type:{}".format(beam_type))
                     sys.exit(1)
@@ -471,7 +476,8 @@ class CDBParser(object):
                 sys.exit(1)
 
             # 当前行为其他信息, 跳出读材料分支, 读取其他
-            self.iter_line = f_handle.readline()
+            while self.iter_line.startswith("!") or self.iter_line.startswith(" "):
+                self.iter_line = f_handle.readline()
             if not self.iter_line.startswith("SECTYPE,"):
                 break
 

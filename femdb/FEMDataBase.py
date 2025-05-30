@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from utils.Singleton import Singleton
 from femdb.LoadCase import *
-from GlobalFEMVariant import ModelInfo
+from femdb.GlobalFEMVariant import ModelInfo
 from collections import OrderedDict
 from scipy import sparse
 
@@ -35,7 +35,7 @@ class FEMDataBase(object):
         self.equation_constrain_idx = []
 
         # Preprocess Fem
-        self.matrix_num_size = 0
+        self.matrix_num_count = 0
         self.global_stiff_matrix = None
         self.global_mass_matrix = None
         self.load_case = LoadCase()

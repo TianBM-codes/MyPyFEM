@@ -3,7 +3,7 @@
 
 from element.ElementBase import *
 from abc import ABC
-from GlobalFEMVariant import ModelInfo
+from femdb.GlobalFEMVariant import ModelInfo
 import numpy as np
 
 
