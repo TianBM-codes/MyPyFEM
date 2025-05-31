@@ -133,13 +133,14 @@ class Domain(object):
         GlobalNodeHash = self.femdb.node_hash
         matrix_dimension = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
         row_cursor = 0
+        insert_offset = 0
         for ii in range(ce_count):
             m_node, s_node = self.femdb.equation_constrain_couple[ii]
             iter_ce_idx = self.femdb.equation_constrain_idx[ii]
             m_node_dof = GlobalNodeHash[m_node] * ModelInfo.PER_NODE_DOF
             s_node_dof = GlobalNodeHash[s_node] * ModelInfo.PER_NODE_DOF
             for jj in iter_ce_idx:
-                insert_begin = self.femdb.matrix_num_count + row_cursor
+                insert_begin = self.femdb.matrix_num_count + insert_offset
                 insert_end = insert_begin + 4
                 rows[insert_begin: insert_end] = [matrix_dimension + row_cursor,
                                                   matrix_dimension + row_cursor,
@@ -151,6 +152,7 @@ class Domain(object):
                                                  matrix_dimension + row_cursor,
                                                  matrix_dimension + row_cursor]
                 datas[insert_begin: insert_end] = [1, -1, 1, -1]
+                insert_offset += 4
 
             row_cursor += 1
 
@@ -161,6 +163,24 @@ class Domain(object):
         """
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
                                                            shape=(matrix_dimension, matrix_dimension)).tocsc()
+
+        if self.check_model:
+            """
+            1. 输入矩阵或向量包含Nan或inf, 求解器无法处理非法数值
+            """
+            print("GlobalStiffMatrix contains NaN:", np.isnan(self.femdb.global_stiff_matrxi.data).any())
+            """
+            2. 若A的行列式为零(或条件数极大), 求解器无法找到唯一解, 数值计算失败
+            """
+            cond = np.linalg.cond(self.femdb.global_stiff_matrix.todense())
+            print("Condition number:", cond)
+            """
+            3. 检查矩阵是否对称正定
+            """
+            from scipy.linalg import eigh
+            eigenvalues = eigh(self.femdb.global_stiff_matrix.todense())[0]
+            print("Min eigenvalue:", np.min(eigenvalues))
+
         if GlobalInfor[GlobalVariant.PlotGlobalStiffness]:
             plt.spy(self.femdb.global_stiff_matrix, markersize=1)
             plt.title("GlobalStiffnessMatrix")
@@ -248,7 +268,6 @@ class Domain(object):
 
         # TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
         temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
-        # temp_results = spsolve(self.femdb.global_stiff_matrix, self.right_hand)
         result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
         self.femdb.linear_u = temp_results[:result_range]
 

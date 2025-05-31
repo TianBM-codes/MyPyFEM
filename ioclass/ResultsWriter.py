@@ -80,6 +80,14 @@ class ResultsWriter(object):
             else:
                 all_eles[ele_type] = [iter_relation]
 
+        for iter_ele_info in self.femdb.additional_elements:
+            iter_relation = [iter_ele_info[0], iter_ele_info[1]]
+            ele_type = iter_ele_info[2]
+            if all_eles.__contains__(ele_type):
+                all_eles[ele_type].append(iter_relation)
+            else:
+                all_eles[ele_type] = [iter_relation]
+
         # 位移结果
         dis_value = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
         # node_res = {"displacement":dis_value}

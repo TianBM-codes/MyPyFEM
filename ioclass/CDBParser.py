@@ -177,7 +177,10 @@ class CDBParser(object):
 
                 elif self.iter_line.startswith("CERIG"):
                     splits = self.iter_line.strip().split(",")
-                    self.femdb.equation_constrain_couple.append((int(splits[1]), int(splits[2])))
+                    m_node = int(splits[1])
+                    s_node = int(splits[2])
+                    self.femdb.equation_constrain_couple.append((m_node, s_node))
+                    self.femdb.additional_elements.append((self.femdb.node_hash[m_node], self.femdb.node_hash[s_node], "line"))
                     constrain_type = splits[3].lstrip()
                     if constrain_type == 'UXYZ':
                         self.femdb.equation_constrain_idx.append([0, 1, 2, 3, 4, 5])

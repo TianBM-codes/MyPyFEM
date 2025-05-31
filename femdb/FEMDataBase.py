@@ -59,6 +59,9 @@ class FEMDataBase(object):
         self.history_a = None
         self.history_step_count = 0
 
+        # Plot
+        self.additional_elements = []
+
     """ 
     以下的函数为解析文件的相关函数, 添加节点、单元、节点集、单元集、属性、材料、边界条件、LoadCase等 
     """
