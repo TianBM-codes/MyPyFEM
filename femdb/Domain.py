@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import sys
+
 import numpy as np
 from femdb.FEMDataBase import *
 from femdb.GlobalFEMVariant import ModelInfo
@@ -109,8 +111,8 @@ class Domain(object):
             ce_add_equations += len(iter_ce)
 
         iter_loc = 0
-        rows = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.int32)
-        cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.int32)
+        rows = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
+        cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
         datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.float64)
         for kk, ele in enumerate(self.femdb.elements):
             ele_nodes = ele.search_node_ids
@@ -154,9 +156,9 @@ class Domain(object):
                 datas[insert_begin: insert_end] = [1, -1, 1, -1]
                 insert_offset += 4
 
-            row_cursor += 1
+                row_cursor += 1
 
-        matrix_dimension += ce_count
+        matrix_dimension += row_cursor
 
         """
         完成所有三向量数据的准备, 开始组装总刚
@@ -166,15 +168,33 @@ class Domain(object):
 
         if self.check_model:
             """
+            0. 检查模型中是否存在不属于任何单元的节点
+            """
+            no_dup_nodes = np.zeros(len(self.femdb.node_list), dtype=np.uint32)
+            for ii, iter_node in enumerate(self.femdb.node_list):
+                no_dup_nodes[ii] = iter_node.id
+            nodes_set = set(no_dup_nodes)
+
+            element_nodes = []
+            for iter_ele in self.femdb.elements:
+                element_nodes.extend(iter_ele.node_ids.tolist())
+            ele_nodes_set = set(element_nodes)
+
+            redundant_set = nodes_set - ele_nodes_set
+            print("Redundant Nodes:", list(redundant_set))
+
+            """
             1. 输入矩阵或向量包含Nan或inf, 求解器无法处理非法数值
             """
-            print("GlobalStiffMatrix contains NaN:", np.isnan(self.femdb.global_stiff_matrxi.data).any())
+            print("GlobalStiffMatrix contains NaN:", np.isnan(self.femdb.global_stiff_matrix.data).any())
+
             """
             2. 若A的行列式为零(或条件数极大), 求解器无法找到唯一解, 数值计算失败
             """
             cond = np.linalg.cond(self.femdb.global_stiff_matrix.todense())
             print("Condition number:", cond)
             """
+            
             3. 检查矩阵是否对称正定
             """
             from scipy.linalg import eigh
@@ -267,9 +287,23 @@ class Domain(object):
             self.right_hand[eqa + xyz] = amps[ii]
 
         # TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
-        temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
-        result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
-        self.femdb.linear_u = temp_results[:result_range]
+        try:
+            temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
+            result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+            self.femdb.linear_u = temp_results[:result_range]
+        except ValueError as e:
+            matrix_csr = self.femdb.global_stiff_matrix.tocsr()
+            zero_rows = []
+            for i in range(matrix_csr.shape[0]):
+                row = matrix_csr.getrow(i)
+                if row.nnz == 0:
+                    zero_rows.append(i)
+            print("ZERO ROWS:")
+            print(zero_rows)
+            """
+            找出没有单元关系的
+            """
+            sys.exit(1)
 
     def SolveStress(self):
         """
@@ -317,7 +351,11 @@ class Domain(object):
         """
         node_count = len(self.femdb.node_list)
         ce_count = len(self.femdb.equation_constrain_couple)
-        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF + ce_count)
+        ce_add_equations = 0
+        for ii in range(ce_count):
+            iter_ce = self.femdb.equation_constrain_idx[ii]
+            ce_add_equations += len(iter_ce)
+        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF + ce_add_equations)
 
         bds = self.femdb.load_case.GetBoundaries()
         for bd in bds:
@@ -333,6 +371,7 @@ class Domain(object):
     def NewMarkExplict(self):
         """
         显式的动力学求解，使用NewMark方法
+        # TODO: 使用Bathe书上算例测试该算法
         Reference:
            《结构动力学基础》 张亚辉、林家浩 P94
         :return:
@@ -340,7 +379,6 @@ class Domain(object):
         """
         初始化载荷, 计算初始加速度
         """
-        # TODO: 使用Bathe书上算例测试该算法
         his_load = self.femdb.load_case.history_loads
         force_nodes = [ii[0] for ii in his_load]
         directories = [ii[1] for ii in his_load]

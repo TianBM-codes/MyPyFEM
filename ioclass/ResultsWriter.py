@@ -48,10 +48,33 @@
     TYPE=200600,   20点高阶六面体单元;
 """
 
+import zlib
+import struct
+from io import BytesIO
 import meshio
-import numpy as np
+from utils.MeshCleaner import *
+from element.MeshElementFactory import *
 
 from femdb.FEMDataBase import *
+
+
+def compute_normal_vector(p1, p2, p3):
+    """
+    计算三点法向量并归一化
+    @param p1:
+    @param p2:
+    @param p3:
+    @return: 单位法向量（numpy数组）
+    """
+    v1 = p2 - p1  # 向量AB
+    v2 = p3 - p1  # 向量AC
+    normal = np.cross(v1, v2)
+    norm = np.linalg.norm(normal)
+
+    if np.isclose(norm, 0):  # 浮点数精度容错
+        raise ValueError("三点共线，无法构成有效平面")
+
+    return normal / norm
 
 
 class ResultsWriter(object):
@@ -90,10 +113,10 @@ class ResultsWriter(object):
 
         # 位移结果
         dis_value = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
-        # node_res = {"displacement":dis_value}
-        node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises,
-                    "sigma_xx": self.femdb.sigma_xx, "sigma_yy": self.femdb.sigma_yy, "sigma_zz": self.femdb.sigma_zz,
-                    "tau_xy": self.femdb.tau_xy, "tau_xz": self.femdb.tau_xz, "tau_yz": self.femdb.tau_yz}
+        node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises}
+        # node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises,
+        #             "sigma_xx": self.femdb.sigma_xx, "sigma_yy": self.femdb.sigma_yy, "sigma_zz": self.femdb.sigma_zz,
+        #             "tau_xy": self.femdb.tau_xy, "tau_xz": self.femdb.tau_xz, "tau_yz": self.femdb.tau_yz}
         meshio.write_points_cells(
             filename=path,
             points=coords,
@@ -102,6 +125,285 @@ class ResultsWriter(object):
             # cell_data=cell_data,
             # field_data=field_data
         )
+
+    def WriteMises2DatFile(self, dat_path):
+        """
+        将Mises结果写入文件
+        :param dat_path:
+        :return:
+        """
+        buffer = BytesIO()
+        buffer.write(struct.pack(
+            f'{model_data["scalar_length"]}f',
+            # *model_data[f"iter_result_{iter_frame}"]
+            *model_data["result"]
+        ))
+        raw_data = buffer.getvalue()
+        compressed = zlib.compress(raw_data, level=9)
+
+        with open(dat_path, 'wb') as f:
+            f.write(compressed)
+
+    def WriteModel2DatFileWithoutRes(self, dat_path):
+        """
+        只写模型信息，不写入结果
+        :param dat_path:
+        :return:
+        """
+        buffer = BytesIO()
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        model_data = {"plot_type": 4,
+                      "boundary_box": [np.min(coords[:, 0]), np.max(coords[:, 0]),
+                                       np.min(coords[:, 1]), np.max(coords[:, 1]),
+                                       np.min(coords[:, 2]), np.max(coords[:, 2])],
+                      "nFrames": 0, "var_name": "displacement"}
+        displacement = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
+        dis_mag = np.sqrt(displacement[:, 0] ** 2 + displacement[:, 1] ** 2 + displacement[:, 2] ** 2)
+        model_data["global_min"] = np.min(dis_mag)
+        model_data["global_max"] = np.max(dis_mag)
+        model_data["part_count"] = 1
+
+        """
+        处理单元信息
+        """
+        all_eles = []
+        for ii, ele in enumerate(self.femdb.elements):
+            ele_type = ele.__class__.__name__
+            ele_nodes = ele.search_node_ids
+            iter_ele, _ = MeshElementFactory.CreateElement(ele_type, ii)
+            if iter_ele is not None:
+                iter_ele.setFaces(ele_nodes)
+                all_eles.append(iter_ele)
+
+        MarkSurface(all_eles)
+        all_nodes = []
+        all_tri_faces = []
+        all_res = []
+        edges = []
+        all_node_normal = []
+        edge_count = 0
+        tri_face_count = 0
+        for ii, ele in enumerate(all_eles):
+            triangles = ele.getAllTriangles(only_surface=True)
+            for tri in triangles:
+                all_nodes.extend([coords[row].flatten() for row in tri])
+                all_node_normal.extend([compute_normal_vector(*[coords[row] for row in tri]).flatten()] * 3)
+                begin_idx = len(all_tri_faces)
+                all_tri_faces.extend([begin_idx, begin_idx + 1, begin_idx + 2])
+                edges.extend([begin_idx, begin_idx + 1, begin_idx + 1, begin_idx + 2, begin_idx + 2, begin_idx])
+                edge_count += 3
+                tri_face_count += 3
+
+        model_data["node_count"] = len(all_nodes)
+        model_data["node_coords"] = np.array(all_nodes).flatten()
+        model_data["node_normal"] = np.array(all_node_normal).flatten()
+        model_data["scalar_length"] = len(all_res)
+        model_data["result"] = all_res
+        model_data["tri_face_count"] = tri_face_count
+        model_data["tri_faces"] = all_tri_faces
+        model_data["edges"] = edges
+        model_data["edge_count"] = edge_count
+        model_data["outline_count"] = 0
+        model_data["outline"] = []
+
+        """
+        1. 头部数据写入
+        """
+        buffer.write(struct.pack('i', model_data["plot_type"]))
+        buffer.write(struct.pack('6f', *model_data["boundary_box"]))
+        buffer.write(struct.pack('i', model_data["nFrames"]))
+
+        """
+        2. 变量名写入（固定256字节）
+        """
+        var_name = model_data["var_name"].encode('utf-8')
+        buffer.write(var_name.ljust(256, b'\x00')[:256])  # 确保256字节
+
+        """
+        3. 极值写入
+        """
+        buffer.write(struct.pack('f', model_data["global_min"]))
+        buffer.write(struct.pack('f', model_data["global_max"]))
+
+        """
+        4. 部件循环写入
+        """
+        buffer.write(struct.pack('i', model_data["part_count"]))
+        for i_part in range(model_data["part_count"]):
+            # 顶点数据
+            buffer.write(struct.pack('i', model_data["node_count"]))
+            buffer.write(struct.pack(f'{model_data["node_count"] * 3}f', *model_data["node_coords"]))
+            buffer.write(struct.pack(f'{model_data["node_count"] * 3}f', *model_data["node_normal"]))
+
+            # 标量结果（多帧）
+            buffer.write(struct.pack('i', model_data["scalar_length"]))
+            for iter_frame in range(model_data["nFrames"]):
+                buffer.write(struct.pack(
+                    f'{model_data["scalar_length"]}f',
+                    # *model_data[f"iter_result_{iter_frame}"]
+                    *model_data["result"]
+                ))
+
+            # 面片数据
+            buffer.write(struct.pack('i', model_data["tri_face_count"]))
+            buffer.write(struct.pack(
+                f'{model_data["tri_face_count"]}i',
+                *model_data["tri_faces"]
+            ))
+
+            # 轮廓线（原outline字段）
+            buffer.write(struct.pack('i', model_data["outline_count"]))
+            buffer.write(struct.pack(
+                f'{model_data["outline_count"]}i',
+                *model_data["outline"]
+            ))
+
+            # 单元边（原edges字段）
+            buffer.write(struct.pack('i', model_data["edge_count"] * 2))
+            buffer.write(struct.pack(
+                f'{model_data["edge_count"] * 2}i',
+                *model_data["edges"]
+            ))
+
+        """
+        5. 压缩并写入文件
+        """
+        raw_data = buffer.getvalue()
+        compressed = zlib.compress(raw_data, level=9)
+
+        with open(dat_path, 'wb') as f:
+            f.write(compressed)
+
+    def WriteStaticResult2DatFile(self, dat_path):
+        """
+        将静态结果写入到Dat文件中
+        :param dat_path:
+        :return:
+        """
+        buffer = BytesIO()
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        model_data = {"plot_type": 4,
+                      "boundary_box": [np.min(coords[:, 0]), np.max(coords[:, 0]),
+                                       np.min(coords[:, 1]), np.max(coords[:, 1]),
+                                       np.min(coords[:, 2]), np.max(coords[:, 2])],
+                      "nFrames": 1, "var_name": "displacement"}
+        displacement = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
+        dis_mag = np.sqrt(displacement[:, 0] ** 2 + displacement[:, 1] ** 2 + displacement[:, 2] ** 2)
+        model_data["global_min"] = np.min(dis_mag)
+        model_data["global_max"] = np.max(dis_mag)
+        model_data["part_count"] = 1
+
+        """
+        处理单元信息
+        """
+        all_eles = []
+        for ii, ele in enumerate(self.femdb.elements):
+            ele_type = ele.__class__.__name__
+            ele_nodes = ele.search_node_ids
+            iter_ele, _ = MeshElementFactory.CreateElement(ele_type, ii)
+            if iter_ele is not None:
+                iter_ele.setFaces(ele_nodes)
+                all_eles.append(iter_ele)
+
+        MarkSurface(all_eles)
+        all_nodes = []
+        all_tri_faces = []
+        all_res = []
+        edges = []
+        all_node_normal = []
+        edge_count = 0
+        tri_face_count = 0
+        for ii, ele in enumerate(all_eles):
+            triangles = ele.getAllTriangles(only_surface=True)
+            for tri in triangles:
+                all_nodes.extend([coords[row].flatten() for row in tri])
+                all_node_normal.extend([compute_normal_vector(*[coords[row] for row in tri]).flatten()] * 3)
+                begin_idx = len(all_tri_faces)
+                all_tri_faces.extend([begin_idx, begin_idx + 1, begin_idx + 2])
+                edges.extend([begin_idx, begin_idx + 1, begin_idx + 1, begin_idx + 2, begin_idx + 2, begin_idx])
+                edge_count += 3
+                all_res.extend([dis_mag[row] for row in tri])
+                tri_face_count += 3
+
+        model_data["node_count"] = len(all_nodes)
+        model_data["node_coords"] = np.array(all_nodes).flatten()
+        model_data["node_normal"] = np.array(all_node_normal).flatten()
+        model_data["scalar_length"] = len(all_res)
+        model_data["result"] = all_res
+        model_data["tri_face_count"] = tri_face_count
+        model_data["tri_faces"] = all_tri_faces
+        model_data["edges"] = edges
+        model_data["edge_count"] = edge_count
+        model_data["outline_count"] = 0
+        model_data["outline"] = []
+
+        """
+        1. 头部数据写入
+        """
+        buffer.write(struct.pack('i', model_data["plot_type"]))
+        buffer.write(struct.pack('6f', *model_data["boundary_box"]))
+        buffer.write(struct.pack('i', model_data["nFrames"]))
+
+        """
+        2. 变量名写入（固定256字节）
+        """
+        var_name = model_data["var_name"].encode('utf-8')
+        buffer.write(var_name.ljust(256, b'\x00')[:256])  # 确保256字节
+
+        """
+        3. 极值写入
+        """
+        buffer.write(struct.pack('f', model_data["global_min"]))
+        buffer.write(struct.pack('f', model_data["global_max"]))
+
+        """
+        4. 部件循环写入
+        """
+        buffer.write(struct.pack('i', model_data["part_count"]))
+        for i_part in range(model_data["part_count"]):
+            # 顶点数据
+            buffer.write(struct.pack('i', model_data["node_count"]))
+            buffer.write(struct.pack(f'{model_data["node_count"] * 3}f', *model_data["node_coords"]))
+            buffer.write(struct.pack(f'{model_data["node_count"] * 3}f', *model_data["node_normal"]))
+
+            # 标量结果（多帧）
+            buffer.write(struct.pack('i', model_data["scalar_length"]))
+            for iter_frame in range(model_data["nFrames"]):
+                buffer.write(struct.pack(
+                    f'{model_data["scalar_length"]}f',
+                    # *model_data[f"iter_result_{iter_frame}"]
+                    *model_data["result"]
+                ))
+
+            # 面片数据
+            buffer.write(struct.pack('i', model_data["tri_face_count"]))
+            buffer.write(struct.pack(
+                f'{model_data["tri_face_count"]}i',
+                *model_data["tri_faces"]
+            ))
+
+            # 轮廓线（原outline字段）
+            buffer.write(struct.pack('i', model_data["outline_count"]))
+            buffer.write(struct.pack(
+                f'{model_data["outline_count"]}i',
+                *model_data["outline"]
+            ))
+
+            # 单元边（原edges字段）
+            buffer.write(struct.pack('i', model_data["edge_count"] * 2))
+            buffer.write(struct.pack(
+                f'{model_data["edge_count"] * 2}i',
+                *model_data["edges"]
+            ))
+
+        """
+        5. 压缩并写入文件
+        """
+        raw_data = buffer.getvalue()
+        compressed = zlib.compress(raw_data, level=9)
+
+        with open(dat_path, 'wb') as f:
+            f.write(compressed)
 
     def WriteSeriesResult(self, directory, pro_name):
         """

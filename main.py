@@ -37,7 +37,9 @@ class MyPyFEM:
 
         self._fem_data = None
         self.input_file_path = file_path
-        self.output_files = [file_path.with_suffix(".vtu"), file_path.with_suffix(".unv")]
+        self.output_files = [file_path.with_suffix(".vtu"),
+                             file_path.with_suffix(".unv"),
+                             file_path.with_suffix(".dat")]
         self.output_dir = file_path.parent
         self.output_name = file_path.stem
 
@@ -120,6 +122,9 @@ class MyPyFEM:
 
             writer = ResultsWriter()
             writer.WriteStaticAnalysisVTUFile(self.output_files[0])
+            # writer.WriteModel2DatFileWithoutRes(self.output_files[2])
+            # writer.WriteStaticResult2DatFile(self.output_files[2])
+            writer.WriteStaticResult2DatFile(self.output_files[2])
             p_end = time.time()
             mlogger.debug(time_format.format("Write Output", p_end - time_5))
 

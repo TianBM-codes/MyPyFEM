@@ -184,6 +184,8 @@ class CDBParser(object):
                     constrain_type = splits[3].lstrip()
                     if constrain_type == 'UXYZ':
                         self.femdb.equation_constrain_idx.append([0, 1, 2, 3, 4, 5])
+                    elif constrain_type == "ALL":
+                        self.femdb.equation_constrain_idx.append([0, 1, 2, 3, 4, 5])
                     else:
                         raise KeyError(f"{constrain_type}")
                     self.iter_line = cdb_f.readline()

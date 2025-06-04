@@ -29,3 +29,4 @@ RunExample.py
 *.sta
 *.7z
 /.VSCodeCounter
+/numerical example
