@@ -165,6 +165,7 @@ class AnalyseType(Enum):
     ModalAnalyse = 2
     Transient = 3
     OldLinearStatic = 4
+    AsServer = 5
 
 
 class InputFileType(Enum):

@@ -47,7 +47,7 @@
     TYPE=150600,   15点高阶三棱柱单元;
     TYPE=200600,   20点高阶六面体单元;
 """
-
+import pathlib
 import zlib
 import struct
 from io import BytesIO
@@ -132,16 +132,18 @@ class ResultsWriter(object):
         :param dat_path:
         :return:
         """
+        src = pathlib.Path(dat_path)
+        target_path = src.with_stem(src.stem + "_mises")
         buffer = BytesIO()
+        buffer.write(struct.pack('i', len(self.femdb.linear_mises)))
         buffer.write(struct.pack(
-            f'{model_data["scalar_length"]}f',
-            # *model_data[f"iter_result_{iter_frame}"]
-            *model_data["result"]
+            f'{len(self.femdb.linear_mises)}f',
+            *self.femdb.linear_mises
         ))
         raw_data = buffer.getvalue()
         compressed = zlib.compress(raw_data, level=9)
 
-        with open(dat_path, 'wb') as f:
+        with open(target_path, 'wb') as f:
             f.write(compressed)
 
     def WriteModel2DatFileWithoutRes(self, dat_path):
@@ -183,6 +185,7 @@ class ResultsWriter(object):
         all_node_normal = []
         edge_count = 0
         tri_face_count = 0
+        map_npy = []
         for ii, ele in enumerate(all_eles):
             triangles = ele.getAllTriangles(only_surface=True)
             for tri in triangles:
@@ -193,6 +196,7 @@ class ResultsWriter(object):
                 edges.extend([begin_idx, begin_idx + 1, begin_idx + 1, begin_idx + 2, begin_idx + 2, begin_idx])
                 edge_count += 3
                 tri_face_count += 3
+                map_npy.extend(tri)
 
         model_data["node_count"] = len(all_nodes)
         model_data["node_coords"] = np.array(all_nodes).flatten()
@@ -205,6 +209,12 @@ class ResultsWriter(object):
         model_data["edge_count"] = edge_count
         model_data["outline_count"] = 0
         model_data["outline"] = []
+
+        """
+        0. 保存对应关系, 每个三角面片都要保存一遍结果, 也就是结果存在冗余
+        """
+        npy_file_path = pathlib.Path(dat_path).with_suffix(".npy")
+        np.save(npy_file_path, np.array(map_npy))
 
         """
         1. 头部数据写入
@@ -286,7 +296,7 @@ class ResultsWriter(object):
                       "boundary_box": [np.min(coords[:, 0]), np.max(coords[:, 0]),
                                        np.min(coords[:, 1]), np.max(coords[:, 1]),
                                        np.min(coords[:, 2]), np.max(coords[:, 2])],
-                      "nFrames": 1, "var_name": "displacement"}
+                      "nFrames": 2, "var_name": "displacement"}
         displacement = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
         dis_mag = np.sqrt(displacement[:, 0] ** 2 + displacement[:, 1] ** 2 + displacement[:, 2] ** 2)
         model_data["global_min"] = np.min(dis_mag)
@@ -308,7 +318,8 @@ class ResultsWriter(object):
         MarkSurface(all_eles)
         all_nodes = []
         all_tri_faces = []
-        all_res = []
+        displacement_mag = []
+        mises = []
         edges = []
         all_node_normal = []
         edge_count = 0
@@ -321,15 +332,17 @@ class ResultsWriter(object):
                 begin_idx = len(all_tri_faces)
                 all_tri_faces.extend([begin_idx, begin_idx + 1, begin_idx + 2])
                 edges.extend([begin_idx, begin_idx + 1, begin_idx + 1, begin_idx + 2, begin_idx + 2, begin_idx])
+                displacement_mag.extend([dis_mag[row] for row in tri])
+                mises.extend([self.femdb.linear_mises[row] for row in tri])
                 edge_count += 3
-                all_res.extend([dis_mag[row] for row in tri])
                 tri_face_count += 3
 
         model_data["node_count"] = len(all_nodes)
         model_data["node_coords"] = np.array(all_nodes).flatten()
         model_data["node_normal"] = np.array(all_node_normal).flatten()
-        model_data["scalar_length"] = len(all_res)
-        model_data["result"] = all_res
+        model_data["scalar_length"] = len(displacement_mag)
+        model_data["displacement_mag"] = displacement_mag
+        model_data["mises"] = mises
         model_data["tri_face_count"] = tri_face_count
         model_data["tri_faces"] = all_tri_faces
         model_data["edges"] = edges
@@ -368,12 +381,16 @@ class ResultsWriter(object):
 
             # 标量结果（多帧）
             buffer.write(struct.pack('i', model_data["scalar_length"]))
-            for iter_frame in range(model_data["nFrames"]):
-                buffer.write(struct.pack(
-                    f'{model_data["scalar_length"]}f',
-                    # *model_data[f"iter_result_{iter_frame}"]
-                    *model_data["result"]
-                ))
+            buffer.write(struct.pack(
+                f'{model_data["scalar_length"]}f',
+                # *model_data[f"iter_result_{iter_frame}"]
+                *model_data["displacement_mag"]
+            ))
+            buffer.write(struct.pack(
+                f'{model_data["scalar_length"]}f',
+                # *model_data[f"iter_result_{iter_frame}"]
+                *model_data["mises"]
+            ))
 
             # 面片数据
             buffer.write(struct.pack('i', model_data["tri_face_count"]))
@@ -508,5 +525,8 @@ class ResultsWriter(object):
 
 
 if __name__ == "__main__":
-    a_ = np.asarray([[1, 2, 3], [4, 5, 6]])
-    print(np.reshape(a_, (-1, 6)))
+    file_path = "D:/WorkSpace/FEM/MyPyFEM/NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
+    file_lib = pathlib.Path(file_path)
+    new_name = file_lib.stem + "_mises"
+    new_path = file_lib.with_stem(new_name)
+    print(new_path)

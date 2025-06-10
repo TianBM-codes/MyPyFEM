@@ -9,6 +9,8 @@ from element.Beam import BeamCalculator
 from femdb.GlobalFEMVariant import ModelInfo
 
 import numpy as np
+import time
+import re
 import fortranformat as ff
 
 
@@ -90,21 +92,49 @@ class CDBParser(object):
                             # 兼容hypermesh生成的cdb
                             self.iter_line = cdb_f.readline()
 
-                # 解析节点信息, TODO:平面应变平面应力这种只有二维坐标的
                 elif self.iter_line.startswith("NBLOCK,"):
                     node_index = 0  # 相当于节点个数, 也是对应数据库中node_list中的index
                     fortran_format = cdb_f.readline().strip()  # skip format of node line
-                    f_reader = ff.FortranRecordReader(fortran_format)
+                    if fortran_format not in ['(3i8,6e16.9)', '(3i9,6e21.13e3)']:
+                        raise ValueError(f"UnSupport node format:{fortran_format}")
                     self.iter_line = cdb_f.readline()  # 不需要strip, 否则前面的空格会滤掉
 
                     while self.iter_line.startswith(" "):
-                        nd_data = f_reader.read(self.iter_line)
-                        n_id = int(nd_data[0])
-                        x, y, z = float(nd_data[3]), 0.0, 0.0
-                        if nd_data[4] is not None:
-                            y = float(nd_data[4])
-                        if nd_data[5] is not None:
-                            z = float(nd_data[5])
+                        if fortran_format == '(3i8,6e16.9)':
+                            int_part = self.iter_line[:24]
+                            integers = [int(int_part[i * 8:(i + 1) * 8]) for i in range(3) if int_part[i * 8:(i + 1) * 8].strip()]
+                            float_part = self.iter_line[24:].rstrip()
+                            floats = [
+                                float(float_part[i * 16:(i + 1) * 16])
+                                for i in range(min(6, len(float_part) // 16))  # 自动计算有效浮点数
+                                if float_part[i * 16:(i + 1) * 16].strip()
+                            ]
+
+                            n_id = integers[0]
+                            x, y, z = floats[0], floats[1] if len(floats) > 1 else 0, floats[2] if len(floats) > 2 else 0
+
+                        elif fortran_format == '(3i9,6e21.13e3)':
+                            def parse_fortran_float(chunk):
+                                return float(re.sub(r'e([+-]\d{2})\d', r'e\1', chunk))
+
+                            integers = [int(self.iter_line[i * 9:(i + 1) * 9]) for i in range(3) if self.iter_line[i * 9:(i + 1) * 9].strip()]
+                            float_part = self.iter_line[27:].rstrip()
+                            floats = []
+                            for i in range(0, len(float_part), 21):
+                                chunk = float_part[i:i + 21]
+                                if chunk.strip():  # 非空校验
+                                    try:
+                                        floats.append(parse_fortran_float(chunk))
+                                    except ValueError:
+                                        print(f"警告：跳过无效浮点字段 '{chunk}'")
+
+                            n_id = integers[0]
+                            x = floats[0] if floats else 0
+                            y = floats[1] if len(floats) > 1 else 0
+                            z = floats[2] if len(floats) > 2 else 0
+
+                        else:
+                            raise ValueError(f"Unsupported Node Format: {fortran_format}")
 
                         self.femdb.AddNode(Node(n_id, x, y, z))
                         self.femdb.node_hash[n_id] = node_index
@@ -123,12 +153,12 @@ class CDBParser(object):
                     else:
                         set_data_count = int(splits[3])
                     fortran_format = cdb_f.readline().strip()  # skip format of node line
+                    set_data = []
                     if fortran_format == '' or set_data_count == 0:
                         self.iter_line = cdb_f.readline()
                     else:
                         f_reader = ff.FortranRecordReader(fortran_format)
                         set_data_line = f_reader.read(cdb_f.readline())
-                        set_data = []
                         input_times = 0
                         while True:
                             if len(set_data_line) != 0:
@@ -297,7 +327,14 @@ class CDBParser(object):
             solid_type = False
 
         fortran_format = f_handle.readline().strip()  # skip format line
-        f_reader = ff.FortranRecordReader(fortran_format)
+        if fortran_format == '(19i8)':
+            chunk_size = 8
+        elif fortran_format == '(19i9)':
+            chunk_size = 9
+        elif fortran_format == '(19i10)':
+            chunk_size = 10
+        else:
+            raise ValueError(f"UnSupport Element Format: {fortran_format}")
         self.iter_line = f_handle.readline()
 
         if solid_type:
@@ -307,7 +344,9 @@ class CDBParser(object):
                 """
                 解析字段内容
                 """
-                e_data = f_reader.read(self.iter_line)
+                e_data = [int(self.iter_line[i:i + chunk_size])
+                          for i in range(0, min(len(self.iter_line), 19 * chunk_size), chunk_size)
+                          if self.iter_line[i:i + chunk_size].strip()]
                 mat_num = e_data[0]
                 e_type = e_data[1]
                 real_constant_num = e_data[2]
@@ -508,7 +547,11 @@ class CDBParser(object):
 
 
 if __name__ == "__main__":
+    b_time = time.time()
     # path = "../numerical example/ANSYS/zhijiaRenumber.cdb"
-    path = "../NumericalCases/Projects/qizhongji/last/MQ1330.cdb"
+    # path = "../NumericalCases/Projects/qizhongji/last/MQ1330.cdb"
+    path = "../NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
     cps = CDBParser(path, False)
     cps.ParseFileAndInitFEMDB()
+    e_time = time.time()
+    print(f"Elapsed time: {e_time - b_time:.2f} seconds")

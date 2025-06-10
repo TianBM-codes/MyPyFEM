@@ -88,6 +88,20 @@ class Domain(object):
                 #     print(f"calculated ele's stiff count: {calculated_eles_count}")
             self.stiff_list.append(stiff)
 
+    def CheckRedundantNodes(self):
+        no_dup_nodes = np.zeros(len(self.femdb.node_list), dtype=np.uint32)
+        for ii, iter_node in enumerate(self.femdb.node_list):
+            no_dup_nodes[ii] = iter_node.id
+        nodes_set = set(no_dup_nodes)
+
+        element_nodes = []
+        for iter_ele in self.femdb.elements:
+            element_nodes.extend(iter_ele.node_ids.tolist())
+        ele_nodes_set = set(element_nodes)
+
+        redundant_set = nodes_set - ele_nodes_set
+        print("Redundant Nodes:", list(redundant_set))
+
     def AssembleStiffnessMatrixByPenalty(self):
         """
         与AssembleStiffnessMatrixByElimination不同的是，前者是将约束的自由度去掉, 而本方法是通过罚函数或者乘大数法来实现
@@ -170,18 +184,7 @@ class Domain(object):
             """
             0. 检查模型中是否存在不属于任何单元的节点
             """
-            no_dup_nodes = np.zeros(len(self.femdb.node_list), dtype=np.uint32)
-            for ii, iter_node in enumerate(self.femdb.node_list):
-                no_dup_nodes[ii] = iter_node.id
-            nodes_set = set(no_dup_nodes)
-
-            element_nodes = []
-            for iter_ele in self.femdb.elements:
-                element_nodes.extend(iter_ele.node_ids.tolist())
-            ele_nodes_set = set(element_nodes)
-
-            redundant_set = nodes_set - ele_nodes_set
-            print("Redundant Nodes:", list(redundant_set))
+            self.CheckRedundantNodes()
 
             """
             1. 输入矩阵或向量包含Nan或inf, 求解器无法处理非法数值
@@ -298,11 +301,10 @@ class Domain(object):
                 row = matrix_csr.getrow(i)
                 if row.nnz == 0:
                     zero_rows.append(i)
-            print("ZERO ROWS:")
-            print(zero_rows)
             """
             找出没有单元关系的
             """
+            self.CheckRedundantNodes()
             sys.exit(1)
 
     def SolveStress(self):

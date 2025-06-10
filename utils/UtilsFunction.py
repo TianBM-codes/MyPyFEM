@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-
-import numpy as np
+from PySide2.QtGui import QVector3D
+from PySide2.QtGui import QMatrix4x4
 
 
 def GetShellGlobal2LocalTransMatrix(nodes: np.ndarray):
@@ -69,6 +69,36 @@ def GetShellGlobal2LocalTransMatrix(nodes: np.ndarray):
         raise np.linalg.LinAlgError("局部坐标系不是正交矩阵")
 
     return trans_matrix, origin
+
+
+def RotateByAxis(n_vector, point_o, angle_degrees, xyz, shift_v=None):
+    """
+    平移模型后绕固定点旋转
+    @param n_vector: 旋转轴
+    @param point_o: 旋转中心
+    @param angle_degrees: 旋转角度
+    @param xyz: 被旋转向量
+    @param shift_v: 平移量
+    @return:
+    """
+    transformation_matrix = QMatrix4x4()
+    # 最开始的偏置
+    if shift_v is not None:
+        transformation_matrix.translate(shift_v)
+    # 平移，使旋转轴的固定端对齐到原点
+    transformation_matrix.translate(point_o)
+    # 旋转
+    transformation_matrix.rotate(angle_degrees, n_vector)
+    # 反平移，恢复到原来的坐标系
+    transformation_matrix.translate(-point_o)
+
+    vector_4d = np.append(xyz, [1])
+
+    numpy_matrix = np.array(transformation_matrix.copyDataTo()).reshape(4, 4)
+    rotated_vector = np.dot(numpy_matrix, vector_4d)
+    rotated_3d_vector = rotated_vector[:3]
+
+    return rotated_3d_vector
 
 
 if __name__ == "__main__":

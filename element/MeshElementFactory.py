@@ -65,7 +65,7 @@ class MeshElementFactory:
             return MeshTetra(e_id), True
         elif e_type in [40500, 'S4', "quad", "CookQuaShell"]:
             return MeshCQUAD4(e_id), True
-        elif e_type in [20100, 188, 10, 4, 39, 14, 180]:
+        elif e_type in [20100, 188, 10, 4, 39, 14, 180, "Beam188"]:
             return MeshTruss(e_id), False
         elif e_type in [30500, "triangle", "CookTriShell"]:
             return MeshTRIA3(e_id), True
@@ -261,8 +261,7 @@ class MeshTruss(MeshElement):
 
     def setFaces(self, node_ids):
         self.nodeIds = node_ids
-        self.triangles = [node_ids[0], node_ids[1]]
-
+        self.triangles = [[node_ids[0], node_ids[1]]]
         self.edges = [node_ids[0], node_ids[1]]
 
     def getAllTriangles(self, only_surface=False):
