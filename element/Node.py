@@ -18,8 +18,10 @@ class Node(object):
         # 对于2D分析的支持
         if z is None:
             self.coord = np.asarray([x, y], dtype=float)
+            self.origin_coord = np.asarray([x, y], dtype=float)
         else:
             self.coord = np.asarray([x, y, z], dtype=float)
+            self.origin_coord = np.asarray([x, y, z], dtype=float)
 
         # 属性设置
         self.vtk_type = ""

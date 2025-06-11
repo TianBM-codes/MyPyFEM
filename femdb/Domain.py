@@ -62,7 +62,6 @@ class Domain(object):
         self.Ra = None  # 未被约束的自由度上的力或力矩
         self.right_hand = None  # 右端项, 长度等于node_count * ModelInfo.PER_NODE_DOF
         # 以下为刚度阵相关
-        self.stiff_list = []
         self.mass_list = []
         self.check_model = check_model
 
@@ -86,7 +85,7 @@ class Domain(object):
                     print(f"Element {iter_ele.id} has zero row")
                 # if calculated_eles_count % 2000 == 0:
                 #     print(f"calculated ele's stiff count: {calculated_eles_count}")
-            self.stiff_list.append(stiff)
+            self.femdb.stiff_list.append(stiff)
 
     def CheckRedundantNodes(self):
         no_dup_nodes = np.zeros(len(self.femdb.node_list), dtype=np.uint32)
@@ -130,7 +129,7 @@ class Domain(object):
         datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.float64)
         for kk, ele in enumerate(self.femdb.elements):
             ele_nodes = ele.search_node_ids
-            stiff_array = self.stiff_list[kk]
+            stiff_array = self.femdb.stiff_list[kk]
             n_nodes = len(ele_nodes)
             block_size = n_nodes * ModelInfo.PER_NODE_DOF
             el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)

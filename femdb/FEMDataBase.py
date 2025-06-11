@@ -36,6 +36,7 @@ class FEMDataBase(object):
 
         # Preprocess Fem
         self.matrix_num_count = 0
+        self.stiff_list = []
         self.global_stiff_matrix = None
         self.global_mass_matrix = None
         self.load_case = LoadCase()

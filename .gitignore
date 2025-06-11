@@ -5,6 +5,7 @@ __pycache__
 /docs
 /to_assemble_code
 /NumericalCases/Projects
+/output
 
 __init__.py
 

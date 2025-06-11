@@ -12,11 +12,11 @@ from ioclass.CDBParser import CDBParser
 from ioclass.BDFParser import BDFParser
 from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
-from projects.qizhongji.zitai import MQ1330
-from PySide2.QtGui import QVector3D
-from PySide2.QtGui import QMatrix4x4
+from femdb.GlobalFEMVariant import ModelInfo
+from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+
 app = Flask(__name__)
 
 
@@ -176,7 +176,7 @@ class MyPyFEM:
             """
             有限元程序作为服务, 动态返回结果
             """
-            # self.domain.CalAllElementStiffness()
+            self.domain.CalAllElementStiffness()
             time_1 = time.time()
             mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
             p_end = time.time()
@@ -189,61 +189,61 @@ class MyPyFEM:
         mlogger.debug(" " + "-" * 40)
         mlogger.debug(" Finish Analysis\n")
 
-    def RotateModelAndSave2File(self, theta):
+    def RotateModel(self, theta, vtu_path):
         """
-        旋转模型, 然后保存
-        :param theta: 旋转角度
+        旋转模型, 以臂架为基准
+        :param theta:
+        :param vtu_path:
         :return:
         """
-        Abj = 43.224
-        mq1330 = MQ1330()
-        data = mq1330.getPartTranslate(Abj, Abj + theta)
-
-        """
-        先处理臂架、大拉杆、平衡梁的旋转
-        """
-        node_set_idx_hash = self.domain.femdb.node_set_name_hash
-        node_sets = self.domain.femdb.node_sets
-
-        bijia_nodes = node_sets[node_set_idx_hash["bijia_node"]]
-        bijia_trans, bijia_theta, bijia_origin = data["bijia"]
-        dalagan_nodes = node_sets[node_set_idx_hash["dalagan_node"]]
-        dalagan_trans, dalagan_theta, dalagan_origin = data["dalagan"]
-        phl_left_nodes = node_sets[node_set_idx_hash["phl_left_node"]]
-        phl_right_nodes = node_sets[node_set_idx_hash["phl_right_node"]]
-        phl_nodes = phl_left_nodes.extend(phl_right_nodes)
-        phl_trans, phl_theta, phl_origin = data["pinghengliang"]
-
-
-        """
-        
-        """
-        for k, j in data.items():
-            print(f"Name: {k} -> [{j[0]}, {j[1] * 180 / np.pi:.2f}, {j[2]}]")
-
-
-    def RotateModel(self):
-        """
-        """
+        time1 = time.time()
         femdb = self.domain.femdb
-        print(len(femdb.node_list))
+        wrapper = MQ1330Wrapper(theta)
+        for nd in femdb.node_list:
+            new_coord = np.array(wrapper.calculate_new_xyz(nd.id, *nd.origin_coord))
+            nd.coord = new_coord
+
+        for ii, stiff in enumerate(femdb.stiff_list):
+            iter_ele = femdb.elements[ii]
+            ele_id = iter_ele.id
+            node_count = iter_ele.nodes_count
+            if not wrapper.is_fixed_element(ele_id):
+                if node_count == 3 or node_count == 4:
+                    new_stiff = wrapper.calculate_new_stiff(ele_id, node_count, stiff)
+                    femdb.stiff_list[ii] = new_stiff
+
+        self.domain.AssembleStiffnessMatrixByPenalty()
+        self.domain.AddBoundaryByPenalty()
+        self.domain.SolveDisplacement(False)
+        self.domain.SolveStress()
+
+        writer = ResultsWriter()
+        femdb.linear_mises = np.zeros(len(femdb.node_list))
+        writer.WriteStaticAnalysisVTUFile(vtu_path)
+        time2 = time.time()
+        time_elapsed = time2 - time1
         return {
             "status": "success",
-            "node_count": len(femdb.node_list)
+            "time_elapsed": f"{time_elapsed:.2f}"
         }
 
 
 @app.route('/api/rotate_model', methods=['POST'])
 def rotate_model_endpoint():
-    """处理模型旋转请求的API端点"""
+    """
+    处理模型旋转请求的API端点
+    :return:
+    """
     global my_fem
     if not my_fem:
         return jsonify({"error": "FEM model not loaded"}), 400
 
     try:
-        # 调用实例方法处理旋转请求
-        result = my_fem.RotateModel()
+        theta = request.args.get('rotate_theta', type=float)
+        save_path = request.args.get('save_path')
+        result = my_fem.RotateModel(theta, save_path)
         return jsonify(result), 200
+
     except Exception as e:
         logging.error(f"Rotation  failed: {str(e)}")
         return jsonify({"error": str(e)}), 500
