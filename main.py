@@ -19,6 +19,12 @@ from flask import Flask, jsonify, request
 
 app = Flask(__name__)
 
+"""
+Define Output Format And Print Each Step Time Elapsed
+"""
+time_format = r"{:>25s} --> {:<.3f} seconds"
+last_line_format = "{:>25s} --> {:<.3f} seconds"
+
 
 class MyPyFEM:
     """
@@ -100,12 +106,6 @@ class MyPyFEM:
         for key, value in summary.items():
             mlogger.debug(summary_format.format(key, value))
         mlogger.debug(" " + "-" * 40)
-
-        """
-        Define Output Format And Print Each Step Time Elapsed
-        """
-        time_format = r"{:>25s} --> {:<.3f} seconds"
-        last_line_format = "{:>25s} --> {:<.3f} seconds"
 
         mlogger.debug(" Elapsed Time Summary:")
         mlogger.debug(time_format.format("Parse File", self.parsed_time - self.program_begin))
@@ -203,6 +203,9 @@ class MyPyFEM:
             new_coord = np.array(wrapper.calculate_new_xyz(nd.id, *nd.origin_coord))
             nd.coord = new_coord
 
+        time2 = time.time()
+        mlogger.debug(time_format.format("Rotate XYZ", time2 - time1))
+
         for ii, stiff in enumerate(femdb.stiff_list):
             iter_ele = femdb.elements[ii]
             ele_id = iter_ele.id
@@ -212,19 +215,38 @@ class MyPyFEM:
                     new_stiff = wrapper.calculate_new_stiff(ele_id, node_count, stiff)
                     femdb.stiff_list[ii] = new_stiff
 
+        time3 = time.time()
+        mlogger.debug(time_format.format("Calculate New Stiff", time3 - time2))
+
         self.domain.AssembleStiffnessMatrixByPenalty()
+        time4 = time.time()
+        mlogger.debug(time_format.format("Assemble Stiffness", time4 - time3))
+
         self.domain.AddBoundaryByPenalty()
-        self.domain.SolveDisplacement(False)
+        time5 = time.time()
+        mlogger.debug(time_format.format("Add Boundary Effect", time5 - time4))
+
+        self.domain.SolveDisplacement()
+        time6 = time.time()
+        mlogger.debug(time_format.format("Solve Displacement", time6 - time5))
+
         self.domain.SolveStress()
+        time7 = time.time()
+        mlogger.debug(time_format.format("Solve Stress", time7 - time6))
 
         writer = ResultsWriter()
-        femdb.linear_mises = np.zeros(len(femdb.node_list))
-        writer.WriteStaticAnalysisVTUFile(vtu_path)
-        time2 = time.time()
-        time_elapsed = time2 - time1
+        src = pathlib.Path(vtu_path)
+        writer.WriteStaticAnalysisVTUFile(src)
+        dat_path = src.with_suffix(".dat")
+        writer.WriteStaticResult2DatFile(dat_path)
+        writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"))
+        time_end = time.time()
+        total_time_elapsed = time_end - time1
+        mlogger.debug(time_format.format("Write Output", time_end - time7))
+        mlogger.debug(time_format.format("Total Time Elapsed", total_time_elapsed))
         return {
             "status": "success",
-            "time_elapsed": f"{time_elapsed:.2f}"
+            "time_elapsed": f"{total_time_elapsed:.2f}"
         }
 
 
@@ -240,8 +262,12 @@ def rotate_model_endpoint():
 
     try:
         theta = request.args.get('rotate_theta', type=float)
-        save_path = request.args.get('save_path')
-        result = my_fem.RotateModel(theta, save_path)
+        save_path = pathlib.Path(request.args.get('save_path'))
+        for ii in range(40):
+            iter_path = save_path.with_stem(f"theta{ii+1}")
+            my_fem.RotateModel(ii + 1, iter_path)
+
+        result = {"status": "success"}
         return jsonify(result), 200
 
     except Exception as e:
