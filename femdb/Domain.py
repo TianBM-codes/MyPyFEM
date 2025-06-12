@@ -115,24 +115,27 @@ class Domain(object):
         @return:
         """
         """
-        组装总体刚度阵, 首先考虑系数矩阵一共有多少个元素, 对于约束方程来说, 施加一个自由度约束需要添加4个量
+        组装总体刚度阵, 首先考虑系数矩阵一共有多少个元素, 对于约束方程来说, 施加一个自由度约束需要添加3个量, 因为只存储对角线元素和上三角元素
         """
+        Matrix_dimension = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
         ce_count = len(self.femdb.equation_constrain_couple)
         ce_add_equations = 0
         for ii in range(ce_count):
             iter_ce = self.femdb.equation_constrain_idx[ii]
             ce_add_equations += len(iter_ce)
 
-        # ce_add_equations = 0
-
         iter_loc = 0
-        rows = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
-        cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
-        datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.float64)
+        rows = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 3, dtype=np.uint32)
+        cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 3, dtype=np.uint32)
+        datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 3, dtype=np.float64)
+        max_diagonal = 0
         for kk, ele in enumerate(self.femdb.elements):
             ele_nodes = ele.search_node_ids
             stiff_array = self.femdb.stiff_list[kk]
-            n_nodes = len(ele_nodes)
+            iter_max_diagonal = np.max(stiff_array.diagonal())
+            if iter_max_diagonal > max_diagonal:
+                max_diagonal = iter_max_diagonal
+
             el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
                                 for x in ele_nodes]).flatten()
             rows_block, cols_block = np.meshgrid(el_dofs, el_dofs)
@@ -143,11 +146,6 @@ class Domain(object):
             datas_upper = stiff_array.ravel()[mask.ravel()]
 
             entries_count = len(rows_upper)
-
-            # entries_count = block_size ** 2
-            # rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()
-            # cols[iter_loc:iter_loc + entries_count] = cols_block.ravel()
-            # datas[iter_loc:iter_loc + entries_count] = stiff_array.ravel()
             rows[iter_loc:iter_loc + entries_count] = rows_upper
             cols[iter_loc:iter_loc + entries_count] = cols_upper
             datas[iter_loc:iter_loc + entries_count] = datas_upper
@@ -155,39 +153,10 @@ class Domain(object):
             iter_loc += entries_count
 
         """
-        添加RBE2约束, 拉格朗日乘子法实现约束方程, 需要增加总刚维度
+        添加RBE2约束, 罚函数方法实现约束方程, 需要增加总刚维度
         """
         GlobalNodeHash = self.femdb.node_hash
-        final_dimension = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
-        # for ii in range(ce_count):
-        #     m_node, s_node = self.femdb.equation_constrain_couple[ii]
-        #     iter_ce_idx = self.femdb.equation_constrain_idx[ii]
-        #     m_node_dof = GlobalNodeHash[m_node] * ModelInfo.PER_NODE_DOF
-        #     s_node_dof = GlobalNodeHash[s_node] * ModelInfo.PER_NODE_DOF
-        #     for jj in iter_ce_idx:
-        #         rows[iter_loc: iter_loc + 2] = [s_node_dof + jj, m_node_dof + jj]
-        #         cols[iter_loc:iter_loc + 2] = [final_dimension, final_dimension]
-        #         datas[iter_loc: iter_loc + 2] = [1, -1]
-        #
-        #         iter_loc += 2
-        #         final_dimension += 1
-
-        # global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
-        #                                         shape=(final_dimension, final_dimension))
-        big_number = 1e6
-        # for ii in range(ce_count):
-        #     m_node, s_node = self.femdb.equation_constrain_couple[ii]
-        #     iter_ce_idx = self.femdb.equation_constrain_idx[ii]
-        #     m_node_dof = GlobalNodeHash[m_node] * ModelInfo.PER_NODE_DOF
-        #     s_node_dof = GlobalNodeHash[s_node] * ModelInfo.PER_NODE_DOF
-        #     for dof in iter_ce_idx:
-        #         idx = m_node_dof + dof
-        #         idx_s = s_node_dof + dof
-        #         global_stiff_matrix[idx, idx] += big_number
-        #         global_stiff_matrix[idx, idx_s] = -big_number
-        #         global_stiff_matrix[idx_s, idx] = -big_number
-        #         global_stiff_matrix[idx_s, idx] = big_number
-
+        big_number = 1e7 * max_diagonal
         for ii in range(ce_count):
             m_node, s_node = self.femdb.equation_constrain_couple[ii]
             iter_ce_idx = self.femdb.equation_constrain_idx[ii]
@@ -195,31 +164,24 @@ class Domain(object):
             s_node_dof = GlobalNodeHash[s_node] * ModelInfo.PER_NODE_DOF
 
             for dof in iter_ce_idx:
-                # 主节点自由度索引
                 m_idx = m_node_dof + dof
-                # 从节点自由度索引
                 s_idx = s_node_dof + dof
 
-                # 添加罚函数元素（4个元素）
-                # 1. 主节点自项
                 rows[iter_loc] = m_idx
                 cols[iter_loc] = m_idx
                 datas[iter_loc] = big_number
                 iter_loc += 1
 
-                # 2. 主-从耦合项
-                rows[iter_loc] = m_idx
-                cols[iter_loc] = s_idx
-                datas[iter_loc] = -big_number
+                if m_idx < s_idx:
+                    rows[iter_loc] = m_idx
+                    cols[iter_loc] = s_idx
+                    datas[iter_loc] = -big_number
+                else:
+                    rows[iter_loc] = s_idx
+                    cols[iter_loc] = m_idx
+                    datas[iter_loc] = -big_number
                 iter_loc += 1
 
-                # 3. 从-主耦合项
-                rows[iter_loc] = s_idx
-                cols[iter_loc] = m_idx
-                datas[iter_loc] = -big_number
-                iter_loc += 1
-
-                # 4. 从节点自项
                 rows[iter_loc] = s_idx
                 cols[iter_loc] = s_idx
                 datas[iter_loc] = big_number
@@ -229,9 +191,7 @@ class Domain(object):
         完成所有三向量数据的准备, 开始组装总刚
         """
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
-                                                           shape=(final_dimension, final_dimension)).tocsr()
-        # self.femdb.global_stiff_matrix = global_stiff_matrix.tocsr()
-
+                                                           shape=(Matrix_dimension, Matrix_dimension)).tocsr()
         if self.check_model:
             """
             0. 检查模型中是否存在不属于任何单元的节点
@@ -342,31 +302,24 @@ class Domain(object):
             self.right_hand[eqa + xyz] = amps[ii]
 
         # TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
-        ps = PyPardisoSolver(mtype=2)
-        ps.factorize(self.femdb.global_stiff_matrix)
-        temp_results = ps.solve(self.femdb.global_stiff_matrix, self.right_hand)
-        # temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
-        result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
-        self.femdb.linear_u = temp_results[:result_range]
-        # try:
-        #     ps = PyPardisoSolver(mtype=2)
-        #     ps.factorize(self.femdb.global_stiff_matrix)
-        #     temp_results = ps.solve(self.femdb.global_stiff_matrix, self.right_hand)
-        #     # temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
-        #     result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
-        #     self.femdb.linear_u = temp_results[:result_range]
-        # except ValueError as e:
-        #     matrix_csr = self.femdb.global_stiff_matrix.tocsr()
-        #     zero_rows = []
-        #     for i in range(matrix_csr.shape[0]):
-        #         row = matrix_csr.getrow(i)
-        #         if row.nnz == 0:
-        #             zero_rows.append(i)
-        #     """
-        #     找出没有单元关系的
-        #     """
-        #     self.CheckRedundantNodes()
-        #     sys.exit(1)
+        try:
+            ps = PyPardisoSolver(mtype=2)
+            ps.factorize(self.femdb.global_stiff_matrix)
+            temp_results = ps.solve(self.femdb.global_stiff_matrix, self.right_hand)
+            result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+            self.femdb.linear_u = temp_results[:result_range]
+        except ValueError as e:
+            matrix_csr = self.femdb.global_stiff_matrix.tocsr()
+            zero_rows = []
+            for i in range(matrix_csr.shape[0]):
+                row = matrix_csr.getrow(i)
+                if row.nnz == 0:
+                    zero_rows.append(i)
+            """
+            找出没有单元关系的
+            """
+            self.CheckRedundantNodes()
+            sys.exit(1)
 
     def SolveStress(self):
         """
@@ -413,12 +366,7 @@ class Domain(object):
         注意要增加约束方程部分
         """
         node_count = len(self.femdb.node_list)
-        ce_count = len(self.femdb.equation_constrain_couple)
-        ce_add_equations = 0
-        for ii in range(ce_count):
-            iter_ce = self.femdb.equation_constrain_idx[ii]
-            ce_add_equations += len(iter_ce)
-        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF + ce_add_equations)
+        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF)
 
         bds = self.femdb.load_case.GetBoundaries()
         for bd in bds:
