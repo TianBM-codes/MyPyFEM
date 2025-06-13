@@ -243,13 +243,14 @@ class InpParser(object):
                 els_name = ret_dict["elset"]
                 mat_name = ret_dict["material"]
 
-                # Read Pars, 默认第一个参数为厚度参数, 当为杆的时候第一个参数为面积
                 self.iter_line = f_handle.readline().strip()
                 keywords = self.iter_line.split(",")
                 pars = {}
                 for par in keywords:
                     if par:
                         pars[MaterialKey.Area] = float(par)
+                solid_sec = Section(els_name, mat_name, pars)
+                self.sections.append(solid_sec)
                 self.iter_line = f_handle.readline().strip()
 
             elif self.iter_line.lower().startswith("*beam section"):

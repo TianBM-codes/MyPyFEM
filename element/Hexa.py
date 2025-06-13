@@ -27,7 +27,7 @@ class C3D8(ElementBaseClass, ABC):
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
         a = e / ((1 + niu) * (1 - 2 * niu))
-        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+        self.D = -a * np.array([[1 - niu, niu, niu, 0, 0, 0],
                                [niu, 1 - niu, niu, 0, 0, 0],
                                [niu, niu, 1 - niu, 0, 0, 0],
                                [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
@@ -46,6 +46,7 @@ class C3D8(ElementBaseClass, ABC):
         dimension: 8*3, [[x1,y1,z1],[x2,y2,z2],...[x8,y8,z8]], type:np.ndarray, dtype:float
         """
         assert self.node_coords.shape == (8, 3)
+        self.CalElementDMatrix()
 
         # 在8个高斯点上积分, 这里还有么有再优化的空间?
         dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D8
@@ -68,7 +69,7 @@ class C3D8(ElementBaseClass, ABC):
                                       B_pre[0, 5], B_pre[2, 6], 0, B_pre[0, 6], B_pre[2, 7], 0, B_pre[0, 7]]], dtype=float)
 
             self.Gaussian_B.append(B_at_gs_pt)
-            self.K = self.K + np.matmul(np.matmul(B_at_gs_pt.T, self.D), B_at_gs_pt) * det_J * weights[ii]
+            self.K = self.K + B_at_gs_pt.T @ self.D @ B_at_gs_pt * det_J * weights[ii]
 
         return self.K
 
