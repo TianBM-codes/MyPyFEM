@@ -27,7 +27,7 @@ class C3D8(ElementBaseClass, ABC):
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
         a = e / ((1 + niu) * (1 - 2 * niu))
-        self.D = -a * np.array([[1 - niu, niu, niu, 0, 0, 0],
+        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
                                [niu, 1 - niu, niu, 0, 0, 0],
                                [niu, niu, 1 - niu, 0, 0, 0],
                                [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
@@ -127,7 +127,7 @@ class C3D8(ElementBaseClass, ABC):
 
         node_stress = np.matmul(Gaussian2Global, gs_stress)
 
-        return node_stress
+        return node_stress[:, 0], node_stress[:, 1], node_stress[:, 2], node_stress[:, 3], node_stress[:, 4], node_stress[:, 5]
 
     def ElementMass(self):
         pass

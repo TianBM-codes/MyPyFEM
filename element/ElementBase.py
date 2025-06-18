@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import abc
+
 import numpy as np
-from femdb.GlobalEnum import *
+
 from femdb.Integration import *
 from utils.UtilsFunction import *
-from scipy import sparse
+import time
 
 
 class ElementBaseClass(metaclass=abc.ABCMeta):
@@ -166,6 +167,41 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
 """
 
 
+def GetC3D8_dNdr_and_weights():
+    # Gauss points (±1/√3) for 2-point integration
+    gp = np.array([-1 / np.sqrt(3), 1 / np.sqrt(3)])
+    weights = np.array([1.0, 1.0])  # Each direction has weight 1
+
+    # Reference coordinates of 8 nodes in natural (r,s,t) space
+    rst = np.array([
+        [-1, -1, -1],
+        [1, -1, -1],
+        [1, 1, -1],
+        [-1, 1, -1],
+        [-1, -1, 1],
+        [1, -1, 1],
+        [1, 1, 1],
+        [-1, 1, 1],
+    ])  # shape: (8, 3)
+
+    dNdrs = []
+    wts = []
+
+    for r in gp:
+        for s in gp:
+            for t in gp:
+                dNdr = np.zeros((3, 8))
+                for i in range(8):
+                    ri, si, ti = rst[i]
+                    dNdr[0, i] = 1 / 8 * ri * (1 + si * s) * (1 + ti * t)
+                    dNdr[1, i] = 1 / 8 * (1 + ri * r) * si * (1 + ti * t)
+                    dNdr[2, i] = 1 / 8 * (1 + ri * r) * (1 + si * s) * ti
+                dNdrs.append(dNdr)
+                wts.append(1.0 * 1.0 * 1.0)  # weight product
+
+    return dNdrs, wts  # dNdrs: list of 3x8 arrays, len = 8
+
+
 def CalculateC3D8():
     """
     Reference:
@@ -203,14 +239,38 @@ def CalculateC3D8():
         for si in range(2):
             for ti in range(2):
                 r, s, t = sample_pt[ri], sample_pt[si], sample_pt[ti]
-                dNdr = 0.125 * np.asarray([[(1 + s) * (1 + t) / 8, (1 + r) * (1 + t) / 8, (1 + r) * (1 + s) / 8],
-                                           [-(1 + s) * (1 + t) / 8, (1 - r) * (1 + t) / 8, (1 - r) * (1 + s) / 8],
-                                           [(s - 1) * (1 + t) / 8, (r - 1) * (1 + t) / 8, (1 - r) * (1 - s) / 8],
-                                           [(1 - s) * (1 + t) / 8, -(1 + r) * (1 + t) / 8, (1 + r) * (1 - s) / 8],
-                                           [(1 + s) * (1 - t) / 8, (1 + r) * (1 - t) / 8, -(1 + r) * (1 + s) / 8],
-                                           [(1 + s) * (t - 1) / 8, (1 - r) * (1 - t) / 8, (r - 1) * (1 + s) / 8],
-                                           [(s - 1) * (1 - t) / 8, (r - 1) * (1 - t) / 8, (r - 1) * (1 - s) / 8],
-                                           [(1 - s) * (1 - t) / 8, (1 + r) * (t - 1) / 8, (1 + r) * (s - 1) / 8]]).T
+                dNdr = np.zeros((3, 8), dtype=float)
+                dNdr[0, 0] = (1 + s) * (1 + t) / 8
+                dNdr[1, 0] = (1 + r) * (1 + t) / 8
+                dNdr[2, 0] = (1 + r) * (1 + s) / 8
+
+                dNdr[0, 1] = -(1 + s) * (1 + t) / 8
+                dNdr[1, 1] = (1 - r) * (1 + t) / 8
+                dNdr[2, 1] = (1 - r) * (1 + s) / 8
+
+                dNdr[0, 2] = (s - 1) * (1 + t) / 8
+                dNdr[1, 2] = (r - 1) * (1 + t) / 8
+                dNdr[2, 2] = (1 - r) * (1 - s) / 8
+
+                dNdr[0, 3] = (1 - s) * (1 + t) / 8
+                dNdr[1, 3] = -(1 + r) * (1 + t) / 8
+                dNdr[2, 3] = (1 + r) * (1 - s) / 8
+
+                dNdr[0, 4] = (1 + s) * (1 - t) / 8
+                dNdr[1, 4] = (1 + r) * (1 - t) / 8
+                dNdr[2, 4] = -(1 + r) * (1 + s) / 8
+
+                dNdr[0, 5] = (1 + s) * (t - 1) / 8
+                dNdr[1, 5] = (1 - r) * (1 - t) / 8
+                dNdr[2, 5] = (r - 1) * (1 + s) / 8
+
+                dNdr[0, 6] = (s - 1) * (1 - t) / 8
+                dNdr[1, 6] = (r - 1) * (1 - t) / 8
+                dNdr[2, 6] = (r - 1) * (1 - s) / 8
+
+                dNdr[0, 7] = (1 - s) * (1 - t) / 8
+                dNdr[1, 7] = (1 + r) * (t - 1) / 8
+                dNdr[2, 7] = (1 + r) * (s - 1) / 8
                 weights.append(weight[ri] * weight[si] * weight[ti])
                 dNdrs.append(dNdr)
 
@@ -274,3 +334,11 @@ class DNDrCalculator:
 
 
 AllEleTypeDNDrAtGaussianPoint = DNDrCalculator()
+
+if __name__ == "__main__":
+    time1 = time.time()
+    for ii in range(100000):
+        CalculateC3D8()
+        # GetC3D8_dNdr_and_weights()
+    time2 = time.time()
+    print(f"Elapsed time: {time2 - time1:.3f}")

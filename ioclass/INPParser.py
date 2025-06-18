@@ -409,11 +409,11 @@ class InpParser(object):
         读取工况信息, 作为一次求解的信息, 包括约束、外力以及输出
         """
         self.iter_line = f_handle.readline().strip()
-        while self.iter_line != "*End Step":
+        while self.iter_line.lower() != "*end step":
             if self.iter_line == "*AbaqusBoundary":
                 self.ReadBoundary(f_handle)
-            elif self.iter_line.__contains__("*Cload"):
-                if self.iter_line.__contains__("amplitude"):
+            elif "*cload" in self.iter_line.lower():
+                if "amplitude" in self.iter_line:
                     GlobalInfor[GlobalVariant.AnaType] = AnalyseType.Transient
                     rt_dict = ReadSectionLine(self.iter_line)
                     amp_group_name = rt_dict["amplitude"]
@@ -433,6 +433,8 @@ class InpParser(object):
                         self.fem_db.load_case.AddConcentratedLoad(iter_node, int(keywords[1]) - 1, float(keywords[2]))
 
                 self.iter_line = f_handle.readline().strip()
+            elif "*boundary" in self.iter_line.lower():
+                self.ReadBoundary(f_handle)
             else:
                 # 其他情况先读取下一行, 直到遇到 *End Step为止
                 self.iter_line = f_handle.readline().strip()
@@ -463,10 +465,19 @@ class InpParser(object):
                         values.append(0)
                 bd = np.column_stack([d_nodes, directs, values])
                 self.fem_db.load_case.AddBoundary(bd)
+            elif "PINNED" in keywords[1]:
+                for nd in nds:
+                    for ii in range(3):
+                        d_nodes.append(nd)
+                        directs.append(ii)
+                        values.append(0)
+                bd = np.column_stack([d_nodes, directs, values])
+                self.fem_db.load_case.AddBoundary(bd)
             else:
                 raise KeyError(f"UnSupport Boundary Key: {self.iter_line}")
         else:
             raise ValueError(f"In Read Boundary: {self.iter_line}")
+
         self.iter_line = f_handle.readline().strip()
 
     def ReadAmplitude(self, f_handle):
