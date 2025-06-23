@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-from PySide6.QtGui import QVector3D
-from PySide6.QtGui import QMatrix4x4
+from scipy.spatial.transform import Rotation
 
 
 def GetShellGlobal2LocalTransMatrix(nodes: np.ndarray):
@@ -71,37 +70,30 @@ def GetShellGlobal2LocalTransMatrix(nodes: np.ndarray):
     return trans_matrix, origin
 
 
-def RotateByAxis(n_vector, point_o, angle_degrees, xyz, shift_v=None):
+def RotateByAxisScipy(n_vector, angle_degrees, xyz, point_o=(0, 0, 0), shift_v=None):
     """
-    平移模型后绕固定点旋转
-    @param n_vector: 旋转轴
-    @param point_o: 旋转中心
-    @param angle_degrees: 旋转角度
-    @param xyz: 被旋转向量
-    @param shift_v: 平移量
-    @return:
+    使用SciPy的优化旋转实现
     """
-    transformation_matrix = QMatrix4x4()
-    # 最开始的偏置
+    rot = Rotation.from_rotvec(np.radians(angle_degrees) * np.array(n_vector) / np.linalg.norm(n_vector))
+    shifted = xyz - point_o
+    rotated = rot.apply(shifted)
+    result = rotated + point_o
     if shift_v is not None:
-        transformation_matrix.translate(shift_v)
-    # 平移，使旋转轴的固定端对齐到原点
-    transformation_matrix.translate(point_o)
-    # 旋转
-    transformation_matrix.rotate(angle_degrees, n_vector)
-    # 反平移，恢复到原来的坐标系
-    transformation_matrix.translate(-point_o)
-
-    vector_4d = np.append(xyz, [1])
-
-    numpy_matrix = np.array(transformation_matrix.copyDataTo()).reshape(4, 4)
-    rotated_vector = np.dot(numpy_matrix, vector_4d)
-    rotated_3d_vector = rotated_vector[:3]
-
-    return rotated_3d_vector
+        result += shift_v
+    return result
 
 
 if __name__ == "__main__":
+    """
+    test case 4
+    """
+    nn = np.array((9, 8, 1), dtype=float)
+    old_xyz = np.array((12, 3, 8), dtype=float)
+    oo = np.array((0, 8.0, 1.0), dtype=float)
+    ss = np.array((1, 9.2, 3), dtype=float)
+
+    print(RotateByAxisScipy(nn, 32, old_xyz, oo, ss))
+
     """
     test case 1
     """
@@ -140,4 +132,4 @@ if __name__ == "__main__":
     trans_matrix, origin0 = GetShellGlobal2LocalTransMatrix(nodes)
 
     offset_nodes = nodes.T - origin0[:, np.newaxis]
-    print(offset_nodes.T @ trans_matrix)
+    # print(offset_nodes.T @ trans_matrix)

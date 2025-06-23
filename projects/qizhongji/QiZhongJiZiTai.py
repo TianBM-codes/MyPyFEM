@@ -1,8 +1,6 @@
 import numpy as np
 import math
-from PySide6.QtGui import QVector3D
-from PySide6.QtGui import QMatrix4x4
-from utils.UtilsFunction import RotateByAxis
+from utils.UtilsFunction import RotateByAxisScipy
 
 
 class MQ1330:
@@ -120,7 +118,7 @@ class MQ1330Wrapper:
         """
         self.mq1330 = MQ1330()
         self.angle_range = rotate_angle
-        self.z_axis = QVector3D(0, 0, 1)
+        self.z_axis = np.array((0, 0, 1), dtype=float)
         self._init_transforms()
 
     def _init_transforms(self):
@@ -130,22 +128,22 @@ class MQ1330Wrapper:
 
         # 初始化各个部件的变换参数
         self.bijia_trans, self.bijia_theta, bijia_origin = data["bijia"]
-        self.bijia_o = QVector3D(*bijia_origin)
+        self.bijia_o = bijia_origin
 
         self.dalagan_trans, self.dalagan_theta, dalagan_origin = data["dalagan"]
-        self.dalagan_o = QVector3D(*dalagan_origin)
+        self.dalagan_o = dalagan_origin
 
         self.phl_trans, self.phl_theta, phl_origin = data["pinghengliang"]
-        self.phl_o = QVector3D(*phl_origin)
+        self.phl_o = phl_origin
 
         self.xlg_trans, self.xlg_theta, xlg_origin = data["xiaolagan"]
-        self.xlg_o = QVector3D(*xlg_origin)
+        self.xlg_o = xlg_origin
 
         self.xbl_trans, self.xbl_theta, xbl_origin = data["xiangbiliang"]
-        self.xbl_o = QVector3D(*xbl_origin)
+        self.xbl_o = xbl_origin
 
         self.ctj_trans, self.ctj_theta, ctj_origin = data["chitiaojia"]
-        self.ctj_o = QVector3D(*ctj_origin)
+        self.ctj_o = ctj_origin
 
         # 1. 臂架 (bijia)
         R_bijia = np.array([
@@ -326,38 +324,38 @@ class MQ1330Wrapper:
             """
             臂架只绕指定点旋转
             """
-            return RotateByAxis(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
+            return RotateByAxisScipy(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
         elif 50000 < node_id < 70000:
             """
             大拉杆只绕指定点旋转
             """
-            return RotateByAxis(self.z_axis, self.dalagan_o, self.dalagan_theta * 180 / np.pi, old_xyz)
+            return RotateByAxisScipy(self.z_axis, self.dalagan_o, self.dalagan_theta * 180 / np.pi, old_xyz)
         elif 70000 < node_id < 90000:
             """
             平衡梁只绕指定点旋转
             """
-            return RotateByAxis(self.z_axis, self.phl_o, self.phl_theta * 180 / np.pi, old_xyz)
+            return RotateByAxisScipy(self.z_axis, self.phl_o, self.phl_theta * 180 / np.pi, old_xyz)
         elif 90000 < node_id < 100000:
             """
             小拉杆
             """
-            new_x, new_y, new_z = RotateByAxis(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
-            return RotateByAxis(self.z_axis, self.xlg_o, (-self.bijia_theta + self.xlg_theta) * 180 / np.pi,
-                                np.array((new_x, new_y, new_z)))
+            new_x, new_y, new_z = RotateByAxisScipy(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
+            return RotateByAxisScipy(self.z_axis, self.xlg_o, (-self.bijia_theta + self.xlg_theta) * 180 / np.pi,
+                                     np.array((new_x, new_y, new_z)))
         elif 100000 < node_id < 130000:
             """
             象鼻梁先随臂架旋转后，再绕臂架尾部旋转
             """
-            new_x, new_y, new_z = RotateByAxis(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
-            return RotateByAxis(self.z_axis, self.xbl_o, (-self.bijia_theta + self.xbl_theta) * 180 / np.pi,
-                                np.array((new_x, new_y, new_z)))
+            new_x, new_y, new_z = RotateByAxisScipy(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
+            return RotateByAxisScipy(self.z_axis, self.xbl_o, (-self.bijia_theta + self.xbl_theta) * 180 / np.pi,
+                                     np.array((new_x, new_y, new_z)))
         elif 130000 < node_id:
             """
             齿条架
             """
-            new_x, new_y, new_z = RotateByAxis(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
-            return RotateByAxis(self.z_axis, self.ctj_o, (-self.bijia_theta + self.ctj_theta) * 180 / np.pi,
-                                np.array((new_x, new_y, new_z)))
+            new_x, new_y, new_z = RotateByAxisScipy(self.z_axis, self.bijia_o, self.bijia_theta * 180 / np.pi, old_xyz)
+            return RotateByAxisScipy(self.z_axis, self.ctj_o, (-self.bijia_theta + self.ctj_theta) * 180 / np.pi,
+                                     np.array((new_x, new_y, new_z)))
         else:
             raise ValueError(f"Invalid node_id: {node_id}")
 
@@ -368,39 +366,39 @@ class MQ1330Wrapper:
         :return:
         """
         if set_name in ["bijia_ele"]:
-            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+            return [self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.bijia_o[0], self.bijia_o[1], self.bijia_o[2],
                     self.bijia_theta * 180 / np.pi]
         elif set_name in ["chitiao_ele"]:
-            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+            return [self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.bijia_o[0], self.bijia_o[1], self.bijia_o[2],
                     self.bijia_theta * 180 / np.pi,
-                    self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.ctj_o.x(), self.ctj_o.y(), self.ctj_o.z(),
+                    self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.ctj_o[0], self.ctj_o[1], self.ctj_o[2],
                     (-self.bijia_theta + self.ctj_theta) * 180 / np.pi]
         elif set_name in ["dalagan_ele"]:
-            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.dalagan_o.x(), self.dalagan_o.y(), self.dalagan_o.z(),
+            return [self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.dalagan_o[0], self.dalagan_o[1], self.dalagan_o[2],
                     self.dalagan_theta * 180 / np.pi]
         elif set_name in ["phl_left_ele", "phl_right_ele"]:
-            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.phl_o.x(), self.phl_o.y(), self.phl_o.z(),
+            return [self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.phl_o[0], self.phl_o[1], self.phl_o[2],
                     self.phl_theta * 180 / np.pi]
         elif set_name in ["renzijia_ele"]:
             return []
         elif set_name in ["xiangbiliang_ele"]:
-            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+            return [self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.bijia_o[0], self.bijia_o[1], self.bijia_o[2],
                     self.bijia_theta * 180 / np.pi,
-                    self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.xbl_o.x(), self.xbl_o.y(), self.xbl_o.z(),
+                    self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.xbl_o[0], self.xbl_o[1], self.xbl_o[2],
                     (-self.bijia_theta + self.xbl_theta) * 180 / np.pi]
         elif set_name in ["xiaolagan_ele"]:
-            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+            return [self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.bijia_o[0], self.bijia_o[1], self.bijia_o[2],
                     self.bijia_theta * 180 / np.pi,
-                    self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
-                    self.xlg_o.x(), self.xlg_o.y(), self.xlg_o.z(),
+                    self.z_axis[0], self.z_axis[1], self.z_axis[2],
+                    self.xlg_o[0], self.xlg_o[1], self.xlg_o[2],
                     (-self.bijia_theta + self.xlg_theta) * 180 / np.pi]
         else:
             raise KeyError(set_name)
