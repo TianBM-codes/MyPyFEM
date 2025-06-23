@@ -1,7 +1,7 @@
 import numpy as np
 import math
-from PySide2.QtGui import QVector3D
-from PySide2.QtGui import QMatrix4x4
+from PySide6.QtGui import QVector3D
+from PySide6.QtGui import QMatrix4x4
 from utils.UtilsFunction import RotateByAxis
 
 
@@ -360,6 +360,50 @@ class MQ1330Wrapper:
                                 np.array((new_x, new_y, new_z)))
         else:
             raise ValueError(f"Invalid node_id: {node_id}")
+
+    def get_rotate_info(self, set_name):
+        """
+        计算不同set的旋转信息
+        :param set_name:
+        :return:
+        """
+        if set_name in ["bijia_ele"]:
+            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+                    self.bijia_theta * 180 / np.pi]
+        elif set_name in ["chitiao_ele"]:
+            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+                    self.bijia_theta * 180 / np.pi,
+                    self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.ctj_o.x(), self.ctj_o.y(), self.ctj_o.z(),
+                    (-self.bijia_theta + self.ctj_theta) * 180 / np.pi]
+        elif set_name in ["dalagan_ele"]:
+            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.dalagan_o.x(), self.dalagan_o.y(), self.dalagan_o.z(),
+                    self.dalagan_theta * 180 / np.pi]
+        elif set_name in ["phl_left_ele", "phl_right_ele"]:
+            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.phl_o.x(), self.phl_o.y(), self.phl_o.z(),
+                    self.phl_theta * 180 / np.pi]
+        elif set_name in ["renzijia_ele"]:
+            return []
+        elif set_name in ["xiangbiliang_ele"]:
+            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+                    self.bijia_theta * 180 / np.pi,
+                    self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.xbl_o.x(), self.xbl_o.y(), self.xbl_o.z(),
+                    (-self.bijia_theta + self.xbl_theta) * 180 / np.pi]
+        elif set_name in ["xiaolagan_ele"]:
+            return [self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.bijia_o.x(), self.bijia_o.y(), self.bijia_o.z(),
+                    self.bijia_theta * 180 / np.pi,
+                    self.z_axis.x(), self.z_axis.y(), self.z_axis.z(),
+                    self.xlg_o.x(), self.xlg_o.y(), self.xlg_o.z(),
+                    (-self.bijia_theta + self.xlg_theta) * 180 / np.pi]
+        else:
+            raise KeyError(set_name)
 
     def calculate_new_stiff(self, e_id, node_count, stiff):
         """

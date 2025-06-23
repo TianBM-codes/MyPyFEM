@@ -17,9 +17,10 @@ class FEMDataBase(object):
         # 输入文件
         self.file_path = None
 
-        # nodes
+        # nodes & elements
         self.node_list = []  # List of all nodes in the domain, 实例化数据
         self.node_hash = {}  # 节点真实Id对应nodelist中的index的Hash表
+        self.ele_hash = {}   # 单元真实Id对应elements中的index的Hash表
         self.elements = []
         self.equation_number = None
         self.node_connected_element_count = None

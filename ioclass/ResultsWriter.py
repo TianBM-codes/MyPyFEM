@@ -54,8 +54,8 @@ from io import BytesIO
 import meshio
 from utils.MeshCleaner import *
 from element.MeshElementFactory import *
-
 from femdb.FEMDataBase import *
+from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper
 
 
 def compute_normal_vector(p1, p2, p3):
@@ -144,6 +144,283 @@ class ResultsWriter(object):
         compressed = zlib.compress(raw_data, level=9)
 
         with open(target_path, 'wb') as f:
+            f.write(compressed)
+
+    def WriteStaticResult2DatFile2(self, dat_path, wrp):
+        """
+        对模型进行重新排序
+        :param dat_path:
+        :param wrp:
+        :return:
+        """
+        buffer = BytesIO()
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        model_data = {"plot_type": 4,
+                      "boundary_box": [np.min(coords[:, 0]), np.max(coords[:, 0]),
+                                       np.min(coords[:, 1]), np.max(coords[:, 1]),
+                                       np.min(coords[:, 2]), np.max(coords[:, 2])],
+                      "nFrames": 2,
+                      "global_min": 0,
+                      "global_max": 0,
+                      "part_count": 1,
+                      "rotation_info": [],
+                      "rot_length": []}
+
+        """
+        处理单元信息
+        """
+        all_eles = []
+        each_part_ele_count = []
+        for key, value in self.femdb.element_set_name_hash.items():
+            print(key)
+            ele_iter_ids = self.femdb.element_sets[value]
+            iter_part_ele_count = 0
+            for ii in ele_iter_ids:
+                if ii not in self.femdb.ele_hash:
+                    continue
+                idx = self.femdb.ele_hash[ii]
+                ele = self.femdb.elements[idx]
+                ele_type = ele.__class__.__name__
+                ele_nodes = ele.search_node_ids
+                iter_ele, _ = MeshElementFactory.CreateElement(ele_type, ii)
+                if iter_ele is not None:
+                    iter_ele.setFaces(ele_nodes)
+                    all_eles.append(iter_ele)
+                    iter_part_ele_count += 1
+            info = wrp.get_rotate_info(key)
+            model_data["rotation_info"].extend(info)
+            model_data["rot_length"].append(len(info))
+            each_part_ele_count.append(iter_part_ele_count)
+
+        displacement = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
+        dis_mag = np.sqrt(displacement[:, 0] ** 2 + displacement[:, 1] ** 2 + displacement[:, 2] ** 2)
+        all_nodes = []
+        all_res = []
+        map_npy = []
+        displacement_mag = []
+        mises = []
+
+        cursor = 0
+        cur_part_idx = 0
+        tri_face_idx = [0]
+        iter_part_face_count = 0
+        for ii, ele in enumerate(all_eles):
+            triangles = ele.getAllTriangles(only_surface=True)
+            for tri in triangles:
+                all_nodes.extend([coords[row].flatten() for row in tri])
+                iter_part_face_count += 1
+                map_npy.extend(tri)
+                displacement_mag.extend([dis_mag[row] for row in tri])
+                mises.extend([self.femdb.linear_mises[row] for row in tri])
+
+            cursor = cursor + 1
+            if cursor >= each_part_ele_count[cur_part_idx]:
+                cur_part_idx += 1
+                tri_face_idx.append(iter_part_face_count + tri_face_idx[-1])
+                cursor = 0
+                iter_part_face_count = 0
+
+        model_data["node_count"] = len(all_nodes)
+        model_data["scalar_length"] = len(all_res)
+        model_data["result"] = all_res
+
+        """
+        0. 保存对应关系, 每个三角面片都要保存一遍结果, 也就是结果存在冗余
+        """
+        npy_file_path = pathlib.Path(dat_path).with_suffix(".npy")
+        np.save(npy_file_path, np.array(map_npy))
+
+        """
+        1. 头部数据写入
+        """
+        buffer.write(struct.pack('i', model_data["plot_type"]))
+        buffer.write(struct.pack('6f', *model_data["boundary_box"]))
+        buffer.write(struct.pack('i', model_data["nFrames"]))
+
+        """
+        4. 变换信息写入
+        """
+        rot_info_length = len(np.array(model_data["rot_length"]))
+        buffer.write(struct.pack('i', rot_info_length))
+        buffer.write(struct.pack(f'{rot_info_length}i', *model_data["rot_length"]))
+
+        rr = len(model_data["rotation_info"])
+        buffer.write(struct.pack('i', rr))
+        buffer.write(struct.pack(f'{rr}f', *model_data["rotation_info"]))
+
+        buffer.write(struct.pack('i', len(tri_face_idx)))
+        buffer.write(struct.pack(f'{len(tri_face_idx)}i', *tri_face_idx))
+
+        """
+        5. 部件循环写入
+        """
+        # 标量结果（多帧）
+        buffer.write(struct.pack('i', len(displacement_mag)))
+        buffer.write(struct.pack(
+            f'{len(displacement_mag)}f',
+            # *model_data[f"iter_result_{iter_frame}"]
+            *displacement_mag
+        ))
+        buffer.write(struct.pack('i', len(mises)))
+        buffer.write(struct.pack(
+            f'{len(mises)}f',
+            # *model_data[f"iter_result_{iter_frame}"]
+            *mises
+        ))
+
+        """
+        6. 压缩并写入文件
+        """
+        raw_data = buffer.getvalue()
+        compressed = zlib.compress(raw_data, level=9)
+
+        with open(dat_path, 'wb') as f:
+            f.write(compressed)
+
+    def WriteResortModel2DatFile(self, dat_path):
+        """
+        对模型进行重新排序
+        :param dat_path:
+        :return:
+        """
+        buffer = BytesIO()
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        model_data = {"plot_type": 4,
+                      "boundary_box": [np.min(coords[:, 0]), np.max(coords[:, 0]),
+                                       np.min(coords[:, 1]), np.max(coords[:, 1]),
+                                       np.min(coords[:, 2]), np.max(coords[:, 2])],
+                      "nFrames": 0,
+                      "var_name": "displacement",
+                      "global_min": 0,
+                      "global_max": 0,
+                      "part_count": 1,
+                      "rotation_info": [],
+                      "rot_length": []}
+
+        """
+        处理单元信息
+        """
+        all_eles = []
+        for key, value in self.femdb.element_set_name_hash.items():
+            print(key)
+            ele_iter_ids = self.femdb.element_sets[value]
+            for ii in ele_iter_ids:
+                if ii not in self.femdb.ele_hash:
+                    continue
+                idx = self.femdb.ele_hash[ii]
+                ele = self.femdb.elements[idx]
+                ele_type = ele.__class__.__name__
+                ele_nodes = ele.search_node_ids
+                iter_ele, _ = MeshElementFactory.CreateElement(ele_type, ii)
+                if iter_ele is not None:
+                    iter_ele.setFaces(ele_nodes)
+                    all_eles.append(iter_ele)
+
+        # MarkSurface(all_eles)
+        all_nodes = []
+        all_tri_faces = []
+        all_res = []
+        edges = []
+        all_node_normal = []
+        edge_count = 0
+        tri_face_count = 0
+        map_npy = []
+
+        for ii, ele in enumerate(all_eles):
+            triangles = ele.getAllTriangles(only_surface=True)
+            for tri in triangles:
+                all_nodes.extend([coords[row].flatten() for row in tri])
+                all_node_normal.extend([compute_normal_vector(*[coords[row] for row in tri]).flatten()] * 3)
+                begin_idx = len(all_tri_faces)
+                all_tri_faces.extend([begin_idx, begin_idx + 1, begin_idx + 2])
+                edges.extend([begin_idx, begin_idx + 1, begin_idx + 1, begin_idx + 2, begin_idx + 2, begin_idx])
+                edge_count += 3
+                tri_face_count += 3
+                map_npy.extend(tri)
+
+        model_data["node_count"] = len(all_nodes)
+        model_data["node_coords"] = np.array(all_nodes).flatten()
+        model_data["node_normal"] = np.array(all_node_normal).flatten()
+        model_data["scalar_length"] = len(all_res)
+        model_data["result"] = all_res
+        model_data["tri_face_count"] = tri_face_count
+        model_data["tri_faces"] = all_tri_faces
+        model_data["edges"] = edges
+        model_data["edge_count"] = edge_count
+        model_data["outline_count"] = 0
+        model_data["outline"] = []
+
+        """
+        0. 保存对应关系, 每个三角面片都要保存一遍结果, 也就是结果存在冗余
+        """
+        npy_file_path = pathlib.Path(dat_path).with_suffix(".npy")
+        np.save(npy_file_path, np.array(map_npy))
+
+        """
+        1. 头部数据写入
+        """
+        buffer.write(struct.pack('i', model_data["plot_type"]))
+        buffer.write(struct.pack('6f', *model_data["boundary_box"]))
+        buffer.write(struct.pack('i', model_data["nFrames"]))
+
+        """
+        2. 变量名写入（固定256字节）
+        """
+        var_name = model_data["var_name"].encode('utf-8')
+        buffer.write(var_name.ljust(256, b'\x00')[:256])  # 确保256字节
+
+        """
+        3. 极值写入
+        """
+        buffer.write(struct.pack('f', model_data["global_min"]))
+        buffer.write(struct.pack('f', model_data["global_max"]))
+
+        """
+        5. 部件循环写入
+        """
+        buffer.write(struct.pack('i', model_data["part_count"]))
+        for i_part in range(model_data["part_count"]):
+            buffer.write(struct.pack('i', model_data["node_count"]))
+        buffer.write(struct.pack(f'{model_data["node_count"] * 3}f', *model_data["node_coords"]))
+        buffer.write(struct.pack(f'{model_data["node_count"] * 3}f', *model_data["node_normal"]))
+
+        # 标量结果（多帧）
+        buffer.write(struct.pack('i', model_data["scalar_length"]))
+        for iter_frame in range(model_data["nFrames"]):
+            buffer.write(struct.pack(
+                f'{model_data["scalar_length"]}f',
+                # *model_data[f"iter_result_{iter_frame}"]
+                *model_data["result"]
+            ))
+
+        # 面片数据
+        buffer.write(struct.pack('i', model_data["tri_face_count"]))
+        buffer.write(struct.pack(
+            f'{model_data["tri_face_count"]}i',
+            *model_data["tri_faces"]
+        ))
+
+        # 轮廓线（原outline字段）
+        buffer.write(struct.pack('i', model_data["outline_count"]))
+        buffer.write(struct.pack(
+            f'{model_data["outline_count"]}i',
+            *model_data["outline"]
+        ))
+
+        # 单元边（原edges字段）
+        buffer.write(struct.pack('i', model_data["edge_count"] * 2))
+        buffer.write(struct.pack(
+            f'{model_data["edge_count"] * 2}i',
+            *model_data["edges"]
+        ))
+
+        """
+        6. 压缩并写入文件
+        """
+        raw_data = buffer.getvalue()
+        compressed = zlib.compress(raw_data, level=9)
+
+        with open(dat_path, 'wb') as f:
             f.write(compressed)
 
     def WriteModel2DatFileWithoutRes(self, dat_path):

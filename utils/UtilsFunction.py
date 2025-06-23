@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import numpy as np
-from PySide2.QtGui import QVector3D
-from PySide2.QtGui import QMatrix4x4
+from PySide6.QtGui import QVector3D
+from PySide6.QtGui import QMatrix4x4
 
 
 def GetShellGlobal2LocalTransMatrix(nodes: np.ndarray):

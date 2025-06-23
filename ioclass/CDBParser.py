@@ -384,6 +384,7 @@ class CDBParser(object):
                     n_coord = self.femdb.node_list[nid].GetNodeCoord()
                     coords.append(n_coord)
                 iter_ele.SetNodeCoords(np.asarray(coords))
+                self.femdb.ele_hash[ele_num] = len(self.femdb.elements)
                 self.femdb.elements.append(iter_ele)
 
                 """

@@ -208,8 +208,8 @@ class Domain(object):
             """
             cond = np.linalg.cond(self.femdb.global_stiff_matrix.todense())
             print("Condition number:", cond)
+
             """
-            
             3. 检查矩阵是否对称正定
             """
             from scipy.linalg import eigh

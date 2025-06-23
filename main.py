@@ -31,7 +31,7 @@ class MyPyFEM:
     TODO: 可以将单元的面编号，对面做一个可识别的ID，用于区分，ID = str(sorted(nodeIds)), 参考MySTAP C++
     """
 
-    def __init__(self, file_path, open_paraview=False, check_model=False, plot_stiff=False, is_server=False):
+    def __init__(self, file_path, open_paraview=False, check_model=False, plot_stiff=False, AnaType=None):
         if isinstance(file_path, str):
             file_path = pathlib.Path(file_path)
 
@@ -43,7 +43,7 @@ class MyPyFEM:
         self.program_begin = None
         self.parsed_time = None
         self.check_model = check_model
-        self.is_server = is_server
+        self.ana_type = AnaType
         self.domain = None
 
         # 是否绘制总刚度阵
@@ -91,8 +91,11 @@ class MyPyFEM:
         mlogger.debug("{} Analysis Calculate Begin {}".format("#" * 6, "#" * 6))
         reader = self.InitReader()
         reader.ParseFileAndInitFEMDB()
-        if self.is_server:
-            GlobalInfor[GlobalVariant.AnaType] = AnalyseType.AsServer
+        """
+        指定分析类型
+        """
+        if self.ana_type:
+            GlobalInfor[GlobalVariant.AnaType] = self.ana_type
         self.parsed_time = time.time()
 
         """
@@ -134,7 +137,9 @@ class MyPyFEM:
             writer = ResultsWriter()
             writer.WriteStaticAnalysisVTUFile(self.output_files[0])
             # writer.WriteModel2DatFileWithoutRes(self.output_files[2])
-            # writer.WriteStaticResult2DatFile(self.output_files[2])
+
+            wrapper = MQ1330Wrapper(30)
+            writer.WriteStaticResult2DatFile2(self.output_files[2], wrapper)
             # writer.WriteMises2DatFile(self.output_files[2])
             p_end = time.time()
             mlogger.debug(time_format.format("Write Output", p_end - time_5))
@@ -179,6 +184,14 @@ class MyPyFEM:
             self.domain.CalAllElementStiffness()
             time_1 = time.time()
             mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
+            p_end = time.time()
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.ReSortModel:
+            """
+            只是重排单元, 生成Dat文件
+            """
+            writer = ResultsWriter()
+            writer.WriteResortModel2DatFile(self.output_files[2])
             p_end = time.time()
 
         else:
@@ -238,7 +251,7 @@ class MyPyFEM:
         src = pathlib.Path(vtu_path)
         writer.WriteStaticAnalysisVTUFile(src)
         dat_path = src.with_suffix(".dat")
-        writer.WriteStaticResult2DatFile(dat_path)
+        writer.WriteStaticResult2DatFile2(dat_path, wrapper)
         writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"))
         time_end = time.time()
         total_time_elapsed = time_end - time1
@@ -264,7 +277,7 @@ def rotate_model_endpoint():
         theta = request.args.get('rotate_theta', type=float)
         save_path = pathlib.Path(request.args.get('save_path'))
         for ii in range(40):
-            iter_path = save_path.with_stem(f"theta{ii+1}")
+            iter_path = save_path.with_stem(f"theta{ii + 1}")
             my_fem.RotateModel(ii + 1, iter_path)
 
         result = {"status": "success"}
@@ -277,6 +290,6 @@ def rotate_model_endpoint():
 
 if __name__ == "__main__":
     input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
-    my_fem = MyPyFEM(pathlib.Path(input_file), is_server=True)
+    my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.AsServer)
     app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
     # app.run(host='0.0.0.0', port=5000, debug=True, reloader_type='watchdog')

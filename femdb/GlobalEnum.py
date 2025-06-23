@@ -166,6 +166,7 @@ class AnalyseType(Enum):
     Transient = 3
     OldLinearStatic = 4
     AsServer = 5
+    ReSortModel = 6
 
 
 class InputFileType(Enum):
