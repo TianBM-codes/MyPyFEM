@@ -70,7 +70,7 @@ def GetShellGlobal2LocalTransMatrix(nodes: np.ndarray):
     return trans_matrix, origin
 
 
-def RotateByAxisScipy(n_vector, angle_degrees, xyz, point_o=(0, 0, 0), shift_v=None):
+def RotateByAxisScipy(n_vector, point_o=(0, 0, 0), angle_degrees=0, xyz=None, shift_v=None):
     """
     使用SciPy的优化旋转实现
     """

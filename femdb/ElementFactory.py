@@ -40,54 +40,69 @@ class ElementFactory:
         """
         # 0D Element
         if e_type in [21]:
-            return Mass(e_id), 1, (ModelInfo.PER_NODE_DOF + 1) * ModelInfo.PER_NODE_DOF // 2
+            # return Mass(e_id), 1, (ModelInfo.PER_NODE_DOF + 1) * ModelInfo.PER_NODE_DOF // 2
+            return Mass(e_id), 1, ModelInfo.PER_NODE_DOF ** 2
 
         # 1D Element
         elif e_type in ["T3D2"]:
             return T3D2(e_id), 2, 36
         elif e_type in ["B31", 188]:
-            return Beam188(e_id), 2, 78
+            # return Beam188(e_id), 2, 78
+            return Beam188(e_id), 2, 144
         elif e_type in [189]:
-            return Beam189(e_id), 3, 171
+            # return Beam189(e_id), 3, 171
+            return Beam189(e_id), 3, 324
 
         # 2D Element
         elif e_type in ["CPS3"]:
-            return CPS3(e_id), 3, 21
+            # return CPS3(e_id), 3, 21
+            return CPS3(e_id), 3, 36
         elif e_type in ["CPS4"]:
-            return CPS4(e_id), 4, 36
+            # return CPS4(e_id), 4, 36
+            return CPS4(e_id), 4, 64
 
         # 3D Element
         elif e_type in ["S3"]:
-            return CookTriShell(e_id), 3, 171
+            # return CookTriShell(e_id), 3, 171
+            return CookTriShell(e_id), 3, 324
         elif e_type in ["S4", "S4R", "S4RT"]:
-            return CookQuaShell(e_id), 4, 300
+            # return CookQuaShell(e_id), 4, 300
+            return CookQuaShell(e_id), 4, 576
         elif e_type in [181, 63]:
             if opt == 4:
-                return CookQuaShell(e_id), 4, 300
+                # return CookQuaShell(e_id), 4, 300
+                return CookQuaShell(e_id), 4, 576
             elif opt == 3:
-                return CookTriShell(e_id), 3, 171
+                # return CookTriShell(e_id), 3, 171
+                return CookTriShell(e_id), 3, 324
             else:
                 raise KeyError("Shell 181/63 don't support opt {}".format(opt))
 
         elif e_type in ["C3D8", 45]:
-            return C3D8(e_id), 8, 300
+            # return C3D8(e_id), 8, 300
+            return C3D8(e_id), 8, 576
         elif e_type in ["C3D8R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
         elif e_type in ["C3D6"]:
-            return C3D6(e_id), 6, 171
+            # return C3D6(e_id), 6, 171
+            return C3D6(e_id), 6, 324
         elif e_type in ["C3D4"]:
-            return C3D4(e_id), 4, 78
+            # return C3D4(e_id), 4, 78
+            return C3D4(e_id), 4, 144
         elif e_type in ["C3D20R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
         elif e_type == 185:
             if opt == 8:
-                return C3D8(e_id), 8, 300
+                # return C3D8(e_id), 8, 300
+                return C3D8(e_id), 8, 576
             elif opt == 6:
-                return C3D6(e_id), 6, 171
+                # return C3D6(e_id), 6, 171
+                return C3D6(e_id), 6, 324
             elif opt == 4:
-                return C3D4(e_id), 4, 78
+                # return C3D4(e_id), 4, 78
+                return C3D4(e_id), 4, 144
             else:
                 raise KeyError("Wrong opt parameter: {}".format(opt))
 

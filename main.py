@@ -31,7 +31,7 @@ class MyPyFEM:
     TODO: 可以将单元的面编号，对面做一个可识别的ID，用于区分，ID = str(sorted(nodeIds)), 参考MySTAP C++
     """
 
-    def __init__(self, file_path, open_paraview=False, check_model=False, plot_stiff=False, AnaType=None):
+    def __init__(self, file_path, open_paraview=False, check_model=False, plot_stiff=False, AnaType=None, output_path=None):
         if isinstance(file_path, str):
             file_path = pathlib.Path(file_path)
 
@@ -57,6 +57,7 @@ class MyPyFEM:
                              file_path.with_suffix(".dat")]
         self.output_dir = file_path.parent
         self.output_name = file_path.stem
+        self.output_path = output_path
 
         self.FEMAnalyseFlow()
 
@@ -130,16 +131,19 @@ class MyPyFEM:
             time_4 = time.time()
             mlogger.debug(time_format.format("Solve Displacement", time_4 - time_3))
 
-            self.domain.SolveStress()
+            # self.domain.SolveStress()
             time_5 = time.time()
             mlogger.debug(time_format.format("Solve Node Stress", time_5 - time_4))
 
             writer = ResultsWriter()
-            writer.WriteStaticAnalysisVTUFile(self.output_files[0])
+            if self.output_path is not None:
+                writer.WriteStaticAnalysisVTUFile(self.output_path)
+            else:
+                writer.WriteStaticAnalysisVTUFile(self.output_files[0])
             # writer.WriteModel2DatFileWithoutRes(self.output_files[2])
 
             wrapper = MQ1330Wrapper(30)
-            writer.WriteStaticResult2DatFile2(self.output_files[2], wrapper)
+            # writer.WriteStaticResult2DatFile2(self.output_files[2], wrapper)
             # writer.WriteMises2DatFile(self.output_files[2])
             p_end = time.time()
             mlogger.debug(time_format.format("Write Output", p_end - time_5))
@@ -247,12 +251,13 @@ class MyPyFEM:
         time7 = time.time()
         mlogger.debug(time_format.format("Solve Stress", time7 - time6))
 
-        writer = ResultsWriter()
+        writer = ResultsWriter(use_mysql=False)
         src = pathlib.Path(vtu_path)
         writer.WriteStaticAnalysisVTUFile(src)
         dat_path = src.with_suffix(".dat")
+        dat_path = dat_path.with_stem(dat_path.stem + f"{int(time.time())}")
         writer.WriteStaticResult2DatFile2(dat_path, wrapper)
-        writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"))
+        # writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"))
         time_end = time.time()
         total_time_elapsed = time_end - time1
         mlogger.debug(time_format.format("Write Output", time_end - time7))

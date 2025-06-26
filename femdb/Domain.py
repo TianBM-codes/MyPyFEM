@@ -7,7 +7,7 @@ from femdb.FEMDataBase import *
 from femdb.GlobalFEMVariant import ModelInfo
 from scipy.sparse.linalg import factorized, spsolve
 from femdb.GlobalEnum import *
-from pypardiso.pardiso_wrapper import PyPardisoSolver
+import pypardiso
 
 """
 **关于稀疏矩阵:**
@@ -115,9 +115,8 @@ class Domain(object):
         @return:
         """
         """
-        组装总体刚度阵, 首先考虑系数矩阵一共有多少个元素, 对于约束方程来说, 施加一个自由度约束需要添加3个量, 因为只存储对角线元素和上三角元素
+        组装总体刚度阵, 首先考虑系数矩阵一共有多少个元素, 对于约束方程来说, 施加一个自由度约束需要添加4个量
         """
-        Matrix_dimension = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
         ce_count = len(self.femdb.equation_constrain_couple)
         ce_add_equations = 0
         for ii in range(ce_count):
@@ -125,73 +124,61 @@ class Domain(object):
             ce_add_equations += len(iter_ce)
 
         iter_loc = 0
-        rows = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 3, dtype=np.uint32)
-        cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 3, dtype=np.uint32)
-        datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 3, dtype=np.float64)
-        max_diagonal = 0
+        rows = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
+        cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
+        datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.float64)
         for kk, ele in enumerate(self.femdb.elements):
             ele_nodes = ele.search_node_ids
             stiff_array = self.femdb.stiff_list[kk]
-            iter_max_diagonal = np.max(stiff_array.diagonal())
-            if iter_max_diagonal > max_diagonal:
-                max_diagonal = iter_max_diagonal
-
+            n_nodes = len(ele_nodes)
+            block_size = n_nodes * ModelInfo.PER_NODE_DOF
             el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
                                 for x in ele_nodes]).flatten()
             rows_block, cols_block = np.meshgrid(el_dofs, el_dofs)
-            mask = rows_block <= cols_block
-
-            rows_upper = rows_block[mask]
-            cols_upper = cols_block[mask]
-            datas_upper = stiff_array.ravel()[mask.ravel()]
-
-            entries_count = len(rows_upper)
-            rows[iter_loc:iter_loc + entries_count] = rows_upper
-            cols[iter_loc:iter_loc + entries_count] = cols_upper
-            datas[iter_loc:iter_loc + entries_count] = datas_upper
+            entries_count = block_size ** 2
+            rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()
+            cols[iter_loc:iter_loc + entries_count] = cols_block.ravel()
+            datas[iter_loc:iter_loc + entries_count] = stiff_array.ravel()
 
             iter_loc += entries_count
 
         """
-        添加RBE2约束, 罚函数方法实现约束方程, 需要增加总刚维度
+        添加RBE2约束, 拉格朗日乘子法实现约束方程, 需要增加总刚维度
         """
         GlobalNodeHash = self.femdb.node_hash
-        big_number = 1e7 * max_diagonal
+        matrix_dimension = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+        row_cursor = 0
+        insert_offset = 0
         for ii in range(ce_count):
             m_node, s_node = self.femdb.equation_constrain_couple[ii]
             iter_ce_idx = self.femdb.equation_constrain_idx[ii]
             m_node_dof = GlobalNodeHash[m_node] * ModelInfo.PER_NODE_DOF
             s_node_dof = GlobalNodeHash[s_node] * ModelInfo.PER_NODE_DOF
+            for jj in iter_ce_idx:
+                insert_begin = self.femdb.matrix_num_count + insert_offset
+                insert_end = insert_begin + 4
+                rows[insert_begin: insert_end] = [matrix_dimension + row_cursor,
+                                                  matrix_dimension + row_cursor,
+                                                  s_node_dof + jj,
+                                                  m_node_dof + jj]
 
-            for dof in iter_ce_idx:
-                m_idx = m_node_dof + dof
-                s_idx = s_node_dof + dof
+                cols[insert_begin:insert_end] = [s_node_dof + jj,
+                                                 m_node_dof + jj,
+                                                 matrix_dimension + row_cursor,
+                                                 matrix_dimension + row_cursor]
+                datas[insert_begin: insert_end] = [1, -1, 1, -1]
+                insert_offset += 4
 
-                rows[iter_loc] = m_idx
-                cols[iter_loc] = m_idx
-                datas[iter_loc] = big_number
-                iter_loc += 1
+                row_cursor += 1
 
-                if m_idx < s_idx:
-                    rows[iter_loc] = m_idx
-                    cols[iter_loc] = s_idx
-                    datas[iter_loc] = -big_number
-                else:
-                    rows[iter_loc] = s_idx
-                    cols[iter_loc] = m_idx
-                    datas[iter_loc] = -big_number
-                iter_loc += 1
-
-                rows[iter_loc] = s_idx
-                cols[iter_loc] = s_idx
-                datas[iter_loc] = big_number
-                iter_loc += 1
+        matrix_dimension += row_cursor
 
         """
         完成所有三向量数据的准备, 开始组装总刚
         """
         self.femdb.global_stiff_matrix = sparse.coo_matrix((datas, (rows, cols)),
-                                                           shape=(Matrix_dimension, Matrix_dimension)).tocsr()
+                                                           shape=(matrix_dimension, matrix_dimension)).tocsc()
+
         if self.check_model:
             """
             0. 检查模型中是否存在不属于任何单元的节点
@@ -208,8 +195,8 @@ class Domain(object):
             """
             cond = np.linalg.cond(self.femdb.global_stiff_matrix.todense())
             print("Condition number:", cond)
-
             """
+
             3. 检查矩阵是否对称正定
             """
             from scipy.linalg import eigh
@@ -303,9 +290,7 @@ class Domain(object):
 
         # TODO: 没有利用Kaa是正定对称矩阵的性质, 另外Assemble对应的稀疏矩阵优化, 考虑用其他库的稀疏矩阵, 还有就是单刚的计算了
         try:
-            ps = PyPardisoSolver(mtype=2)
-            ps.factorize(self.femdb.global_stiff_matrix)
-            temp_results = ps.solve(self.femdb.global_stiff_matrix, self.right_hand)
+            temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
             result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
             self.femdb.linear_u = temp_results[:result_range]
         except ValueError as e:
@@ -366,7 +351,12 @@ class Domain(object):
         注意要增加约束方程部分
         """
         node_count = len(self.femdb.node_list)
-        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF)
+        ce_count = len(self.femdb.equation_constrain_couple)
+        ce_add_equations = 0
+        for ii in range(ce_count):
+            iter_ce = self.femdb.equation_constrain_idx[ii]
+            ce_add_equations += len(iter_ce)
+        self.right_hand = np.zeros(node_count * ModelInfo.PER_NODE_DOF + ce_add_equations)
 
         bds = self.femdb.load_case.GetBoundaries()
         for bd in bds:
@@ -405,9 +395,7 @@ class Domain(object):
             xyz = directories[ii]
             his_vals[eqa + xyz] = his_load[ii][-1][1, :] * scale[ii]
 
-        ps = PyPardisoSolver(mtype=2)
-        ps.factorize(self.femdb.global_mass_matrix)
-        acc_0 = ps.solve(self.femdb.global_mass_matrix, his_vals[:, 0])
+        acc_0 = pypardiso.spsolve(self.femdb.global_mass_matrix, his_vals[:, 0])
 
         """
         计算初始参数

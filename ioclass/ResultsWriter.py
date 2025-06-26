@@ -55,6 +55,7 @@ import meshio
 from utils.MeshCleaner import *
 from element.MeshElementFactory import *
 from femdb.FEMDataBase import *
+from ioclass.MySqlMathFunction import MySQLMathFunction
 from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper
 
 
@@ -82,8 +83,11 @@ class ResultsWriter(object):
     计算结果导出类, 现支持UNV导出以及VTP导出
     """
 
-    def __init__(self):
+    def __init__(self, use_mysql=False):
         self.femdb = FEMDataBase()
+        self.use_mysql = use_mysql
+        if use_mysql:
+            self.mysql_db = MySQLMathFunction()
 
     def WriteStaticAnalysisVTUFile(self, path):
         """
@@ -114,6 +118,7 @@ class ResultsWriter(object):
         # 位移结果
         dis_value = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
         node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises}
+        # node_res = {"displacement": dis_value}
         # node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises,
         #             "sigma_xx": self.femdb.sigma_xx, "sigma_yy": self.femdb.sigma_yy, "sigma_zz": self.femdb.sigma_zz,
         #             "tau_xy": self.femdb.tau_xy, "tau_xz": self.femdb.tau_xz, "tau_yz": self.femdb.tau_yz}
@@ -172,7 +177,6 @@ class ResultsWriter(object):
         all_eles = []
         each_part_ele_count = []
         for key, value in self.femdb.element_set_name_hash.items():
-            print(key)
             ele_iter_ids = self.femdb.element_sets[value]
             iter_part_ele_count = 0
             for ii in ele_iter_ids:
@@ -238,7 +242,7 @@ class ResultsWriter(object):
         buffer.write(struct.pack('i', model_data["nFrames"]))
 
         """
-        4. 变换信息写入
+        2. 变换信息写入
         """
         rot_info_length = len(np.array(model_data["rot_length"]))
         buffer.write(struct.pack('i', rot_info_length))
@@ -252,7 +256,7 @@ class ResultsWriter(object):
         buffer.write(struct.pack(f'{len(tri_face_idx)}i', *tri_face_idx))
 
         """
-        5. 部件循环写入
+        3. 部件循环写入
         """
         # 标量结果（多帧）
         buffer.write(struct.pack('i', len(displacement_mag)))
@@ -269,13 +273,26 @@ class ResultsWriter(object):
         ))
 
         """
-        6. 压缩并写入文件
+        4. 压缩并写入文件
         """
         raw_data = buffer.getvalue()
         compressed = zlib.compress(raw_data, level=9)
 
         with open(dat_path, 'wb') as f:
             f.write(compressed)
+
+        """
+        5. 如果涉及MySQL数据库, 将结果写入数据库
+        """
+        if self.use_mysql:
+            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
+                   f"VALUES (NOW(), '{dat_path}', 'rt') "
+                   "ON DUPLICATE KEY UPDATE "
+                   "calculate_time = VALUES(calculate_time), "
+                   "file_name = VALUES(file_name), "
+                   "result_type = VALUES(result_type);"
+                   )
+            self.mysql_db.commit_sql(sql)
 
     def WriteResortModel2DatFile(self, dat_path):
         """
@@ -302,7 +319,6 @@ class ResultsWriter(object):
         """
         all_eles = []
         for key, value in self.femdb.element_set_name_hash.items():
-            print(key)
             ele_iter_ids = self.femdb.element_sets[value]
             for ii in ele_iter_ids:
                 if ii not in self.femdb.ele_hash:
