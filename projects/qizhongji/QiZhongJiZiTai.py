@@ -24,7 +24,8 @@ class MQ1330:
     L_ph = 2.4 * 1000  # 平衡梁铰点对铰点长度
 
     L_xb_a = 4.02 * 1000  # 象鼻梁铰点对铰点长度
-    A_xb_a = 5.711 * sita  # 象鼻梁铰点连线与轴线夹角
+    A_xb_a = 5.711 * sita  # 象鼻梁5铰点连线与轴线夹角
+    A_xb_b = 2.314 * sita  # 象鼻梁1号杆铰点连线与轴线夹角
 
     H_ct = (6.69 - 0.5) * 1000  # 人字架顶部齿轮与齿条架切点与臂架底铰点的垂直距离，臂架底铰点为0点
     D_ctbj = 3.75 * 1000  # 人字架顶部齿轮与齿条架切点与臂架底铰点的水平距离
@@ -74,8 +75,8 @@ class MQ1330:
         ## 底部圆
         self.A_dl = A_dl_1 + A_dl_2  # 大拉杆倾角
         self.A_xb = -(np.pi - A_dlxb - self.A_dl - self.A_xb_a)  # 象鼻梁的倾角
-        self.D = self.L_bj * np.cos(self.A_bj) + self.L_xb_1 * np.cos(self.A_xb + self.A_xb_a) + self.L_bj_o
-        self.H = self.L_bj * np.sin(self.A_bj) + self.L_xb_1 * np.sin(self.A_xb + self.A_xb_a) + self.point_bj[1]
+        self.D = self.L_bj * np.cos(self.A_bj) + self.L_xb_1 * np.cos(self.A_xb + self.A_xb_b) + self.L_bj_o
+        self.H = self.L_bj * np.sin(self.A_bj) + self.L_xb_1 * np.sin(self.A_xb + self.A_xb_b) + self.point_bj[1]
         return [self.A_bj, -A_xb, A_dl, -A_xl, A_ph, -A_ct]
 
     def getPartCircle(self):

@@ -304,13 +304,13 @@ class ResultsWriter(object):
                    "result_type = VALUES(result_type);"
                    )
             self.mysql_db.commit_sql(sql)
-            sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4) "
+            sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4, value5) "
                    f"VALUES (NOW(), '{D / 1000:.2f}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(self.femdb.linear_mises / 1000000)):.3f}'), {H / 1000:.2f} "
                    "ON DUPLICATE KEY UPDATE "
                    "value1= VALUES(value1), "
                    "value2= VALUES(value2), "
                    "value3= VALUES(value3), "
-                   "value4= VALUES(value3), "
+                   "value4= VALUES(value4), "
                    "value5= VALUES(value5);"
                    )
             self.mysql_db.commit_sql(sql)

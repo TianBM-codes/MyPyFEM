@@ -99,6 +99,7 @@ if __name__ == "__main__":
     # sql_db.commit_sql(sql_)
 
     D = 12
+    H = 14
     dis_mag = [1, 23.1234654, 8, 20]
     linear_mises = [2, 8.89765, 1, 0]
     # sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4) "
@@ -109,12 +110,22 @@ if __name__ == "__main__":
     #        "value3= VALUES(value3), "
     #        "value4= VALUES(value4);"
     #        )
-    sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4) "
-           f"VALUES (NOW(), '{D / 1000}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(linear_mises)):.3f}') "
+    # sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4) "
+    #        f"VALUES (NOW(), '{D / 1000}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(linear_mises)):.3f}') "
+    #        "ON DUPLICATE KEY UPDATE "
+    #        "value1= VALUES(value1), "
+    #        "value2= VALUES(value2), "
+    #        "value3= VALUES(value3), "
+    #        "value4= VALUES(value4);"
+    #        )
+    sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4, value5) "
+           f"VALUES (NOW(), '{D / 1000:.2f}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(linear_mises) / 1000000):.3f}', {H / 1000:.2f}) "
            "ON DUPLICATE KEY UPDATE "
            "value1= VALUES(value1), "
            "value2= VALUES(value2), "
            "value3= VALUES(value3), "
-           "value4= VALUES(value4);"
+           "value4= VALUES(value4), "
+           "value5= VALUES(value5);"
            )
+    print(sql)
     sql_db.commit_sql(sql)
