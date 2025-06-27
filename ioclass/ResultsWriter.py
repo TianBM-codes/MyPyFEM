@@ -195,6 +195,7 @@ class ResultsWriter(object):
             model_data["rotation_info"].extend(info)
             model_data["rot_length"].append(len(info))
             each_part_ele_count.append(iter_part_ele_count)
+        D, H = wrp.get_circle_info()
 
         displacement = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
         dis_mag = np.sqrt(displacement[:, 0] ** 2 + displacement[:, 1] ** 2 + displacement[:, 2] ** 2)
@@ -231,8 +232,8 @@ class ResultsWriter(object):
         """
         0. 保存对应关系, 每个三角面片都要保存一遍结果, 也就是结果存在冗余
         """
-        npy_file_path = pathlib.Path(dat_path).with_suffix(".npy")
-        np.save(npy_file_path, np.array(map_npy))
+        # npy_file_path = pathlib.Path(dat_path).with_suffix(".npy")
+        # np.save(npy_file_path, np.array(map_npy))
 
         """
         1. 头部数据写入
@@ -273,7 +274,17 @@ class ResultsWriter(object):
         ))
 
         """
-        4. 压缩并写入文件
+        4. 起重机地下圈的显示
+        """
+        # D_H_xyz = [D + 1900, 0, 0, D + 1900, H, 0]
+        # buffer.write(struct.pack(
+        #     '6f',
+        #     # *model_data[f"iter_result_{iter_frame}"]
+        #     *D_H_xyz
+        # ))
+
+        """
+        5. 压缩并写入文件
         """
         raw_data = buffer.getvalue()
         compressed = zlib.compress(raw_data, level=9)
@@ -282,7 +293,7 @@ class ResultsWriter(object):
             f.write(compressed)
 
         """
-        5. 如果涉及MySQL数据库, 将结果写入数据库
+        6. 如果涉及MySQL数据库, 将结果写入数据库
         """
         if self.use_mysql:
             sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
@@ -291,6 +302,15 @@ class ResultsWriter(object):
                    "calculate_time = VALUES(calculate_time), "
                    "file_name = VALUES(file_name), "
                    "result_type = VALUES(result_type);"
+                   )
+            # self.mysql_db.commit_sql(sql)
+            sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4) "
+                   f"VALUES (NOW(), '{D / 1000:.2f}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(self.femdb.linear_mises/1000000)):.3f}') "
+                   "ON DUPLICATE KEY UPDATE "
+                   "value1= VALUES(value1), "
+                   "value2= VALUES(value2), "
+                   "value3= VALUES(value3), "
+                   "value4= VALUES(value4);"
                    )
             self.mysql_db.commit_sql(sql)
 

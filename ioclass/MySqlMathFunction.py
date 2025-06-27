@@ -10,6 +10,7 @@ import _mysql_connector
 import mysql.connector
 import numpy as np
 from dateutil.relativedelta import relativedelta
+from scipy.spatial import distance_matrix
 
 qi_zhong_ji = {"host": "192.168.3.8", "port": 30053, "database": "nbport_qzj_db",
                "username": "nbport_user", "password": "P@jtMUS3Yx"}
@@ -96,3 +97,24 @@ if __name__ == "__main__":
             "result_type = VALUES(result_type);"
             )
     # sql_db.commit_sql(sql_)
+
+    D = 12
+    dis_mag = [1, 23.1234654, 8, 20]
+    linear_mises = [2, 8.89765, 1, 0]
+    # sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4) "
+    #        f"VALUES (NOW(), '{D}', '13', '{np.max(np.array(dis_mag))}', '{np.max(np.array(linear_mises))}') "
+    #        "ON DUPLICATE KEY UPDATE "
+    #        "value1= VALUES(value1), "
+    #        "value2= VALUES(value2), "
+    #        "value3= VALUES(value3), "
+    #        "value4= VALUES(value4);"
+    #        )
+    sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4) "
+           f"VALUES (NOW(), '{D / 1000}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(linear_mises)):.3f}') "
+           "ON DUPLICATE KEY UPDATE "
+           "value1= VALUES(value1), "
+           "value2= VALUES(value2), "
+           "value3= VALUES(value3), "
+           "value4= VALUES(value4);"
+           )
+    sql_db.commit_sql(sql)

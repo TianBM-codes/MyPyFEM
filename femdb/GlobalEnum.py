@@ -167,6 +167,7 @@ class AnalyseType(Enum):
     OldLinearStatic = 4
     AsServer = 5
     ReSortModel = 6
+    GenerateGeLinFunction = 7
 
 
 class InputFileType(Enum):

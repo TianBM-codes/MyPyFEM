@@ -197,7 +197,12 @@ class MyPyFEM:
             writer = ResultsWriter()
             writer.WriteResortModel2DatFile(self.output_files[2])
             p_end = time.time()
-
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.GenerateGeLinFunction:
+            """
+            生成格林函数文件
+            """
+            import pickle
+            p_end = time.time()
         else:
             mlogger.fatal("UnSupport Analyse Type")
             sys.exit(1)
@@ -251,9 +256,9 @@ class MyPyFEM:
         time7 = time.time()
         mlogger.debug(time_format.format("Solve Stress", time7 - time6))
 
-        writer = ResultsWriter(use_mysql=False)
+        writer = ResultsWriter(use_mysql=True)
         src = pathlib.Path(vtu_path)
-        writer.WriteStaticAnalysisVTUFile(src)
+        # writer.WriteStaticAnalysisVTUFile(src)
         dat_path = src.with_suffix(".dat")
         dat_path = dat_path.with_stem(dat_path.stem + f"{int(time.time())}")
         writer.WriteStaticResult2DatFile2(dat_path, wrapper)
@@ -281,9 +286,16 @@ def rotate_model_endpoint():
     try:
         theta = request.args.get('rotate_theta', type=float)
         save_path = pathlib.Path(request.args.get('save_path'))
-        for ii in range(40):
-            iter_path = save_path.with_stem(f"theta{ii + 1}")
-            my_fem.RotateModel(ii + 1, iter_path)
+        current = 1
+        step = 1
+        while True:
+            if current >= 33:
+                step = -2
+            elif current <= 1:
+                step = 2
+            current += step
+            iter_path = save_path.with_stem(f"theta{current}")
+            my_fem.RotateModel(current, iter_path)
 
         result = {"status": "success"}
         return jsonify(result), 200

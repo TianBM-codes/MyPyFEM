@@ -32,6 +32,9 @@ class MQ1330:
     point_bj = np.array([4.400, 0.500, 0]) * 1000  # 臂架底部铰点坐标
     point_rz = np.array([-1.8983, 8.601, 0]) * 1000  # 人字架铰点坐标
 
+    L_xb_1 = 9.908 * 1000  # 象鼻梁1号杆铰点对铰点长度
+    L_bj_o = 2.5 * 1000  # 臂架铰点到回转中心距离
+
     def getPartOrientation(self, Abj=43.224):
         ## 计算各个部件的姿态角
         ## Abj 臂架的姿态角， 角度制
@@ -67,7 +70,16 @@ class MQ1330:
         ## 计算齿条架姿态角
         A_ct = math.atan((self.H_ct - self.L_bj_ct * math.sin(self.A_bj + self.A_bjc)) / (self.D_ctbj + self.L_bj_ct * math.cos(self.A_bj + self.A_bjc)))  # 齿条架倾角
         # print(f"chitiao A: {A_ct*180/np.pi:.2f}")
+
+        ## 底部圆
+        self.A_dl = A_dl_1 + A_dl_2  # 大拉杆倾角
+        self.A_xb = -(np.pi - A_dlxb - self.A_dl - self.A_xb_a)  # 象鼻梁的倾角
+        self.D = self.L_bj * np.cos(self.A_bj) + self.L_xb_1 * np.cos(self.A_xb + self.A_xb_a) + self.L_bj_o
+        self.H = self.L_bj * np.sin(self.A_bj) + self.L_xb_1 * np.sin(self.A_xb + self.A_xb_a) + self.point_bj[1]
         return [self.A_bj, -A_xb, A_dl, -A_xl, A_ph, -A_ct]
+
+    def getPartCircle(self):
+        return self.D, self.H
 
     def getPartTranslate(self, Abj1, Abj2):
         ## 计算各个部件的转移变换量（平移矢量，旋转角，旋转中心）
@@ -455,3 +467,6 @@ class MQ1330Wrapper:
                 raise ValueError(node_count)
         else:
             raise ValueError()
+
+    def get_circle_info(self):
+        return self.mq1330.getPartCircle()

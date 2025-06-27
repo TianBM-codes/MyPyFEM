@@ -433,6 +433,11 @@ class Domain(object):
         self.femdb.history_a = a
         self.femdb.history_step_count = len(u)
 
+    def GenerateGeLinFunction(self):
+        """
+        生成格林函数, 并保存
+        :return:
+        """
 
 if __name__ == "__main__":
     from scipy.linalg import cho_factor, cho_solve
