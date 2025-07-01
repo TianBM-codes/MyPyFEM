@@ -163,7 +163,7 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
         """
@@ -186,6 +186,9 @@ class KirchhoffTrianglePlate(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 
@@ -219,7 +222,7 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
         """
@@ -277,6 +280,9 @@ class KirchhoffQuaPlate(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class MITC4(ElementBaseClass, ABC):
     """
@@ -312,7 +318,7 @@ class MITC4(ElementBaseClass, ABC):
             mlogger.fatal("Unknown an_dimension")
             sys.exit(1)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
 
@@ -420,6 +426,9 @@ class MITC4(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class MITC3(ElementBaseClass, ABC):
     """ plate 3node Element class """
@@ -452,7 +461,7 @@ class MITC3(ElementBaseClass, ABC):
             mlogger.fatal("Unknown an_dimension")
             sys.exit(1)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: 积分过程是否正确?
         Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
@@ -495,6 +504,9 @@ class MITC3(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class DKTPlate(ElementBaseClass, ABC):
     """
@@ -516,6 +528,7 @@ class DKTPlate(ElementBaseClass, ABC):
         self.vtu_type = "triangle"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
         self.B = []
+        self.integ = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -534,7 +547,7 @@ class DKTPlate(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
         dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
@@ -615,6 +628,7 @@ class DKTPlate(ElementBaseClass, ABC):
                             j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
 
             self.B.append(B)
+            self.integ.append(weight[ii] / detJ)
             self.K += B.T @ self.D @ B * weight[ii] / detJ
 
         return self.K
@@ -633,6 +647,12 @@ class DKTPlate(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        K = np.zeros((9, 9), dtype=float)
+        for iii in range(len(self.integ)):
+            K += self.B[iii].T @ self.D @ self.B[iii] * self.integ[iii]
+        return K
+
 
 class DKQPlate(ElementBaseClass, ABC):
     """
@@ -648,6 +668,7 @@ class DKQPlate(ElementBaseClass, ABC):
         self.vtu_type = "quad"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
         self.B = []
+        self.integ = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -666,7 +687,7 @@ class DKQPlate(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         形函数与膜单元(CPM8)类似, 为8节点四边形单元
         """
@@ -779,11 +800,10 @@ class DKQPlate(ElementBaseClass, ABC):
                             j21 * pHypr + j22 * pHyps,
                             j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
             self.B.append(B)
+            self.integ.append(weight[ii] / detJ)
 
             # 这里的除以det_J是因为B放大了detJ倍, 为了减少计算量
             self.K += B.T @ self.D @ B * weight[ii] / detJ
-        # for ri in range(2):
-        #     for si in range(2):
 
         return self.K
 
@@ -800,6 +820,12 @@ class DKQPlate(ElementBaseClass, ABC):
 
     def CalculateBasic(self):
         pass
+
+    def ReCalculateElementStiffness(self):
+        K = np.zeros((12, 12), dtype=float)
+        for iii in range(len(self.integ)):
+            K += self.B[iii].T @ self.D @ self.B[iii] * self.integ[iii]
+        return K
 
 
 if __name__ == "__main__":

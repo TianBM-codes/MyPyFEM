@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import time
-
-import numpy as np
 
 from element.Plate import *
 from element.Membrane import *
@@ -26,7 +23,7 @@ class TriangleShell63(ElementBaseClass, ABC):
         """
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: 转轴要不要加小量
         """
@@ -133,6 +130,9 @@ class TriangleShell63(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class QuadShell63(ElementBaseClass, ABC):
     """
@@ -159,7 +159,7 @@ class QuadShell63(ElementBaseClass, ABC):
         """
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         壳的刚度阵由膜单元和板单元构成
         """
@@ -258,6 +258,9 @@ class QuadShell63(ElementBaseClass, ABC):
         self.global_t_matrix[21:24, 21:24] = R_matrix
         self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class CookTriShell(ElementBaseClass, ABC):
     """
@@ -270,7 +273,7 @@ class CookTriShell(ElementBaseClass, ABC):
         self.vtu_type = "triangle"
         self.K = np.zeros((18, 18), dtype=float)
         self.unv_code = 30500
-        self.local2global_matrix = np.zeros((18,18))
+        self.local2global_matrix = np.zeros((18, 18))
         self.local_coord = None
         self.T_matrix = None
         """
@@ -285,7 +288,7 @@ class CookTriShell(ElementBaseClass, ABC):
         """
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: 转轴要不要加小量
         """
@@ -319,8 +322,12 @@ class CookTriShell(ElementBaseClass, ABC):
         Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
         """
         # e = 10e-8
-        k_mtx_m = self.membrane.ElementStiffness()
-        k_mtx_p = self.plate.ElementStiffness()
+        if from_origin:
+            k_mtx_m = self.membrane.ReCalculateElementStiffness()
+            k_mtx_p = self.plate.ReCalculateElementStiffness()
+        else:
+            k_mtx_m = self.membrane.ElementStiffness()
+            k_mtx_p = self.plate.ElementStiffness()
 
         index_m_g = [(0, 1), (5, 7), (11, 13)]
         index_m = [(0, 1), (2, 4), (5, 7)]
@@ -391,6 +398,13 @@ class CookTriShell(ElementBaseClass, ABC):
         self.local2global_matrix[15:18, 15:18] = R_matrix
         self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ self.T_matrix
 
+    def ReCalculateElementStiffness(self):
+        """
+        重新计算单元刚度阵
+        :return:
+        """
+        return self.ElementStiffness(from_origin=True)
+
 
 class CookQuaShell(ElementBaseClass, ABC):
     """
@@ -415,7 +429,7 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         壳的刚度阵由膜单元和板单元构成
         """
@@ -450,8 +464,12 @@ class CookQuaShell(ElementBaseClass, ABC):
         Assembly Stiffness Matrix, self.membrane: u,v,theta_z, self.plate: omega, theta_x, theta_y
         """
         # e = 10e-8
-        k_mtx_m = self.membrane.ElementStiffness()
-        k_mtx_p = self.plate.ElementStiffness()
+        if from_origin:
+            k_mtx_m = self.membrane.ReCalculateElementStiffness()
+            k_mtx_p = self.plate.ReCalculateElementStiffness()
+        else:
+            k_mtx_m = self.membrane.ElementStiffness()
+            k_mtx_p = self.plate.ElementStiffness()
 
         index_m_g = [(0, 1), (5, 7), (11, 13), (17, 19)]
         index_m = [(0, 1), (2, 4), (5, 7), (8, 10)]
@@ -572,6 +590,13 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.local2global_matrix[18:21, 18:21] = R_matrix
         self.local2global_matrix[21:24, 21:24] = R_matrix
         self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ self.T_matrix
+
+    def ReCalculateElementStiffness(self):
+        """
+        重新计算更新材料属性后的单元刚度阵
+        :return:
+        """
+        return self.ElementStiffness(from_origin=True)
 
 
 if __name__ == "__main__":

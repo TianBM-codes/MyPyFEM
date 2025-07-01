@@ -25,7 +25,7 @@ class Mass(ElementBaseClass, ABC):
         """
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         Reference:
         """
@@ -43,6 +43,9 @@ class Mass(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 

@@ -80,7 +80,14 @@ class ElementFactory:
 
         elif e_type in ["C3D8", 45]:
             # return C3D8(e_id), 8, 300
-            return C3D8(e_id), 8, 576
+            if opt == 6:
+                return C3D6(e_id), 6, 324
+            elif opt == 8:
+                return C3D8(e_id), 8, 576
+            elif opt == 4:
+                return C3D4(e_id), 4, 144
+            else:
+                raise KeyError(f"Solid 45 don't support opt={opt}")
         elif e_type in ["C3D8R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
@@ -134,7 +141,7 @@ class ElementFactory:
             return 2
 
         # 3D Element
-        elif e_type in ["C3D8", 185, "C3D6", "C3D4"]:
+        elif e_type in ["C3D8", 185, "C3D6", "C3D4", 45]:
             return 3
         elif e_type in ["C3D8R"]:
             return 3

@@ -168,6 +168,7 @@ class AnalyseType(Enum):
     AsServer = 5
     ReSortModel = 6
     GenerateGeLinFunction = 7
+    CalculateByGeLin = 8
 
 
 class InputFileType(Enum):

@@ -39,7 +39,7 @@ class C3D8(ElementBaseClass, ABC):
         # cols = [0, 1, 2, 0, 1, 2, 0, 1, 2, 3, 4, 5]
         # self.D = a * sparse.csc_matrix((data, (rows, cols)), shape=(6, 6))
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: https://www.bilibili.com/video/BV19y4y1z76E/?vd_source=f964a6ab226be6b0cd5d082ed4135949 C3D20 还有二维单元的
         Bathe 上册 P323
@@ -133,6 +133,9 @@ class C3D8(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 

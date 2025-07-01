@@ -3,8 +3,6 @@
 
 import abc
 
-import numpy as np
-
 from femdb.Integration import *
 from utils.UtilsFunction import *
 import time
@@ -71,7 +69,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.id = eid
 
     @abc.abstractmethod
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         Calculate element stiffness matrix, coords of nodes
         (Upper triangular matrix, stored as an array column by colum)
@@ -95,6 +93,10 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def ElementMass(self):
+        pass
+
+    @abc.abstractmethod
+    def ReCalculateElementStiffness(self):
         pass
 
     def __eq__(self, other):

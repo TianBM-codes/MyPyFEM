@@ -122,7 +122,7 @@ class Beam188(ElementBaseClass, ABC):
     def CalElementDMatrix(self, an_type=None):
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: 有整理的pdf
         Reference:
@@ -222,6 +222,9 @@ class Beam188(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class Beam189(ElementBaseClass, ABC):
     """
@@ -244,7 +247,7 @@ class Beam189(ElementBaseClass, ABC):
     def CalElementDMatrix(self, an_type=None):
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: 有整理的pdf
         Reference:
@@ -306,6 +309,8 @@ class Beam189(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
 
 if __name__ == "__main__":
     # ele = Beam188(-1)

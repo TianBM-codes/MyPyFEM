@@ -31,7 +31,7 @@ class C3D6(ElementBaseClass, ABC):
                                [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
                                [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         Reference:
         1. https://www.help.febio.org/FEBio/FEBio_tm_2_7/FEBio_tm_2-7-Subsection-4.1.2.html#:~:text=Pentahedral%20elements%20%28also%20knows%20as%20%E2%80%9Cwedge%E2%80%9D%20elements%29%20consist,s%20and%20t%20and%20are%20given%20as%20follows.
@@ -68,4 +68,7 @@ class C3D6(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass

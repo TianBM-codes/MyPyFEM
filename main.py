@@ -4,6 +4,7 @@
 import os
 import pathlib
 import time
+import pickle
 import sys
 import numpy as np
 from femdb.GlobalEnum import *
@@ -14,10 +15,11 @@ from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
 from femdb.GlobalFEMVariant import ModelInfo
 from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper
+import scipy.sparse as sparse
 
 from flask import Flask, jsonify, request
-
-app = Flask(__name__)
+#
+# app = Flask(__name__)
 
 """
 Define Output Format And Print Each Step Time Elapsed
@@ -64,6 +66,10 @@ class MyPyFEM:
         # 结果查看, Paraview显示, 注意要将paraview的路径加入至环境变量
         if open_paraview and not check_model:
             os.popen("paraview " + str(self.output_files[0].absolute()))
+
+        if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.AsServer:
+            app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+            my_fem = self
 
     def InitReader(self):
         """
@@ -142,7 +148,7 @@ class MyPyFEM:
                 writer.WriteStaticAnalysisVTUFile(self.output_files[0])
             # writer.WriteModel2DatFileWithoutRes(self.output_files[2])
 
-            wrapper = MQ1330Wrapper(30)
+            # wrapper = MQ1330Wrapper(30)
             # writer.WriteStaticResult2DatFile2(self.output_files[2], wrapper)
             # writer.WriteMises2DatFile(self.output_files[2])
             p_end = time.time()
@@ -197,12 +203,44 @@ class MyPyFEM:
             writer = ResultsWriter()
             writer.WriteResortModel2DatFile(self.output_files[2])
             p_end = time.time()
+
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.GenerateGeLinFunction:
             """
             生成格林函数文件
             """
-            import pickle
+            self.domain.CalAllElementStiffness()
+            time_1 = time.time()
+            mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
+
+            self.domain.AssembleStiffnessMatrixByPenalty()
+            time_2 = time.time()
+            mlogger.debug(time_format.format("Assemble Global Stiff", time_2 - time_1))
+
+            self.domain.AddBoundaryByPenalty()
+            time_3 = time.time()
+            mlogger.debug(time_format.format("Add Boundary Effect", time_3 - time_2))
+
+            """
+            创建目录, 然后保存格林函数文件
+            """
+            green_dir = pathlib.Path(self.output_dir / "green")
+            if not green_dir.exists():
+                pathlib.Path(self.output_dir / "green").mkdir()
+            self.domain.CalculateGreenFunction(green_dir)
             p_end = time.time()
+            mlogger.debug(time_format.format("Generate Green Function", p_end - time_3))
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.CalculateByGeLin:
+            """
+            通过格林函数计算模型结果
+            """
+            green_dir = pathlib.Path(self.output_dir / "green")
+            if not green_dir.exists():
+                raise ImportError("./green directory Don't exists")
+            self.domain.CalculateResultsWithGreenFunction(green_dir)
+            writer = ResultsWriter()
+            p_end = time.time()
+
         else:
             mlogger.fatal("UnSupport Analyse Type")
             sys.exit(1)
@@ -210,6 +248,30 @@ class MyPyFEM:
         mlogger.debug(last_line_format.format("Total Elapsed Time", p_end - self.program_begin))
         mlogger.debug(" " + "-" * 40)
         mlogger.debug(" Finish Analysis\n")
+
+    def ReCalculateFEMModel(self, e_value):
+        """
+        更新弹性模型, 重新计算有限元模型
+        :param e_value:
+        :return:
+        """
+        time1 = time.time()
+        femdb = self.domain.femdb
+        for iter_ele in femdb.elements:
+            iter_ele.cha_dict[MaterialKey.E] = e_value
+        self.domain.AssembleStiffnessMatrixByPenalty(from_origin=True)
+        time2 = time.time()
+        mlogger.debug(time_format.format("ReCalculate All Stiffness", time2 - time1))
+        self.domain.AddBoundaryByPenalty()
+        time3 = time.time()
+        mlogger.debug(time_format.format("Add Boundary Effect", time3 - time2))
+
+        self.domain.SolveDisplacement()
+        time4 = time.time()
+        mlogger.debug(time_format.format("Solve Displacement", time4 - time3))
+
+        writer = ResultsWriter()
+        writer.WriteStaticAnalysisVTUFile(self.output_path)
 
     def RotateModel(self, theta, vtu_path):
         """
@@ -305,8 +367,21 @@ def rotate_model_endpoint():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/re_calculate_stiff', methods=['POST'])
+def re_calculate_element_stiff():
+    global my_fem
+    if not my_fem:
+        return jsonify({"error": "FEM model not loaded"}), 400
+
+    try:
+        e_value = request.args.get('e_value', type=float)
+        my_fem.ReCalculateFEMModel(e_value)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == "__main__":
     input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
     my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.AsServer)
-    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    # app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
     # app.run(host='0.0.0.0', port=5000, debug=True, reloader_type='watchdog')
