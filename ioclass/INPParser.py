@@ -413,7 +413,7 @@ class InpParser(object):
             if self.iter_line == "*AbaqusBoundary":
                 self.ReadBoundary(f_handle)
             elif "*cload" in self.iter_line.lower():
-                if "amplitude" in self.iter_line:
+                if "amplitude" in self.iter_line.lower():
                     GlobalInfor[GlobalVariant.AnaType] = AnalyseType.Transient
                     rt_dict = ReadSectionLine(self.iter_line)
                     amp_group_name = rt_dict["amplitude"]

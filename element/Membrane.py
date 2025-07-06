@@ -347,7 +347,7 @@ class CPM6(ElementBaseClass, ABC):
         pass
 
     def ReCalculateElementStiffness(self):
-        K = np.zeros((12, 12), dtype=float)
+        K = np.zeros((9, 9), dtype=float)
         for iii in range(len(self.integ)):
             K += self.B_global[iii].T @ self.D @ self.B_global[iii] * self.integ[iii]
         return K
@@ -497,7 +497,7 @@ class CPM8(ElementBaseClass, ABC):
         pass
 
     def ReCalculateElementStiffness(self):
-        K = np.zeros((16, 16), dtype=float)
+        K = np.zeros((12, 12), dtype=float)
         for iii in range(len(self.integ)):
             K += self.B_global[iii].T @ self.D @ self.B_global[iii] * self.integ[iii]
         return K

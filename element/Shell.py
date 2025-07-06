@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import numpy as np
 
 from element.Plate import *
 from element.Membrane import *
@@ -325,6 +326,7 @@ class CookTriShell(ElementBaseClass, ABC):
         if from_origin:
             k_mtx_m = self.membrane.ReCalculateElementStiffness()
             k_mtx_p = self.plate.ReCalculateElementStiffness()
+            self.K = np.zeros((18, 18), dtype=float)
         else:
             k_mtx_m = self.membrane.ElementStiffness()
             k_mtx_p = self.plate.ElementStiffness()

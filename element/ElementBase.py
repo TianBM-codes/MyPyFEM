@@ -111,8 +111,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.cha_dict = cha_dict
         self.CalElementDMatrix()
 
-    def SetEquationNumber(self, eq_nums: list[int]):
-        self.eq_numbers = eq_nums
+    # def SetEquationNumber(self, eq_nums: list[int]):
+    #     self.eq_numbers = eq_nums
 
     """
     设置类相关函数

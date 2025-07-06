@@ -18,8 +18,8 @@ from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper
 import scipy.sparse as sparse
 
 from flask import Flask, jsonify, request
-#
-# app = Flask(__name__)
+
+app = Flask(__name__)
 
 """
 Define Output Format And Print Each Step Time Elapsed
@@ -66,10 +66,6 @@ class MyPyFEM:
         # 结果查看, Paraview显示, 注意要将paraview的路径加入至环境变量
         if open_paraview and not check_model:
             os.popen("paraview " + str(self.output_files[0].absolute()))
-
-        if GlobalInfor[GlobalVariant.AnaType] == AnalyseType.AsServer:
-            app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
-            my_fem = self
 
     def InitReader(self):
         """
@@ -137,7 +133,7 @@ class MyPyFEM:
             time_4 = time.time()
             mlogger.debug(time_format.format("Solve Displacement", time_4 - time_3))
 
-            # self.domain.SolveStress()
+            self.domain.SolveStress()
             time_5 = time.time()
             mlogger.debug(time_format.format("Solve Node Stress", time_5 - time_4))
 
@@ -271,7 +267,7 @@ class MyPyFEM:
         mlogger.debug(time_format.format("Solve Displacement", time4 - time3))
 
         writer = ResultsWriter()
-        writer.WriteStaticAnalysisVTUFile(self.output_path)
+        writer.WriteStaticAnalysisVTUFile(self.output_files[0])
 
     def RotateModel(self, theta, vtu_path):
         """
@@ -376,12 +372,21 @@ def re_calculate_element_stiff():
     try:
         e_value = request.args.get('e_value', type=float)
         my_fem.ReCalculateFEMModel(e_value)
+        result = {"status": "success"}
+        return jsonify(result), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":
-    input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
+    # input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
+    input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\zhijiaRenumber.cdb"
+    # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\triAndQuaCylinder.cdb"
+    # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\allTriCylinder.cdb"
+    # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\singleInclineQuaShell.cdb"
     my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.AsServer)
-    # app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    # my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.LinearStatic)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
     # app.run(host='0.0.0.0', port=5000, debug=True, reloader_type='watchdog')
+
+    # my_fem.ReCalculateFEMModel(2.1e11)
