@@ -90,12 +90,6 @@ class Node(object):
             mlogger.fatal("Un support dof count: {}".format(self.dof_count))
             sys.exit(1)
 
-    def GetEquationNumbers(self):
-        """
-        返回节点对应的方程号
-        """
-        return self.eq_num
-
     def GetDisplacement(self):
         return self.displacement
 

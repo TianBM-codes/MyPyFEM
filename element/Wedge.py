@@ -14,7 +14,6 @@ class C3D6(ElementBaseClass, ABC):
         self.nodes_count = 6  # Each element has 6 nodes
         self.K = np.zeros([18, 18], dtype=float)  # 刚度矩阵
         self.vtu_type = "wedge"
-        self.unv_code = 60600
         self.gs_count = 6  # 高斯积分点个数
 
     def CalElementDMatrix(self, an_type=None):

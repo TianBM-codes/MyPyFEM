@@ -1,328 +1,69 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import numpy as np
 
-from element.Plate import *
-from element.Membrane import *
-
-
-class TriangleShell63(ElementBaseClass, ABC):
-    """
-    TriangleShell63 Element class
-    """
-
-    def __init__(self, eid=None):
-        super().__init__(eid)
-        self.nodes_count = 3  # Each element has 3 nodes
-        self.vtu_type = "triangle"
-        self.K = np.zeros((18, 18), dtype=float)
-        self.unv_code = 30500
-
-    def CalElementDMatrix(self, an_type=None):
-        """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
-        """
-        pass
-
-    def ElementStiffness(self, from_origin=False):
-        """
-        TODO: 转轴要不要加小量
-        """
-        """
-        由膜单元和板单元构成
-        """
-        plate = KirchhoffTrianglePlate(-1)
-        membrane = CSTDrill(-1)
-
-        """
-        先转换到局部坐标
-        """
-        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
-        m_coords = local_coord[:, :2]
-
-        """
-        设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
-        """
-        membrane.node_coords = m_coords
-        membrane.T_matrix = T_matrix
-        plate.node_coords = m_coords
-        plate.T_matrix = T_matrix
-
-        """
-        设置膜单元和版单元的材料
-        """
-        membrane.cha_dict = self.cha_dict
-        membrane.sec_id = self.sec_id
-        plate.cha_dict = self.cha_dict
-        plate.sec_id = self.sec_id
-        membrane.CalElementDMatrix()
-        plate.CalElementDMatrix()
-
-        """
-        Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
-        """
-        # e = 10e-8
-        k_mtx_m = membrane.ElementStiffness()
-        k_mtx_p = plate.ElementStiffness()
-
-        index_m_g = [(0, 1), (5, 7), (11, 13)]
-        index_m = [(0, 1), (2, 4), (5, 7)]
-        index_p_g = [(2, 4), (8, 10), (14, 16)]
-        index_p = [(0, 2), (3, 5), (6, 8)]
-        for ii in range(3):
-            m_row_s = index_m[ii][0]
-            m_row_e = index_m[ii][1] + 1
-            m_row_g_s = index_m_g[ii][0]
-            m_row_g_e = index_m_g[ii][1] + 1
-
-            p_row_s = index_p[ii][0]
-            p_row_e = index_p[ii][1] + 1
-            p_row_g_s = index_p_g[ii][0]
-            p_row_g_e = index_p_g[ii][1] + 1
-            for jj in range(3):
-                m_col_s = index_m[jj][0]
-                m_col_e = index_m[jj][1] + 1
-
-                m_col_g_s = index_m_g[jj][0]
-                m_col_g_e = index_m_g[jj][1] + 1
-                self.K[m_row_g_s:m_row_g_e, m_col_g_s:m_col_g_e] = k_mtx_m[m_row_s:m_row_e, m_col_s:m_col_e]
-
-                p_col_s = index_p[jj][0]
-                p_col_e = index_p[jj][1] + 1
-
-                p_col_g_s = index_p_g[jj][0]
-                p_col_g_e = index_p_g[jj][1] + 1
-
-                self.K[p_row_g_s:p_row_g_e, p_col_g_s:p_col_g_e] = k_mtx_p[p_row_s:p_row_e, p_col_s:p_col_e]
-
-            self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
-            self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
-
-        self.K[-1, -1] = k_mtx_m[-1, -1]
-
-        """
-        这里的T_matrix是全局==>局部，转职就是局部==>全局
-        """
-        R_matrix = T_matrix.T
-        global_t_matrix = np.zeros((18, 18))
-        global_t_matrix[0:3, 0:3] = R_matrix
-        global_t_matrix[3:6, 3:6] = R_matrix
-        global_t_matrix[6:9, 6:9] = R_matrix
-        global_t_matrix[9:12, 9:12] = R_matrix
-        global_t_matrix[12:15, 12:15] = R_matrix
-        global_t_matrix[15:18, 15:18] = R_matrix
-
-        self.K = global_t_matrix.T @ self.K @ global_t_matrix
-
-        return self.K
-
-    def CalculateElementStress(self, displacement: np.array):
-        """"""
-        pass
-
-    def ElementMass(self):
-        """
-        计算单元质量阵
-        :return:
-        """
-        pass
-
-    def CalculateBasic(self):
-        pass
-
-    def ReCalculateElementStiffness(self):
-        pass
-
-
-class QuadShell63(ElementBaseClass, ABC):
-    """
-    QuadShell63 Element class
-    """
-
-    def __init__(self, eid=None):
-        super().__init__(eid)
-        self.nodes_count = 4  # Each element has 4 nodes
-        self.vtu_type = "quad"
-        self.K = np.zeros((24, 24))
-        self.unv_code = 40500
-        self.local_coord = None
-        self.global_t_matrix = np.zeros((24, 24))
-
-    def CalMassMatrix(self):
-        """
-        计算单元的质量矩阵
-        """
-
-    def CalElementDMatrix(self, an_type=None):
-        """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
-        """
-        pass
-
-    def ElementStiffness(self, from_origin=False):
-        """
-        壳的刚度阵由膜单元和板单元构成
-        """
-        """
-        先转换到局部坐标, 初始化板单元和膜单元
-        """
-        plate = KirchhoffQuaPlate(-1)
-        plate.sec_id = self.sec_id
-        plate.node_coords = self.node_coords
-        plate.cha_dict = self.cha_dict
-        plate.CalElementDMatrix()
-        K1 = plate.ElementStiffness()
-
-        q4 = Q4Mem(-1)
-        q4.sec_id = self.sec_id
-        q4.node_coords = self.local_coord
-        q4.cha_dict = self.cha_dict
-        q4.CalElementDMatrix()
-        K2 = q4.ElementStiffness()
-
-        KShell = np.zeros((24, 24), dtype=float)
-        index_m = [0, 1, 5, 6, 7, 11, 12, 13, 17, 18, 19, 23]
-        KShell[np.ix_(index_m, index_m)] = K2
-
-        KShell = self.global_t_matrix.T @ KShell @ self.global_t_matrix
-        return K1 + KShell
-
-    def CalculateElementStress(self, displacement):
-        """
-        Calculate element stress
-        """
-
-    def ElementMass(self):
-        """
-        计算单元的质量阵(协调质量阵)
-        :return:
-        """
-        """
-        先转换到局部坐标
-        """
-        m_coords = self.local_coord[:, :2]
-        self.M = np.zeros((24, 24), dtype=float)
-        rho = self.cha_dict[MaterialKey.Density]
-        thickness = self.cha_dict[MaterialKey.Thickness]
-        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-        for ri in range(2):
-            for si in range(2):
-                r, s = sample_pt[ri], sample_pt[si]
-                N1 = 0.25 * (1 - r) * (1 - s)
-                N2 = 0.25 * (1 + r) * (1 - s)
-                N3 = 0.25 * (1 + r) * (1 + s)
-                N4 = 0.25 * (1 - r) * (1 + s)
-                H = np.zeros((3, 12))
-                H[0, 0] = N1
-                H[1, 1] = N1
-                H[2, 2] = N1
-                H[0, 3] = N2
-                H[1, 4] = N2
-                H[2, 5] = N2
-                H[0, 6] = N3
-                H[1, 7] = N3
-                H[2, 8] = N3
-                H[0, 9] = N4
-                H[1, 10] = N4
-                H[2, 11] = N4
-
-                dNdr = np.array([[0.25 * (1 + s), -0.25 * (1 + s), 0.25 * (s - 1), 0.25 * (1 - s)],
-                                 [0.25 * (1 + r), 0.25 * (1 - r), 0.25 * (r - 1), -0.25 * (1 + r)]], dtype=float)
-                g_weight = weight[ri] * weight[si]
-
-                det_J = np.linalg.det(dNdr @ m_coords)
-                iter_mass = H.T @ H * rho * det_J * g_weight * thickness  # 12*12
-                for jj in range(4):
-                    for kk in range(4):
-                        row_idx = jj * 6
-                        col_idx = kk * 6
-                        self.M[row_idx:row_idx + 3, col_idx:col_idx + 3] += \
-                            iter_mass[jj:jj + 3, kk:kk + 3]
-
-        return self.global_t_matrix.T @ self.M @ self.global_t_matrix
-
-    def CalculateBasic(self):
-        """
-        计算基本量
-        :return:
-        """
-        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        R_matrix = T_matrix.T
-        self.global_t_matrix[0:3, 0:3] = R_matrix
-        self.global_t_matrix[3:6, 3:6] = R_matrix
-        self.global_t_matrix[6:9, 6:9] = R_matrix
-        self.global_t_matrix[9:12, 9:12] = R_matrix
-        self.global_t_matrix[12:15, 12:15] = R_matrix
-        self.global_t_matrix[15:18, 15:18] = R_matrix
-        self.global_t_matrix[18:21, 18:21] = R_matrix
-        self.global_t_matrix[21:24, 21:24] = R_matrix
-        self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ T_matrix
-
-    def ReCalculateElementStiffness(self):
-        pass
+from element.Plate import *  # 导入板单元相关类
+from element.Membrane import *  # 导入膜单元相关类
 
 
 class CookTriShell(ElementBaseClass, ABC):
     """
-    DKTShell Element class
+    DKT三角形壳单元类
+    结合了DKT板单元和CPM3膜单元的特性
     """
 
     def __init__(self, eid=None):
+        """
+        初始化三角形壳单元
+        :param eid: 单元ID
+        """
         super().__init__(eid)
-        self.nodes_count = 3  # Each element has 3 nodes
-        self.vtu_type = "triangle"
-        self.K = np.zeros((18, 18), dtype=float)
-        self.unv_code = 30500
-        self.local2global_matrix = np.zeros((18, 18))
-        self.local_coord = None
-        self.T_matrix = None
-        """
-        由膜单元和板单元构成
-        """
-        self.plate = DKTPlate(-1)
-        self.membrane = CPM6(-1)
+        self.nodes_count = 3  # 三角形单元有3个节点
+        self.vtu_type = "triangle"  # VTK可视化类型
+        self.K = np.zeros((18, 18), dtype=float)  # 单元刚度矩阵(18自由度)
+        self.local2global_matrix = np.zeros((18, 18))  # 局部到全局坐标转换矩阵
+        self.local_coord = None  # 局部坐标系下的节点坐标
+        self.T_matrix = None  # 全局到局部坐标转换矩阵
+        self.plate = DKTPlate(-1)  # DKT板单元实例
+        self.membrane = CPM3(-1)  # CPM3膜单元实例
+        self.last_e = None
 
     def CalElementDMatrix(self, an_type=None):
         """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        计算本构矩阵(弹性模量和泊松比)
+        参考Bathe《有限元方法》上册P184
         """
         pass
 
     def ElementStiffness(self, from_origin=False):
         """
-        TODO: 转轴要不要加小量
+        计算单元刚度矩阵
+        :param from_origin: 是否从原始数据重新计算
+        :return: 单元刚度矩阵
         """
-        """
-        先转换到局部坐标
-        """
+        # 提取局部坐标中的x,y坐标用于膜单元
         m_coords = self.local_coord[:, :2]
+        # 计算边中点坐标
         mid_node = np.asarray([(self.local_coord[0, :] + self.local_coord[1, :]) * 0.5,
                                (self.local_coord[1, :] + self.local_coord[2, :]) * 0.5,
                                (self.local_coord[2, :] + self.local_coord[0, :]) * 0.5], dtype=float)[:, :2]
 
-        """
-        设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
-        """
+        # 设置膜单元和板单元的节点坐标和转换矩阵
         self.membrane.node_coords = np.append(m_coords, mid_node, axis=0)
         self.membrane.T_matrix = self.T_matrix
         self.plate.node_coords = m_coords
         self.plate.T_matrix = self.T_matrix
 
-        """
-        设置膜单元和版单元的材料
-        """
+        # 传递材料和截面属性
         self.membrane.cha_dict = self.cha_dict
         self.membrane.sec_id = self.sec_id
         self.plate.cha_dict = self.cha_dict
         self.plate.sec_id = self.sec_id
+
+        # 计算本构矩阵
         self.membrane.CalElementDMatrix()
         self.plate.CalElementDMatrix()
 
-        """
-        Assembly Stiffness Matrix, membrane: u, v, theta_z, plate: omega, theta_x, theta_y
-        """
-        # e = 10e-8
+        # 组装刚度矩阵: 膜单元处理u,v,θz; 板单元处理ω,θx,θy
         if from_origin:
             k_mtx_m = self.membrane.ReCalculateElementStiffness()
             k_mtx_p = self.plate.ReCalculateElementStiffness()
@@ -331,141 +72,154 @@ class CookTriShell(ElementBaseClass, ABC):
             k_mtx_m = self.membrane.ElementStiffness()
             k_mtx_p = self.plate.ElementStiffness()
 
-        index_m_g = [(0, 1), (5, 7), (11, 13)]
-        index_m = [(0, 1), (2, 4), (5, 7)]
-        index_p_g = [(2, 4), (8, 10), (14, 16)]
-        index_p = [(0, 2), (3, 5), (6, 8)]
+        # 定义自由度映射关系
+        index_m_g = [(0, 1), (5, 7), (11, 13)]  # 膜单元在全局矩阵中的位置
+        index_m = [(0, 1), (2, 4), (5, 7)]  # 膜单元在局部矩阵中的位置
+        index_p_g = [(2, 4), (8, 10), (14, 16)]  # 板单元在全局矩阵中的位置
+        index_p = [(0, 2), (3, 5), (6, 8)]  # 板单元在局部矩阵中的位置
+
+        # 组装刚度矩阵
         for ii in range(3):
-            m_row_s = index_m[ii][0]
-            m_row_e = index_m[ii][1] + 1
-            m_row_g_s = index_m_g[ii][0]
-            m_row_g_e = index_m_g[ii][1] + 1
+            # 膜单元部分
+            m_row_s, m_row_e = index_m[ii]
+            m_row_g_s, m_row_g_e = index_m_g[ii]
+            # 板单元部分
+            p_row_s, p_row_e = index_p[ii]
+            p_row_g_s, p_row_g_e = index_p_g[ii]
 
-            p_row_s = index_p[ii][0]
-            p_row_e = index_p[ii][1] + 1
-            p_row_g_s = index_p_g[ii][0]
-            p_row_g_e = index_p_g[ii][1] + 1
             for jj in range(3):
-                m_col_s = index_m[jj][0]
-                m_col_e = index_m[jj][1] + 1
+                # 组装膜单元刚度
+                m_col_s, m_col_e = index_m[jj]
+                m_col_g_s, m_col_g_e = index_m_g[jj]
+                self.K[m_row_g_s:m_row_g_e + 1, m_col_g_s:m_col_g_e + 1] = k_mtx_m[m_row_s:m_row_e + 1, m_col_s:m_col_e + 1]
 
-                m_col_g_s = index_m_g[jj][0]
-                m_col_g_e = index_m_g[jj][1] + 1
-                self.K[m_row_g_s:m_row_g_e, m_col_g_s:m_col_g_e] = k_mtx_m[m_row_s:m_row_e, m_col_s:m_col_e]
+                # 组装板单元刚度
+                p_col_s, p_col_e = index_p[jj]
+                p_col_g_s, p_col_g_e = index_p_g[jj]
+                self.K[p_row_g_s:p_row_g_e + 1, p_col_g_s:p_col_g_e + 1] = k_mtx_p[p_row_s:p_row_e + 1, p_col_s:p_col_e + 1]
 
-                p_col_s = index_p[jj][0]
-                p_col_e = index_p[jj][1] + 1
-
-                p_col_g_s = index_p_g[jj][0]
-                p_col_g_e = index_p_g[jj][1] + 1
-
-                self.K[p_row_g_s:p_row_g_e, p_col_g_s:p_col_g_e] = k_mtx_p[p_row_s:p_row_e, p_col_s:p_col_e]
-
-            self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
-            self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
+            # 处理载荷项
+            self.K[m_row_g_s:m_row_g_e + 1, -1] = k_mtx_m[m_row_s:m_row_e + 1, -1]
+            self.K[-1, m_row_g_s:m_row_g_e + 1] = k_mtx_m[-1, m_row_s:m_row_e + 1]
 
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
+        # 转换到全局坐标系
         self.K = self.local2global_matrix.T @ self.K @ self.local2global_matrix
 
+        self.last_e = self.cha_dict[MaterialKey.E]
         return self.K
 
     def CalculateElementStress(self, displacement):
         """
-        Calculate element stress
+        计算单元应力
+        :param displacement: 节点位移向量
+        :return: 应力分量数组(sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy)
         """
+        # 转换到位移局部坐标系
         local_dis = self.local2global_matrix @ displacement
-        membrane_indices = [i * 6 + j for i in range(3) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
-        plate_indices = [i * 6 + j for i in range(3) for j in [2, 3, 4]]
+
+        # 提取膜单元和板单元对应的位移分量
+        membrane_indices = [i * 6 + j for i in range(3) for j in [0, 1, 5]]  # u,v,θz
+        plate_indices = [i * 6 + j for i in range(3) for j in [2, 3, 4]]  # ω,θx,θy
+
+        # 分别计算膜应力和板应力
         membrane_stress = self.membrane.CalculateElementStress(local_dis[membrane_indices])
         plate_stress = self.plate.CalculateElementStress(local_dis[plate_indices])
+
+        # 提取各应力分量
         sigma_xx, sigma_yy, tau_xy = membrane_stress[:, 0], membrane_stress[:, 1], membrane_stress[:, 2]
         sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
+
         return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])
 
     def ElementMass(self):
+        """计算单元质量矩阵(待实现)"""
         pass
 
     def CalculateBasic(self):
-        """
-        这里的T_matrix是全局==>局部，转职就是局部==>全局
-        """
+        """计算基本参数: 坐标转换矩阵和局部坐标"""
+        # 获取全局到局部的转换矩阵和原点
         self.T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        R_matrix = self.T_matrix.T
-        self.local2global_matrix[0:3, 0:3] = R_matrix
-        self.local2global_matrix[3:6, 3:6] = R_matrix
-        self.local2global_matrix[6:9, 6:9] = R_matrix
-        self.local2global_matrix[9:12, 9:12] = R_matrix
-        self.local2global_matrix[12:15, 12:15] = R_matrix
-        self.local2global_matrix[15:18, 15:18] = R_matrix
+        R_matrix = self.T_matrix.T  # 局部到全局的转换矩阵
+
+        # 组装完整的转换矩阵(18x18)
+        for i in range(6):
+            self.local2global_matrix[i * 3:(i + 1) * 3, i * 3:(i + 1) * 3] = R_matrix
+
+        # 计算局部坐标
         self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ self.T_matrix
 
     def ReCalculateElementStiffness(self):
         """
-        重新计算单元刚度阵
-        :return:
+        重新计算单元刚度矩阵(更新材料属性后)
+        :return: 更新后的单元刚度矩阵
         """
-        return self.ElementStiffness(from_origin=True)
+        scale = self.cha_dict[MaterialKey.E] / self.last_e
+        self.last_e = self.cha_dict[MaterialKey.E]
+        return self.K * scale
 
 
 class CookQuaShell(ElementBaseClass, ABC):
     """
-    CookShell Element class
+    四边形壳单元类
+    结合了DKQ板单元和CPM4膜单元的特性
     """
 
     def __init__(self, eid=None):
+        """
+        初始化四边形壳单元
+        :param eid: 单元ID
+        """
         super().__init__(eid)
-        self.nodes_count = 4  # Each element has 4 nodes
-        self.vtu_type = "quad"
-        self.K = np.zeros((24, 24))
-        self.unv_code = 40500
-        self.local_coord = None
-        self.local2global_matrix = np.zeros((24, 24))
-        self.plate = DKQPlate(self.id)
-        self.membrane = CPM8(self.id)
-        self.T_matrix = None
+        self.nodes_count = 4  # 四边形单元有4个节点
+        self.vtu_type = "quad"  # VTK可视化类型
+        self.K = np.zeros((24, 24))  # 单元刚度矩阵(24自由度)
+        self.local_coord = None  # 局部坐标系下的节点坐标
+        self.local2global_matrix = np.zeros((24, 24))  # 局部到全局坐标转换矩阵
+        self.plate = DKQPlate(self.id)  # DKQ板单元实例
+        self.membrane = CPM4(self.id)  # CPM4膜单元实例
+        self.T_matrix = None  # 全局到局部坐标转换矩阵
+        self.last_e = None  # 上次计算单元的弹性模量
 
     def CalElementDMatrix(self, an_type=None):
         """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        计算本构矩阵(弹性模量和泊松比)
+        参考Bathe《有限元方法》上册P184
         """
         pass
 
     def ElementStiffness(self, from_origin=False):
         """
-        壳的刚度阵由膜单元和板单元构成
+        计算单元刚度矩阵
+        :param from_origin: 是否从原始数据重新计算
+        :return: 单元刚度矩阵
         """
-        """
-        先转换到局部坐标
-        """
+        # 提取局部坐标中的x,y坐标用于膜单元
         m_coords = self.local_coord[:, :2]
+        # 计算边中点坐标
         mid_node = np.asarray([(self.local_coord[0, :] + self.local_coord[1, :]) * 0.5,
                                (self.local_coord[1, :] + self.local_coord[2, :]) * 0.5,
                                (self.local_coord[2, :] + self.local_coord[3, :]) * 0.5,
                                (self.local_coord[3, :] + self.local_coord[0, :]) * 0.5], dtype=float)[:, :2]
 
-        """
-        设置膜单元和板单元的节点坐标, 以及全局和局部坐标系的转换矩阵
-        """
+        # 设置膜单元和板单元的节点坐标和转换矩阵
         self.membrane.node_coords = np.append(m_coords, mid_node, axis=0)
         self.membrane.T_matrix = self.T_matrix
         self.plate.node_coords = m_coords
         self.plate.T_matrix = self.T_matrix
 
-        """
-        设置膜单元和板单元的材料
-        """
+        # 传递材料和截面属性
         self.membrane.cha_dict = self.cha_dict
         self.membrane.sec_id = self.sec_id
         self.plate.cha_dict = self.cha_dict
         self.plate.sec_id = self.sec_id
+
+        # 计算本构矩阵
         self.membrane.CalElementDMatrix()
         self.plate.CalElementDMatrix()
 
-        """
-        Assembly Stiffness Matrix, self.membrane: u,v,theta_z, self.plate: omega, theta_x, theta_y
-        """
-        # e = 10e-8
+        # 组装刚度矩阵: 膜单元处理u,v,θz; 板单元处理ω,θx,θy
         if from_origin:
             k_mtx_m = self.membrane.ReCalculateElementStiffness()
             k_mtx_p = self.plate.ReCalculateElementStiffness()
@@ -473,77 +227,93 @@ class CookQuaShell(ElementBaseClass, ABC):
             k_mtx_m = self.membrane.ElementStiffness()
             k_mtx_p = self.plate.ElementStiffness()
 
-        index_m_g = [(0, 1), (5, 7), (11, 13), (17, 19)]
-        index_m = [(0, 1), (2, 4), (5, 7), (8, 10)]
-        index_p_g = [(2, 4), (8, 10), (14, 16), (20, 22)]
-        index_p = [(0, 2), (3, 5), (6, 8), (9, 11)]
+        # 定义自由度映射关系
+        index_m_g = [(0, 1), (5, 7), (11, 13), (17, 19)]  # 膜单元在全局矩阵中的位置
+        index_m = [(0, 1), (2, 4), (5, 7), (8, 10)]  # 膜单元在局部矩阵中的位置
+        index_p_g = [(2, 4), (8, 10), (14, 16), (20, 22)]  # 板单元在全局矩阵中的位置
+        index_p = [(0, 2), (3, 5), (6, 8), (9, 11)]  # 板单元在局部矩阵中的位置
 
+        # 组装刚度矩阵
         for ii in range(4):
-            m_row_s = index_m[ii][0]
-            m_row_e = index_m[ii][1] + 1
-            m_row_g_s = index_m_g[ii][0]
-            m_row_g_e = index_m_g[ii][1] + 1
+            # 膜单元部分
+            m_row_s, m_row_e = index_m[ii]
+            m_row_g_s, m_row_g_e = index_m_g[ii]
+            # 板单元部分
+            p_row_s, p_row_e = index_p[ii]
+            p_row_g_s, p_row_g_e = index_p_g[ii]
 
-            p_row_s = index_p[ii][0]
-            p_row_e = index_p[ii][1] + 1
-            p_row_g_s = index_p_g[ii][0]
-            p_row_g_e = index_p_g[ii][1] + 1
             for jj in range(4):
-                m_col_s = index_m[jj][0]
-                m_col_e = index_m[jj][1] + 1
+                # 组装膜单元刚度
+                m_col_s, m_col_e = index_m[jj]
+                m_col_g_s, m_col_g_e = index_m_g[jj]
+                self.K[m_row_g_s:m_row_g_e + 1, m_col_g_s:m_col_g_e + 1] = k_mtx_m[m_row_s:m_row_e + 1, m_col_s:m_col_e + 1]
 
-                m_col_g_s = index_m_g[jj][0]
-                m_col_g_e = index_m_g[jj][1] + 1
-                self.K[m_row_g_s:m_row_g_e, m_col_g_s:m_col_g_e] = k_mtx_m[m_row_s:m_row_e, m_col_s:m_col_e]
+                # 组装板单元刚度
+                p_col_s, p_col_e = index_p[jj]
+                p_col_g_s, p_col_g_e = index_p_g[jj]
+                self.K[p_row_g_s:p_row_g_e + 1, p_col_g_s:p_col_g_e + 1] = k_mtx_p[p_row_s:p_row_e + 1, p_col_s:p_col_e + 1]
 
-                p_col_s = index_p[jj][0]
-                p_col_e = index_p[jj][1] + 1
-
-                p_col_g_s = index_p_g[jj][0]
-                p_col_g_e = index_p_g[jj][1] + 1
-
-                self.K[p_row_g_s:p_row_g_e, p_col_g_s:p_col_g_e] = k_mtx_p[p_row_s:p_row_e, p_col_s:p_col_e]
-
-            self.K[m_row_g_s:m_row_g_e, -1] = k_mtx_m[m_row_s:m_row_e, -1]
-            self.K[-1, m_row_g_s:m_row_g_e] = k_mtx_m[-1, m_row_s:m_row_e]
+            # 处理载荷项
+            self.K[m_row_g_s:m_row_g_e + 1, -1] = k_mtx_m[m_row_s:m_row_e + 1, -1]
+            self.K[-1, m_row_g_s:m_row_g_e + 1] = k_mtx_m[-1, m_row_s:m_row_e + 1]
 
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
-        return self.local2global_matrix.T @ self.K @ self.local2global_matrix
+        # 转换到全局坐标系
+        self.K = self.local2global_matrix.T @ self.K @ self.local2global_matrix
+        self.last_e = self.cha_dict[MaterialKey.E]
+        return self.K
 
     def CalculateElementStress(self, displacement):
         """
-        Calculate element stress
+        计算单元应力
+        :param displacement: 节点位移向量
+        :return: 应力分量数组(sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy)
         """
+        # 转换到位移局部坐标系
         local_dis = self.local2global_matrix @ displacement
-        membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
-        plate_indices = [i * 6 + j for i in range(4) for j in [2, 3, 4]]
+
+        # 提取膜单元和板单元对应的位移分量
+        membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # u,v,θz
+        plate_indices = [i * 6 + j for i in range(4) for j in [2, 3, 4]]  # ω,θx,θy
+
+        # 分别计算膜应力和板应力
         membrane_stress = self.membrane.CalculateElementStress(local_dis[membrane_indices])
         plate_stress = self.plate.CalculateElementStress(local_dis[plate_indices])
+
+        # 提取各应力分量
         sigma_xx, sigma_yy, tau_xy = membrane_stress[:, 0], membrane_stress[:, 1], membrane_stress[:, 2]
         sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
+
         return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])
 
     def ElementMass(self):
         """
-        计算单元的质量阵(协调质量阵)
-        :return:
+        计算单元的质量矩阵(协调质量矩阵)
+        :return: 单元质量矩阵
         """
-        """
-        先转换到局部坐标
-        """
+        # 提取局部坐标中的x,y坐标
         m_coords = self.local_coord[:, :2]
         self.M = np.zeros((24, 24), dtype=float)
-        rho = self.cha_dict[MaterialKey.Density]
-        thickness = self.cha_dict[MaterialKey.Thickness]
+
+        # 获取材料属性
+        rho = self.cha_dict[MaterialKey.Density]  # 密度
+        thickness = self.cha_dict[MaterialKey.Thickness]  # 厚度
+
+        # 获取高斯积分点和权重
         sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+
+        # 高斯积分计算质量矩阵
         for ri in range(2):
             for si in range(2):
                 r, s = sample_pt[ri], sample_pt[si]
+                # 形函数
                 N1 = 0.25 * (1 - r) * (1 - s)
                 N2 = 0.25 * (1 + r) * (1 - s)
                 N3 = 0.25 * (1 + r) * (1 + s)
                 N4 = 0.25 * (1 - r) * (1 + s)
+
+                # 形函数矩阵
                 H = np.zeros((3, 12))
                 H[0, 0] = N1
                 H[1, 1] = N1
@@ -558,101 +328,48 @@ class CookQuaShell(ElementBaseClass, ABC):
                 H[1, 10] = N4
                 H[2, 11] = N4
 
+                # 形函数导数
                 dNdr = np.array([[0.25 * (1 + s), -0.25 * (1 + s), 0.25 * (s - 1), 0.25 * (1 - s)],
                                  [0.25 * (1 + r), 0.25 * (1 - r), 0.25 * (r - 1), -0.25 * (1 + r)]], dtype=float)
-                g_weight = weight[ri] * weight[si]
+                g_weight = weight[ri] * weight[si]  # 积分权重
 
+                # Jacobian行列式
                 det_J = np.linalg.det(dNdr @ m_coords)
-                iter_mass = H.T @ H * rho * det_J * g_weight * thickness  # 12*12
+
+                # 计算当前积分点的质量矩阵贡献
+                iter_mass = H.T @ H * rho * det_J * g_weight * thickness  # 12 * 12
+
+                # 组装到全局质量矩阵
                 for jj in range(4):
                     for kk in range(4):
                         row_idx = jj * 6
                         col_idx = kk * 6
                         self.M[row_idx:row_idx + 3, col_idx:col_idx + 3] += \
-                            iter_mass[jj:jj + 3, kk:kk + 3]
+                            iter_mass[jj * 3:(jj + 1) * 3, kk * 3:(kk + 1) * 3]
 
+        # 转换到全局坐标系
         return self.local2global_matrix.T @ self.M @ self.local2global_matrix
 
     def CalculateBasic(self):
         """
-        计算该类中多个函数会用到的变量
-        :return:
+        计算基本参数: 坐标转换矩阵和局部坐标
         """
+        # 获取全局到局部的转换矩阵和原点
         self.T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords)
-        R_matrix = self.T_matrix.T
-        """
-        这里的T_matrix是全局==>局部，转置就是局部==>全局
-        """
-        self.local2global_matrix[0:3, 0:3] = R_matrix
-        self.local2global_matrix[3:6, 3:6] = R_matrix
-        self.local2global_matrix[6:9, 6:9] = R_matrix
-        self.local2global_matrix[9:12, 9:12] = R_matrix
-        self.local2global_matrix[12:15, 12:15] = R_matrix
-        self.local2global_matrix[15:18, 15:18] = R_matrix
-        self.local2global_matrix[18:21, 18:21] = R_matrix
-        self.local2global_matrix[21:24, 21:24] = R_matrix
+        R_matrix = self.T_matrix.T  # 局部到全局的转换矩阵
+
+        # 组装完整的转换矩阵(24x24)
+        for i in range(8):
+            self.local2global_matrix[i * 3:(i + 1) * 3, i * 3:(i + 1) * 3] = R_matrix
+
+        # 计算局部坐标
         self.local_coord = (self.node_coords.T - origin[:, np.newaxis]).T @ self.T_matrix
 
     def ReCalculateElementStiffness(self):
         """
-        重新计算更新材料属性后的单元刚度阵
-        :return:
+        重新计算单元刚度矩阵(更新材料属性后)
+        :return: 更新后的单元刚度矩阵
         """
-        return self.ElementStiffness(from_origin=True)
-
-
-if __name__ == "__main__":
-    """
-    测试四边形壳单元刚度阵
-    """
-    t_ele = QuadShell63()
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
-    t_ele.node_coords = np.array([
-        [0, 0, 0],
-        [1, 0, 0],
-        [0.8, 0.8, 0],
-        [0.5, 1, 0]
-    ], dtype=float)
-    t_ele.CalculateBasic()
-    t_ele.CalElementDMatrix()
-    Ke = t_ele.ElementStiffness()
-    # np.savetxt('ke',Ke)
-    # print(Ke)
-    """
-    测试四边形壳单元的质量阵
-    """
-    time1 = time.time()
-    t_ele = QuadShell63()
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3,
-                      MaterialKey.E: 2e11,
-                      MaterialKey.Thickness: 0.1,
-                      MaterialKey.Density: 7850}
-    t_ele.node_coords = np.array([
-        [-1.0, -1.0, 0.0],  # 节点1
-        [1.0, -1.0, 0.0],  # 节点2
-        [1.0, 1.0, 0.0],  # 节点3
-        [-1.0, 1.0, 0.0]  # 节点4
-    ], dtype=float)
-    t_ele.CalculateBasic()
-    M = t_ele.ElementMass()
-    print("calculated mass:", np.sum(np.diag(M)))
-    print(f"theory mass:{4 * t_ele.cha_dict[MaterialKey.Density] * t_ele.cha_dict[MaterialKey.Thickness]}")
-    time2 = time.time()
-    print(" {:<.5f} seconds".format(time2 - time1))
-
-    """
-    测试不同壳单元的刚度阵为什么差这么多
-    """
-    t_ele = CookQuaShell()
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
-    t_ele.node_coords = np.array([
-        [0, 0, 0],
-        [1, 0, 0],
-        [0.8, 0.8, 0],
-        [0.5, 1, 0]
-    ], dtype=float)
-    t_ele.CalculateBasic()
-    t_ele.CalElementDMatrix()
-    Ke2 = t_ele.ElementStiffness()
-
-    print("finish")
+        scale = self.cha_dict[MaterialKey.E] / self.last_e
+        self.last_e = self.cha_dict[MaterialKey.E]
+        return self.K * scale

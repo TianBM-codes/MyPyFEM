@@ -10,12 +10,9 @@ import numpy as np
 from femdb.GlobalEnum import *
 from ioclass.INPParser import InpParser
 from ioclass.CDBParser import CDBParser
-from ioclass.BDFParser import BDFParser
 from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
 from femdb.GlobalFEMVariant import ModelInfo
-from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper
-import scipy.sparse as sparse
 
 from flask import Flask, jsonify, request
 
@@ -78,9 +75,6 @@ class MyPyFEM:
         elif suffix == ".cdb":
             GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.CDB
             return CDBParser(self.input_file_path, self.check_model)
-        elif suffix == ".bdf":
-            GlobalInfor[GlobalVariant.InputFileSuffix] = InputFileType.BDF
-            return BDFParser(self.input_file_path, self.check_model)
         else:
             mlogger.fatal("UnSupport File Suffix:{}".format(suffix))
             sys.exit(1)
@@ -152,7 +146,7 @@ class MyPyFEM:
 
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.Transient:
             """
-            求解线弹性问题, 输出节点位移以及应力
+            求解动力学时程问题, 输出节点位移以及应力
             """
             self.domain.CalAllElementStiffness()
             time_1 = time.time()
@@ -192,14 +186,6 @@ class MyPyFEM:
             mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
             p_end = time.time()
 
-        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.ReSortModel:
-            """
-            只是重排单元, 生成Dat文件
-            """
-            writer = ResultsWriter()
-            writer.WriteResortModel2DatFile(self.output_files[2])
-            p_end = time.time()
-
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.GenerateGeLinFunction:
             """
             生成格林函数文件
@@ -235,6 +221,7 @@ class MyPyFEM:
                 raise ImportError("./green directory Don't exists")
             self.domain.CalculateResultsWithGreenFunction(green_dir)
             writer = ResultsWriter()
+            writer.WriteStaticAnalysisVTUFile(self.output_files[0], False)
             p_end = time.time()
 
         else:
@@ -266,101 +253,12 @@ class MyPyFEM:
         time4 = time.time()
         mlogger.debug(time_format.format("Solve Displacement", time4 - time3))
 
+        self.domain.SolveStress()
+        time5 = time.time()
+        mlogger.debug(time_format.format("Solve Stress", time5 - time4))
+
         writer = ResultsWriter()
         writer.WriteStaticAnalysisVTUFile(self.output_files[0])
-
-    def RotateModel(self, theta, vtu_path):
-        """
-        旋转模型, 以臂架为基准
-        :param theta:
-        :param vtu_path:
-        :return:
-        """
-        time1 = time.time()
-        femdb = self.domain.femdb
-        wrapper = MQ1330Wrapper(theta)
-        for nd in femdb.node_list:
-            new_coord = np.array(wrapper.calculate_new_xyz(nd.id, *nd.origin_coord))
-            nd.coord = new_coord
-
-        time2 = time.time()
-        mlogger.debug(time_format.format("Rotate XYZ", time2 - time1))
-
-        for ii, stiff in enumerate(femdb.stiff_list):
-            iter_ele = femdb.elements[ii]
-            ele_id = iter_ele.id
-            node_count = iter_ele.nodes_count
-            if not wrapper.is_fixed_element(ele_id):
-                if node_count == 3 or node_count == 4:
-                    new_stiff = wrapper.calculate_new_stiff(ele_id, node_count, stiff)
-                    femdb.stiff_list[ii] = new_stiff
-
-        time3 = time.time()
-        mlogger.debug(time_format.format("Calculate New Stiff", time3 - time2))
-
-        self.domain.AssembleStiffnessMatrixByPenalty()
-        time4 = time.time()
-        mlogger.debug(time_format.format("Assemble Stiffness", time4 - time3))
-
-        self.domain.AddBoundaryByPenalty()
-        time5 = time.time()
-        mlogger.debug(time_format.format("Add Boundary Effect", time5 - time4))
-
-        self.domain.SolveDisplacement()
-        time6 = time.time()
-        mlogger.debug(time_format.format("Solve Displacement", time6 - time5))
-
-        self.domain.SolveStress()
-        time7 = time.time()
-        mlogger.debug(time_format.format("Solve Stress", time7 - time6))
-
-        writer = ResultsWriter(use_mysql=True)
-        src = pathlib.Path(vtu_path)
-        # writer.WriteStaticAnalysisVTUFile(src)
-        dat_path = src.with_suffix(".dat")
-        dat_path = dat_path.with_stem(dat_path.stem + f"{int(time.time())}")
-        writer.WriteStaticResult2DatFile2(dat_path, wrapper)
-        # writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"))
-        time_end = time.time()
-        total_time_elapsed = time_end - time1
-        mlogger.debug(time_format.format("Write Output", time_end - time7))
-        mlogger.debug(time_format.format("Total Time Elapsed", total_time_elapsed))
-        return {
-            "status": "success",
-            "time_elapsed": f"{total_time_elapsed:.2f}"
-        }
-
-
-@app.route('/api/rotate_model', methods=['POST'])
-def rotate_model_endpoint():
-    """
-    处理模型旋转请求的API端点
-    :return:
-    """
-    global my_fem
-    if not my_fem:
-        return jsonify({"error": "FEM model not loaded"}), 400
-
-    try:
-        theta = request.args.get('rotate_theta', type=float)
-        save_path = pathlib.Path(request.args.get('save_path'))
-        current = 1
-        step = 1
-        while True:
-            if current >= 33:
-                step = -2
-            elif current <= 1:
-                step = 2
-            current += step
-            iter_path = save_path.with_stem(f"theta{current}")
-            my_fem.RotateModel(current, iter_path)
-
-        result = {"status": "success"}
-        return jsonify(result), 200
-
-    except Exception as e:
-        logging.error(f"Rotation  failed: {str(e)}")
-        return jsonify({"error": str(e)}), 500
 
 
 @app.route('/api/re_calculate_stiff', methods=['POST'])

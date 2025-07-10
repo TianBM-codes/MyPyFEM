@@ -177,7 +177,6 @@ class InputFileType(Enum):
     """
     CDB = 1
     INP = 2
-    BDF = 3
 
 
 class BeamSectionType(Enum):

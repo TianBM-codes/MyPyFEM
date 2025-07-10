@@ -41,10 +41,10 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.cha_dict = None  # 单元的属性字典, 其中包括材料、属性、常数、惯性矩等
         self.e_type = None
         self.vtu_type = None
-        self.unv_code = None  # SiPESC平台显示的UNV结果, 单元代号
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
         self.M = None  # 质量矩阵
+        self.K = None
         self.B_global = None  # 应变矩阵, 用于求解应力
 
         """
@@ -110,9 +110,6 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         """ cha_dict必须包括计算单元刚度阵的所有内容 """
         self.cha_dict = cha_dict
         self.CalElementDMatrix()
-
-    # def SetEquationNumber(self, eq_nums: list[int]):
-    #     self.eq_numbers = eq_nums
 
     """
     设置类相关函数

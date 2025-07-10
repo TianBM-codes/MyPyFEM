@@ -30,7 +30,7 @@ class ElementFactory:
     """
 
     @staticmethod
-    def CreateElement(e_type, e_id=-1, opt=None) -> tuple[ElementBaseClass, int, int]:
+    def CreateElement(e_type, e_id=-1, opt=None):
         """
         静态函数, 用于返回
         :param e_type: 单元类型，这里包含了Abaqus、Nastran和Ansys的

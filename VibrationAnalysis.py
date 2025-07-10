@@ -9,8 +9,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 ## 以下两个库用于测试
-import pylab as pl
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 class VibAnalysis:
@@ -185,13 +185,14 @@ if __name__ == "__main__":
     print("peak: ", peak)
     print("pkf: ", frq[peak])
     print("pkv: ", fy[peak])
-    pl.subplot(4, 1, 1)
-    pl.plot(t, data)
-    pl.subplot(4, 1, 2)
-    pl.plot(frq, fy)
-    pl.plot(frq[peak], fy[peak], 'o')
-    pl.subplot(4, 1, 3)
-    pl.plot(t, v)
-    pl.subplot(4, 1, 4)
-    pl.plot(t, s)
-    pl.show()
+    plt.subplot(4, 1, 1)
+    plt.plot(t, data)
+    plt.subplot(4, 1, 2)
+    plt.plot(frq, fy)
+    plt.plot(frq[peak], fy[peak], 'o')
+    plt.subplot(4, 1, 3)
+    plt.plot(t, v)
+    plt.subplot(4, 1, 4)
+    plt.plot(t, s)
+    plt.show(block=True)
+    # pl.savefig('vibration_analysis.png', dpi=300, bbox_inches='tight')

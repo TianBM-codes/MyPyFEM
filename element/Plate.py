@@ -7,555 +7,72 @@ from femdb.ShapeFunctionsAndInteg import Quad4NodeShapeFunction, ExtrapolateMatr
 from abc import ABC
 
 
-class IntegFormTriangle3P:
-    """二维2点高斯积分格式"""
-
-    def __init__(self):
-        self.point = np.array([
-            [1 / 6, 1 / 6],
-            [2 / 3, 1 / 6],
-            [1 / 6, 2 / 3],
-        ])
-        self.weight = np.array([1 / 3, 1 / 3, 1 / 3])
-
-
-def PlateBMatrix(node_coords, xi, eta):
-    """
-    Kirchhoff三角形板单元
-    @param xi:
-    @param eta:
-    @return:
-    """
-    x1, y1 = node_coords[0]
-    x2, y2 = node_coords[1]
-    x3, y3 = node_coords[2]
-
-    x23 = x3 - x2
-    x31 = x1 - x3
-    x12 = x2 - x1
-    x13 = -x31
-    y23 = y3 - y2
-    y31 = y1 - y3
-    y12 = y2 - y1
-    y13 = -y31
-
-    # 计算边长
-    l12 = np.sqrt(x12 ** 2 + y12 ** 2)
-    l23 = np.sqrt(x23 ** 2 + y23 ** 2)
-    l31 = np.sqrt(x31 ** 2 + y31 ** 2)
-
-    # 计算系数p, q, r, t
-    p4 = -x12 / l12 ** 2 * 6
-    p5 = -x23 / l23 ** 2 * 6
-    p6 = -x31 / l31 ** 2 * 6
-
-    q4 = 3 * x12 * y12 / l12 ** 2
-    q5 = 3 * x23 * y23 / l23 ** 2
-    q6 = 3 * x31 * y31 / l31 ** 2
-
-    r4 = 3 * y12 ** 2 / l12 ** 2
-    r5 = 3 * y23 ** 2 / l23 ** 2
-    r6 = 3 * y31 ** 2 / l31 ** 2
-
-    t4 = -y12 / l12 ** 2 * 6
-    t5 = -y23 / l23 ** 2 * 6
-    t6 = -y31 / l31 ** 2 * 6
-
-    # 计算三角形面积(2A)
-    A2 = np.linalg.det(np.array([
-        [1, x1, y1],
-        [1, x2, y2],
-        [1, x3, y3]
-    ]))
-
-    # 临时变量
-    temp1 = 1 - 2 * xi
-    temp2 = 1 - 2 * eta
-
-    # 计算H矩阵的各分量
-    Hxxi = np.array([
-        p4 * temp1 + (p6 - p4) * eta,
-        -q4 * temp1 + (q4 + q6) * eta,
-        4 - 6 * (xi + eta) + (r6 + r4) * eta - r4 * temp1,
-        -p4 * temp1 + (p5 + p4) * eta,
-        -q4 * temp1 + (q4 - q5) * eta,
-        2 - 6 * xi + (r4 - r5) * eta - r4 * temp1,
-        -(p5 + p6) * eta,
-        (q6 - q5) * eta,
-        (r6 - r5) * eta
-    ])
-
-    Hxeta = np.array([
-        -p6 * temp2 + (p6 - p4) * xi,
-        -q6 * temp2 + (q4 + q6) * xi,
-        4 - 6 * (xi + eta) + (r4 + r6) * xi - r6 * temp2,
-        (p5 + p4) * xi,
-        (q4 - q5) * xi,
-        (r4 - r5) * xi,
-        p6 * temp2 - (p6 + p5) * xi,
-        -q6 * temp2 + (q6 - q5) * xi,
-        2 - 6 * eta + (r6 - r5) * xi - r6 * temp2
-    ])
-
-    Hyxi = np.array([
-        t4 * temp1 + (t6 - t4) * eta,
-        -1 - r4 * temp1 + (r4 + r6) * eta,
-        q4 * temp1 - (q4 + q6) * eta,
-        -t4 * temp1 + (t4 + t5) * eta,
-        1 - r4 * temp1 + (r4 - r5) * eta,
-        q4 * temp1 + (q5 - q4) * eta,
-        -(t5 + t6) * eta,
-        (r6 - r5) * eta,
-        (q5 - q6) * eta
-    ])
-
-    Hyeta = np.array([
-        -t6 * temp2 + (t6 - t4) * xi,
-        -1 - r6 * temp2 + (r4 + r6) * xi,
-        q6 * temp2 - (q4 + q6) * xi,
-        (t5 + t4) * xi,
-        (r4 - r5) * xi,
-        (q5 - q4) * xi,
-        t6 * temp2 - (t5 + t6) * xi,
-        1 - r6 * temp2 + (r6 - r5) * xi,
-        q6 * temp2 + (q5 - q6) * xi
-    ])
-
-    # 组装应变矩阵B
-    B = np.zeros((3, 9))
-    B[0, :] = (1 / A2) * (y13 * Hxxi - y12 * Hxeta)
-    B[1, :] = (1 / A2) * (-x13 * Hyxi + x12 * Hyeta)
-    B[2, :] = (1 / A2) * (-x13 * Hxxi + x12 * Hxeta + y13 * Hyxi - y12 * Hyeta)
-
-    # Jacobian行列式
-    j = A2 / 2
-
-    return B, j
-
-
-class KirchhoffTrianglePlate(ElementBaseClass, ABC):
-    """
-    Kirchhoff Triangle Plate Element class
-    Reference:
-    1. 王欢Matlab程序
-    """
-
-    def __init__(self, eid=None):
-        super().__init__(eid)
-        self.nodes_count = 4  # Each element has 8 nodes
-        self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
-        self.vtu_type = "quad"
-
-    def CalElementDMatrix(self, an_type=None):
-        """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
-        """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
-            h = self.cha_dict["RealConst"][0]
-        elif self.cha_dict.__contains__(MaterialKey.Thickness):
-            h = self.cha_dict[MaterialKey.Thickness]
-        else:
-            raise KeyError("Don't Contain RealConst and Thickness")
-        a = e * h ** 3 / 12 / (1 - niu ** 2)
-        self.D = a * np.array([[1, niu, 0],
-                               [niu, 1, 0],
-                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
-
-    def ElementStiffness(self, from_origin=False):
-        """
-        dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
-        """
-        integ = IntegFormTriangle3P()
-        Ke = np.zeros((9, 9), dtype=float)
-        for ii in range(3):
-            xi = integ.point[ii, 0]
-            eta = integ.point[ii, 1]
-            wgt = integ.weight[ii]
-            B, detj = PlateBMatrix(self.node_coords, xi, eta)
-            Ke += B.T @ self.D @ B * detj * wgt
-        return Ke
-
-    def CalculateElementStress(self, displacement):
-        """
-        Calculate element stress
-        """
-
-    def ElementMass(self):
-        pass
-
-    def CalculateBasic(self):
-        pass
-
-    def ReCalculateElementStiffness(self):
-        pass
-
-
-class KirchhoffQuaPlate(ElementBaseClass, ABC):
-    """
-    Kirchhoff Qua Plate Element class
-    Reference:
-    1. 王欢Matlab程序
-    """
-
-    def __init__(self, eid=None):
-        super().__init__(eid)
-        self.nodes_count = 4  # Each element has 8 nodes
-        self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
-        self.vtu_type = "quad"
-
-    def CalElementDMatrix(self, an_type=None):
-        """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
-        """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
-            h = self.cha_dict["RealConst"][0]
-        elif self.cha_dict.__contains__(MaterialKey.Thickness):
-            h = self.cha_dict[MaterialKey.Thickness]
-        else:
-            raise KeyError("Don't Contain RealConst and Thickness")
-        a = e * h ** 3 / 12 / (1 - niu ** 2)
-        self.D = a * np.array([[1, niu, 0],
-                               [niu, 1, 0],
-                               [0, 0, 0.5 * (1 - niu)]], dtype=float)
-
-    def ElementStiffness(self, from_origin=False):
-        """
-        dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
-        """
-        tri_plate = KirchhoffTrianglePlate()
-        tri_plate.cha_dict = self.cha_dict
-        tri_plate.CalElementDMatrix()
-        Kb = np.zeros((24, 24), dtype=float)
-        indexes = [[0, 1, 2],
-                   [0, 2, 3],
-                   [0, 1, 3],
-                   [1, 2, 3]
-                   ]
-        node_coords = [self.node_coords[indexes[0], :],
-                       self.node_coords[indexes[1], :],
-                       self.node_coords[indexes[2], :],
-                       self.node_coords[indexes[3], :]
-                       ]
-        for ii in range(4):
-            T_matrix, origin = GetShellGlobal2LocalTransMatrix(node_coords[ii])
-            local_coord = (node_coords[ii].T - origin[:, np.newaxis]).T @ T_matrix
-            m_coords = local_coord[:, :2]
-            tri_plate.node_coords = m_coords
-            Kb_iter = tri_plate.ElementStiffness()
-            index = indexes[ii]
-            i0j0 = np.array([
-                (index[0]) * 6 + 2, (index[0]) * 6 + 3, (index[0]) * 6 + 4,
-                (index[1]) * 6 + 2, (index[1]) * 6 + 3, (index[1]) * 6 + 4,
-                (index[2]) * 6 + 2, (index[2]) * 6 + 3, (index[2]) * 6 + 4
-            ])
-            Kb2424 = np.zeros((24, 24), dtype=float)
-            Kb2424[np.ix_(i0j0, i0j0)] = Kb_iter
-            R_matrix = T_matrix.T
-            global_t_matrix = np.zeros((24, 24))
-            global_t_matrix[0:3, 0:3] = R_matrix
-            global_t_matrix[3:6, 3:6] = R_matrix
-            global_t_matrix[6:9, 6:9] = R_matrix
-            global_t_matrix[9:12, 9:12] = R_matrix
-            global_t_matrix[12:15, 12:15] = R_matrix
-            global_t_matrix[15:18, 15:18] = R_matrix
-            global_t_matrix[18:21, 18:21] = R_matrix
-            global_t_matrix[21:24, 21:24] = R_matrix
-            Kb2424 = global_t_matrix.T @ Kb2424 @ global_t_matrix
-            Kb += Kb2424
-
-        return Kb / 2
-
-    def CalculateElementStress(self, displacement):
-        """
-        壳的刚度阵由膜单元和板单元构成
-        """
-
-    def ElementMass(self):
-        pass
-
-    def CalculateBasic(self):
-        pass
-
-    def ReCalculateElementStiffness(self):
-        pass
-
-
-class MITC4(ElementBaseClass, ABC):
-    """
-    MITC4 Element class
-    Reference:
-    1.《有限元法、理论、格式与求解方法》上册Bathe P395
-    2. 王欢Matlab程序
-    """
-
-    def __init__(self, eid=None):
-        super().__init__(eid)
-        self.nodes_count = 4  # Each element has 8 nodes
-        self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
-        self.vtu_type = "quad"
-
-    def CalElementDMatrix(self, an_type=None):
-        """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
-        """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
-            a = e / (1 - niu ** 2)
-            self.D = a * np.array([[1, niu, 0],
-                                   [niu, 1, 0],
-                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
-        elif an_type == MaterialMatrixType.PlaneStrain:
-            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.array([[1, niu / (1 - niu), 0],
-                                   [niu(1 - niu), 1, 0],
-                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
-        else:
-            mlogger.fatal("Unknown an_dimension")
-            sys.exit(1)
-
-    def ElementStiffness(self, from_origin=False):
-        """
-        dimension: 4*3, [[x1,y1,z1],[x2,y2,z2],...[x4,y4,z4]], type:np.ndarray, dtype:float
-
-        # Shape Function:
-        N1 = 0.25 * (1 + r) * (1 + s)
-        N2 = 0.25 * (1 - r) * (1 + s)
-        N3 = 0.25 * (1 - r) * (1 - s)
-        N4 = 0.25 * (1 + r) * (1 - s)
-
-        # Partial
-        """
-        assert self.node_coords.shape == (4, 3)
-
-        # Gaussian Weight
-        sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-
-        """
-        Bending Part
-        """
-
-        """
-        Shear Stain Part
-        """
-        tt = np.array([[1, -1, -1, 1], [1, -1, 1, -1], [1, 1, -1, -1]], dtype=float)
-        Ax, Bx, Cx = tt * self.node_coords[:, 0]
-        Ay, By, Cy = tt * self.node_coords[:, 1]
-        r, s = 0, 0
-
-        # Partial Derivative
-        pN1pr, pN1ps = 0.25 * (1 + s), 0.25 * (1 + r)
-        pN2pr, pN2ps = -0.25 * (1 + s), 0.25 * (1 - r)
-        pN3pr, pN3ps = 0.25 * (s - 1), 0.25 * (r - 1)
-        pN4pr, pN4ps = 0.25 * (1 - s), -0.25 * (1 + r)
-        pXpr = np.matmul(np.array([pN1pr, pN2pr, pN3pr, pN4pr]), self.node_coords[:, 0])
-        pYpr = np.matmul(np.array([pN1pr, pN2pr, pN3pr, pN4pr]), self.node_coords[:, 1])
-        pXps = np.matmul(np.array([pN1ps, pN2ps, pN3ps, pN4ps]), self.node_coords[:, 0])
-        pYps = np.matmul(np.array([pN1ps, pN2ps, pN3ps, pN4ps]), self.node_coords[:, 1])
-        alpha = np.arctan(pYpr / pXpr)
-        beta = np.arctan(pYps / pXps)
-        detJ = pXpr * pYps - pYpr * pXps
-
-        coeff_gama_rz = 0.125 * np.sqrt((Cx + r * Bx) ** 2 + (Cy + r * By) ** 2) / detJ
-        coeff_gama_sz = 0.125 * np.sqrt((Ax + s * Bx) ** 2 + (Ay + s * By) ** 2) / detJ
-
-        gama_rz = np.zeros((12, 1), dtype=float)
-        # w1, w2, w3, w4
-        gama_rz[0, 0] = 0.5 * coeff_gama_rz * (1 + s)
-        gama_rz[3, 0] = -gama_rz[0, 0]
-        gama_rz[6, 0] = -0.5 * coeff_gama_rz * (1 - s)
-        gama_rz[9, 0] = -gama_rz[6, 0]
-
-        # theta_1x, theta_2x, theta_3x, theta_4x
-        gama_rz[1, 0] = -gama_rz[0, 0] * 0.5 * (self.node_coords[0, 1] - self.node_coords[1, 1])
-        gama_rz[4, 0] = gama_rz[1, 0]
-        gama_rz[7, 0] = 0.5 * gama_rz[6, 0] * (self.node_coords[2, 1] - self.node_coords[3, 1])
-        gama_rz[10, 0] = gama_rz[7, 0]
-
-        # theta_1y, theta_2y, theta_3y, theta_4y
-        gama_rz[2, 0] = gama_rz[0, 0] * 0.5 * (self.node_coords[0, 0] - self.node_coords[1, 0])
-        gama_rz[5, 0] = gama_rz[2, 0]
-        gama_rz[8, 0] = -gama_rz[6, 0] * 0.5 * (self.node_coords[3, 0] - self.node_coords[2, 0])
-        gama_rz[11, 0] = gama_rz[8, 0]
-
-        gama_sz = np.zeros((12, 1), dtype=float)
-        # w1, w2, w3, w4
-        gama_sz[0, 0] = 0.5 * coeff_gama_sz * (1 + r)
-        gama_sz[3, 0] = 0.5 * coeff_gama_sz * (1 - r)
-        gama_sz[6, 0] = -gama_sz[3, 0]
-        gama_sz[9, 0] = -gama_sz[0, 0]
-
-        # theta_1x, theta_2x, theta_3x, theta_4x
-        gama_sz[1, 0] = -gama_sz[0, 0] * 0.5 * (self.node_coords[0, 1] - self.node_coords[3, 1])
-        gama_sz[4, 0] = -0.5 * gama_sz[3, 0] * (self.node_coords[1, 1] - self.node_coords[2, 1])
-        gama_sz[7, 0] = gama_sz[4, 0]
-        gama_sz[10, 0] = gama_sz[1, 0]
-
-        # theta_1y, theta_2y, theta_3y, theta_4y
-        gama_sz[2, 0] = gama_sz[0, 0] * 0.5 * (self.node_coords[0, 0] - self.node_coords[3, 0])
-        gama_sz[5, 0] = gama_sz[1, 0] * 0.5 * (self.node_coords[1, 0] - self.node_coords[2, 0])
-        gama_sz[8, 0] = gama_sz[5, 0]
-        gama_sz[11, 0] = gama_sz[2, 0]
-
-        # local global_coord to cartesian global_coord
-        gama_xz = gama_rz * np.sin(beta) - gama_sz * np.sin(alpha)
-        gama_yz = -gama_rz * np.cos(beta) + gama_sz * np.cos(alpha)
-
-        # 在4个高斯点上积分
-        for ri in range(2):
-            for si in range(2):
-                r, s = sample_pt[ri], sample_pt[si]
-                g_weight = weight[ri] * weight[si]
-
-                # self.K += g_weight * self.B.T * self.D * B * det_J * self.cha_dict[PropertyKey.ThicknessOrArea]
-
-        return self.K
-
-    def CalculateElementStress(self, displacement):
-        """
-        Calculate element stress
-        """
-
-    def ElementMass(self):
-        pass
-
-    def CalculateBasic(self):
-        pass
-
-    def ReCalculateElementStiffness(self):
-        pass
-
-
-class MITC3(ElementBaseClass, ABC):
-    """ plate 3node Element class """
-
-    def __init__(self, eid=None):
-        super().__init__(eid)
-        self.nodes_count = 3  # Each element has 3 nodes
-        self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
-        self.vtu_type = "triangle"
-
-    def CalElementDMatrix(self, an_type=None):
-        """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
-        Reference:
-        1. Note and Explanation of Formulation for MITC Shell Element and its Implemention through Open Source Finite Element Software, Elmer
-        """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
-        if an_type == MaterialMatrixType.PlaneStree or an_type is None:
-            a = e / (1 - niu ** 2)
-            self.D = a * np.array([[1, niu, 0],
-                                   [niu, 1, 0],
-                                   [0, 0, 0.5 * (1 - niu)]], dtype=float)
-        elif an_type == MaterialMatrixType.PlaneStrain:
-            a = e * (1 - niu) / (1 + niu) / (1 - 2 * niu)
-            self.D = a * np.array([[1, niu / (1 - niu), 0],
-                                   [niu(1 - niu), 1, 0],
-                                   [0, 0, 0.5 * (1 - 2 * niu) / (1 - niu)]], dtype=float)
-        else:
-            mlogger.fatal("Unknown an_dimension")
-            sys.exit(1)
-
-    def ElementStiffness(self, from_origin=False):
-        """
-        TODO: 积分过程是否正确?
-        Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
-        dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
-
-        # Shape Function:
-        N1 = 1 - r - s
-        N2 = r
-        N2 = s
-
-        # Partial
-        dN1dr, dN1ds = -1, -1
-        dN2dr, dN2ds =  1,  0
-        dN3dr, dN3ds =  0,  1
-        """
-        assert self.node_coords.shape == (3, 2)
-
-        dNdr = np.array([[-1, 1, 0],
-                         [-1, 0, 1]], dtype=float)
-
-        # Jacobi 2*2 & B Matrix 3*8
-        J = np.matmul(dNdr, self.node_coords)
-        det_J = np.linalg.det(J)
-        J_inv = np.linalg.inv(J)
-        B_pre = np.matmul(J_inv, dNdr)
-        B = np.array([[B_pre[0, 0], 0, B_pre[0, 1], 0, B_pre[0, 2], 0],
-                      [0, B_pre[1, 0], 0, B_pre[1, 1], 0, B_pre[1, 2]],
-                      [B_pre[1, 0], B_pre[0, 0], B_pre[1, 1], B_pre[0, 1], B_pre[1, 2], B_pre[0, 2]]], dtype=float)
-
-        return B.T * self.D * B * det_J * 0.5 * self.cha_dict[MaterialKey.Thickness]
-
-    def CalculateElementStress(self, displacement):
-        """
-        Calculate element stress
-        """
-
-    def ElementMass(self):
-        pass
-
-    def CalculateBasic(self):
-        pass
-
-    def ReCalculateElementStiffness(self):
-        pass
-
-
 class DKTPlate(ElementBaseClass, ABC):
     """
-    DKT plate 3node Element class
-    Reference:
-    1. 有限单元法  王勖成  P364
+    DKT (Discrete Kirchhoff Triangle) 三角形板单元类
+    基于离散Kirchhoff理论的三节点三角形板弯曲单元
+
+    参考文献:
+    1. 有限单元法 王勖成 P364
     2. A_Study_of_Three-Node_Triangular_Plate_Bending_Elements.pdf
-    3. Note And Explanation of Formulation for DKT Shell Element and its Implementation
-       through Open Source Finite Software,Elmer.pdf
+    3. Note And Explanation of Formulation for DKT Shell Element and its Implementation through Open Source Finite Software,Elmer.pdf
     4. Code_Aster Elements of plate: modelings DKT, DST, DKTG and Q4G
-    TODO: 三角形积分, 面积坐标和r,s参数坐标的区别, 面积坐标见王勖成P366
-    TODO: 应力杂交单元
+
+    TODO: 实现三角形积分，研究面积坐标和r,s参数坐标的区别(面积坐标见王勖成P366)
+    TODO: 实现应力杂交单元
     """
 
     def __init__(self, eid=None):
+        """
+        初始化DKT板单元
+        :param eid: 单元ID
+        """
         super().__init__(eid)
-        self.nodes_count = 3  # Each element has 3 nodes
-        self.K = np.zeros([9, 9], dtype=float)  # 刚度矩阵
-        self.vtu_type = "triangle"
-        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
-        self.B = []
-        self.integ = []
+        self.nodes_count = 3  # 三节点单元
+        self.K = np.zeros([9, 9], dtype=float)  # 单元刚度矩阵(每个节点3个自由度)
+        self.vtu_type = "triangle"  # VTK可视化类型
+        self.T_matrix = None  # 全局坐标到局部坐标的转换矩阵
+        self.B = []  # 应变-位移矩阵列表(每个积分点一个)
+        self.integ = []  # 积分权重列表
 
     def CalElementDMatrix(self, an_type=None):
         """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        计算本构矩阵(弹性矩阵)
+        根据材料属性和厚度计算板单元的弹性矩阵
+        参考Bathe《有限元方法》上册P184
+
+        :param an_type: 分析类型(未使用)
         """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
+        e = self.cha_dict[MaterialKey.E]  # 弹性模量
+        niu = self.cha_dict[MaterialKey.Niu]  # 泊松比
+
+        # 获取板厚度
         if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and Thickness")
+            raise KeyError("未找到厚度参数(RealConst或Thickness)")
+
+        # 计算板弯曲刚度
         a = e * h ** 3 / 12 / (1 - niu ** 2)
+
+        # 构造弹性矩阵
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self, from_origin=False):
         """
-        Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
-        dimension: 2*2, [[x1,y1],[x2,y2]], type:np.ndarray, dtype:float
-        单元的坐标是通过Shell单元给的, 不是在读取cdb文件时候给的
-        """
-        assert self.node_coords.shape == (3, 2)
+        计算单元刚度矩阵
+        基于离散Kirchhoff理论的三节点三角形板单元刚度矩阵计算
 
-        # 开始论文中的计算
+        :param from_origin: 是否从原始数据重新计算
+        :return: 单元刚度矩阵(9x9)
+        """
+        assert self.node_coords.shape == (3, 2)  # 确保节点坐标是3x2数组
+
+        # 计算单元几何参数
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
         x23 = self.node_coords[1, 0] - self.node_coords[2, 0]
         x31 = self.node_coords[2, 0] - self.node_coords[0, 0]
@@ -564,10 +81,12 @@ class DKTPlate(ElementBaseClass, ABC):
         y23 = self.node_coords[1, 1] - self.node_coords[2, 1]
         y31 = self.node_coords[2, 1] - self.node_coords[0, 1]
 
+        # 计算边长平方
         L4_square = x12 ** 2 + y12 ** 2
         L5_square = x23 ** 2 + y23 ** 2
         L6_square = x31 ** 2 + y31 ** 2
 
+        # 计算形函数系数
         a4 = - x12 / L4_square
         a5 = - x23 / L5_square
         a6 = - x31 / L6_square
@@ -588,66 +107,99 @@ class DKTPlate(ElementBaseClass, ABC):
         e5 = (0.25 * y23 ** 2 - 0.5 * x23 ** 2) / L5_square
         e6 = (0.25 * y31 ** 2 - 0.5 * x31 ** 2) / L6_square
 
+        # 获取三角形积分点和权重(3点积分)
         sample_pt, weight = GaussIntegrationPoint.GetTrianglePointAndWeight(3)
 
-        # 在3个高斯点上积分
+        # 在3个高斯点上积分计算刚度矩阵
         for ii in range(len(sample_pt)):
             r, s = sample_pt[ii]
 
+            # 计算形函数对自然坐标的导数
             pN1pr, pN2pr, pN3pr = -3 + 4 * (r + s), -1 + 4 * r, 0
             pN4pr, pN5pr, pN6pr = 4 * (1 - 2 * r - s), 4 * s, -4 * s
             pN1ps, pN2ps, pN3ps = pN1pr, 0, -1 + 4 * s
             pN4ps, pN5ps, pN6ps = -4 * r * (1 - r), 4 * s, r * (1 - r - 2 * s)
 
-            pHxpr = np.asarray([1.5 * (a4 * pN4pr - a6 * pN6pr), b4 * pN4pr + b6 * pN6pr, pN1pr - c4 * pN4pr - c6 * pN6pr,
-                                1.5 * (a5 * pN5pr - a4 * pN4pr), b5 * pN5pr + b4 * pN4pr, pN2pr - c5 * pN5pr - c4 * pN4pr,
-                                1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN3pr - c6 * pN6pr - c5 * pN5pr], dtype=float)
+            # 计算弯曲应变矩阵B的分量
+            pHxpr = np.asarray([
+                1.5 * (a4 * pN4pr - a6 * pN6pr), b4 * pN4pr + b6 * pN6pr, pN1pr - c4 * pN4pr - c6 * pN6pr,
+                1.5 * (a5 * pN5pr - a4 * pN4pr), b5 * pN5pr + b4 * pN4pr, pN2pr - c5 * pN5pr - c4 * pN4pr,
+                1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN3pr - c6 * pN6pr - c5 * pN5pr
+            ], dtype=float)
 
-            pHxps = np.asarray([1.5 * (a4 * pN4ps - a6 * pN6ps), b4 * pN4ps + b6 * pN6ps, pN1ps - c4 * pN4ps - c6 * pN6ps,
-                                1.5 * (a5 * pN5ps - a4 * pN4ps), b5 * pN5ps + b4 * pN4ps, pN2ps - c5 * pN5ps - c4 * pN4ps,
-                                1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN3ps - c6 * pN6ps - c5 * pN5ps], dtype=float)
+            pHxps = np.asarray([
+                1.5 * (a4 * pN4ps - a6 * pN6ps), b4 * pN4ps + b6 * pN6ps, pN1ps - c4 * pN4ps - c6 * pN6ps,
+                1.5 * (a5 * pN5ps - a4 * pN4ps), b5 * pN5ps + b4 * pN4ps, pN2ps - c5 * pN5ps - c4 * pN4ps,
+                1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN3ps - c6 * pN6ps - c5 * pN5ps
+            ], dtype=float)
 
-            pHypr = np.asarray([1.5 * (d4 * pN4pr - d6 * pN6pr), -pN1pr + e4 * pN4pr + e6 * pN6pr, -b4 * pN4pr - b6 * pN6pr,
-                                1.5 * (d5 * pN5pr - d4 * pN4pr), -pN2pr + e5 * pN5pr + e4 * pN4pr, -b5 * pN5pr - b4 * pN4pr,
-                                1.5 * (d6 * pN6pr - d5 * pN5pr), -pN3pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr], dtype=float)
+            pHypr = np.asarray([
+                1.5 * (d4 * pN4pr - d6 * pN6pr), -pN1pr + e4 * pN4pr + e6 * pN6pr, -b4 * pN4pr - b6 * pN6pr,
+                1.5 * (d5 * pN5pr - d4 * pN4pr), -pN2pr + e5 * pN5pr + e4 * pN4pr, -b5 * pN5pr - b4 * pN4pr,
+                1.5 * (d6 * pN6pr - d5 * pN5pr), -pN3pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr
+            ], dtype=float)
 
-            pHyps = np.asarray([1.5 * (d4 * pN4ps - d6 * pN6ps), -pN1ps + e4 * pN4ps + e6 * pN6ps, -pHxps[1],
-                                1.5 * (d5 * pN5ps - d4 * pN4ps), -pN2ps + e5 * pN5ps + e4 * pN4ps, -pHxps[4],
-                                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN3ps + e6 * pN6ps + e5 * pN5ps, -pHxps[7]], dtype=float)
+            pHyps = np.asarray([
+                1.5 * (d4 * pN4ps - d6 * pN6ps), -pN1ps + e4 * pN4ps + e6 * pN6ps, -pHxps[1],
+                1.5 * (d5 * pN5ps - d4 * pN4ps), -pN2ps + e5 * pN5ps + e4 * pN4ps, -pHxps[4],
+                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN3ps + e6 * pN6ps + e5 * pN5ps, -pHxps[7]
+            ], dtype=float)
 
-            # Jacobi 2*2
-            detJ = x31 * y12 - x12 * y31
+            # 计算雅可比矩阵和行列式
+            detJ = x31 * y12 - x12 * y31  # 三角形面积的两倍
 
             j11 = y31
             j12 = y12
             j21 = -x31
             j22 = -x12
 
-            B = np.asarray([j11 * pHxps + j12 * pHxps,
-                            j21 * pHyps + j22 * pHypr,
-                            j11 * pHyps + j12 * pHypr + j21 * pHxps + j22 * pHxpr], dtype=float)
+            # 组装应变-位移矩阵B
+            B = np.asarray([
+                j11 * pHxpr + j12 * pHxps,
+                j21 * pHypr + j22 * pHyps,
+                j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxpr
+            ], dtype=float)
 
+            # 保存B矩阵和积分权重
             self.B.append(B)
             self.integ.append(weight[ii] / detJ)
+
+            # 计算当前积分点对刚度矩阵的贡献
             self.K += B.T @ self.D @ B * weight[ii] / detJ
 
         return self.K
 
     def CalculateElementStress(self, displacement):
         """
-        Calculate element stress
+        计算单元应力
+        基于位移结果计算单元应力
+
+        :param displacement: 节点位移向量
+        :return: 节点应力数组
         """
+        # 计算高斯点应力
         gauss_stress = self.D @ self.B @ displacement
+
+        # 将高斯点应力外推到节点
         node_stress = ExtrapolateMatrix3to3() @ gauss_stress
+
         return node_stress
 
     def ElementMass(self):
+        """计算单元质量矩阵(待实现)"""
         pass
 
     def CalculateBasic(self):
+        """计算基本参数(待实现)"""
         pass
 
     def ReCalculateElementStiffness(self):
+        """
+        重新计算单元刚度矩阵
+        使用保存的B矩阵和积分权重重新计算刚度矩阵
+
+        :return: 更新后的单元刚度矩阵
+        """
         K = np.zeros((9, 9), dtype=float)
         for iii in range(len(self.integ)):
             K += self.B[iii].T @ self.D @ self.B[iii] * self.integ[iii]
@@ -656,44 +208,64 @@ class DKTPlate(ElementBaseClass, ABC):
 
 class DKQPlate(ElementBaseClass, ABC):
     """
-    DKQ plate 4node Element class
-    Reference:
-    1. Evaluation of a new quadrilateral thin plate bending element.pdf  JEAN-LOUIS BATOZ
+    DKQ (Discrete Kirchhoff Quadrilateral) 四边形板单元类
+    基于离散Kirchhoff理论的四节点四边形板弯曲单元
+
+    参考文献:
+    1. Evaluation of a new quadrilateral thin plate bending element.pdf JEAN-LOUIS BATOZ
     """
 
     def __init__(self, eid=None):
+        """
+        初始化DKQ板单元
+        :param eid: 单元ID
+        """
         super().__init__(eid)
-        self.nodes_count = 4  # Each element has 3 nodes
-        self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
-        self.vtu_type = "quad"
-        self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换几何坐标的
-        self.B = []
-        self.integ = []
+        self.nodes_count = 4  # 四节点单元
+        self.K = np.zeros([12, 12], dtype=float)  # 单元刚度矩阵(每个节点3个自由度)
+        self.vtu_type = "quad"  # VTK可视化类型
+        self.T_matrix = None  # 全局坐标到局部坐标的转换矩阵
+        self.B = []  # 应变-位移矩阵列表(每个积分点一个)
+        self.integ = []  # 积分权重列表
 
     def CalElementDMatrix(self, an_type=None):
         """
-        计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
+        计算本构矩阵(弹性矩阵)
+        根据材料属性和厚度计算板单元的弹性矩阵
+        参考Bathe《有限元方法》上册P184
+
+        :param an_type: 分析类型(未使用)
         """
-        e = self.cha_dict[MaterialKey.E]
-        niu = self.cha_dict[MaterialKey.Niu]
+        e = self.cha_dict[MaterialKey.E]  # 弹性模量
+        niu = self.cha_dict[MaterialKey.Niu]  # 泊松比
+
+        # 获取板厚度
         if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             h = self.cha_dict["RealConst"][0]
         elif self.cha_dict.__contains__(MaterialKey.Thickness):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
-            raise KeyError("Don't Contain RealConst and Thickness")
+            raise KeyError("未找到厚度参数(RealConst或Thickness)")
+
+        # 计算板弯曲刚度
         a = e * h ** 3 / 12 / (1 - niu ** 2)
+
+        # 构造弹性矩阵
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self, from_origin=False):
         """
-        形函数与膜单元(CPM8)类似, 为8节点四边形单元
-        """
-        assert self.node_coords.shape == (4, 2)
+        计算单元刚度矩阵
+        基于离散Kirchhoff理论的四节点四边形板单元刚度矩阵计算
 
-        # 开始论文中的计算
+        :param from_origin: 是否从原始数据重新计算
+        :return: 单元刚度矩阵(12x12)
+        """
+        assert self.node_coords.shape == (4, 2)  # 确保节点坐标是4x2数组
+
+        # 计算单元几何参数
         x12 = self.node_coords[0, 0] - self.node_coords[1, 0]
         x23 = self.node_coords[1, 0] - self.node_coords[2, 0]
         x34 = self.node_coords[2, 0] - self.node_coords[3, 0]
@@ -708,11 +280,13 @@ class DKQPlate(ElementBaseClass, ABC):
         y13 = self.node_coords[0, 1] - self.node_coords[2, 1]
         y24 = self.node_coords[1, 1] - self.node_coords[3, 1]
 
+        # 计算边长平方
         L5_square = x12 ** 2 + y12 ** 2
         L6_square = x23 ** 2 + y23 ** 2
         L7_square = x34 ** 2 + y34 ** 2
         L8_square = x41 ** 2 + y41 ** 2
 
+        # 计算形函数系数
         a5 = - x12 / L5_square
         a6 = - x23 / L6_square
         a7 = - x34 / L7_square
@@ -738,14 +312,16 @@ class DKQPlate(ElementBaseClass, ABC):
         e7 = (0.25 * y34 ** 2 - 0.5 * x34 ** 2) / L7_square
         e8 = (0.25 * y41 ** 2 - 0.5 * x41 ** 2) / L8_square
 
-        # sample_pt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
+        # 定义4点高斯积分(2x2)
         sample_pt_r = (-0.577350269189626, 0.577350269189626, 0.577350269189626, -0.577350269189626)
         sample_pt_s = (0.577350269189626, 0.577350269189626, -0.577350269189626, -0.577350269189626)
         weight = (1, 1, 1, 1)
 
-        # 在4个高斯点上积分
+        # 在4个高斯点上积分计算刚度矩阵
         for ii in range(4):
             r, s = sample_pt_r[ii], sample_pt_s[ii]
+
+            # 计算形函数对自然坐标的导数
             pN1pr = 0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
             pN2pr = -0.25 * (s ** 2 + s) + 0.5 * (1 + s) * r
             pN3pr = 0.25 * (s - s ** 2) + 0.5 * r * (1 - s)
@@ -764,27 +340,36 @@ class DKQPlate(ElementBaseClass, ABC):
             pN7ps = 0.5 * (r ** 2 - 1)
             pN8ps = -s * (1 + r)
 
-            pHxpr = np.asarray([1.5 * (a5 * pN5pr - a8 * pN8pr), b5 * pN5pr + b8 * pN8pr, pN1pr - c5 * pN5pr - c8 * pN8pr,
-                                1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN2pr - c6 * pN6pr - c5 * pN5pr,
-                                1.5 * (a7 * pN7pr - a6 * pN6pr), b7 * pN7pr + b6 * pN6pr, pN3pr - c7 * pN7pr - c6 * pN6pr,
-                                1.5 * (a8 * pN8pr - a7 * pN7pr), b8 * pN8pr + b7 * pN7pr, pN4pr - c8 * pN8pr - c7 * pN7pr], dtype=float)
+            # 计算弯曲应变矩阵B的分量
+            pHxpr = np.asarray([
+                1.5 * (a5 * pN5pr - a8 * pN8pr), b5 * pN5pr + b8 * pN8pr, pN1pr - c5 * pN5pr - c8 * pN8pr,
+                1.5 * (a6 * pN6pr - a5 * pN5pr), b6 * pN6pr + b5 * pN5pr, pN2pr - c6 * pN6pr - c5 * pN5pr,
+                1.5 * (a7 * pN7pr - a6 * pN6pr), b7 * pN7pr + b6 * pN6pr, pN3pr - c7 * pN7pr - c6 * pN6pr,
+                1.5 * (a8 * pN8pr - a7 * pN7pr), b8 * pN8pr + b7 * pN7pr, pN4pr - c8 * pN8pr - c7 * pN7pr
+            ], dtype=float)
 
-            pHxps = np.asarray([1.5 * (a5 * pN5ps - a8 * pN8ps), b5 * pN5ps + b8 * pN8ps, pN1ps - c5 * pN5ps - c8 * pN8ps,
-                                1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN2ps - c6 * pN6ps - c5 * pN5ps,
-                                1.5 * (a7 * pN7ps - a6 * pN6ps), b7 * pN7ps + b6 * pN6ps, pN3ps - c7 * pN7ps - c6 * pN6ps,
-                                1.5 * (a8 * pN8ps - a7 * pN7ps), b8 * pN8ps + b7 * pN7ps, pN4ps - c8 * pN8ps - c7 * pN7ps], dtype=float)
+            pHxps = np.asarray([
+                1.5 * (a5 * pN5ps - a8 * pN8ps), b5 * pN5ps + b8 * pN8ps, pN1ps - c5 * pN5ps - c8 * pN8ps,
+                1.5 * (a6 * pN6ps - a5 * pN5ps), b6 * pN6ps + b5 * pN5ps, pN2ps - c6 * pN6ps - c5 * pN5ps,
+                1.5 * (a7 * pN7ps - a6 * pN6ps), b7 * pN7ps + b6 * pN6ps, pN3ps - c7 * pN7ps - c6 * pN6ps,
+                1.5 * (a8 * pN8ps - a7 * pN7ps), b8 * pN8ps + b7 * pN7ps, pN4ps - c8 * pN8ps - c7 * pN7ps
+            ], dtype=float)
 
-            pHypr = np.asarray([1.5 * (d5 * pN5pr - d8 * pN8pr), -pN1pr + e5 * pN5pr + e8 * pN8pr, -b5 * pN5pr - b8 * pN8pr,
-                                1.5 * (d6 * pN6pr - d5 * pN5pr), -pN2pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr,
-                                1.5 * (d7 * pN7pr - d6 * pN6pr), -pN3pr + e7 * pN7pr + e6 * pN6pr, -b7 * pN7pr - b6 * pN6pr,
-                                1.5 * (d8 * pN8pr - d7 * pN7pr), -pN4pr + e8 * pN8pr + e7 * pN7pr, -b8 * pN8pr - b7 * pN7pr], dtype=float)
+            pHypr = np.asarray([
+                1.5 * (d5 * pN5pr - d8 * pN8pr), -pN1pr + e5 * pN5pr + e8 * pN8pr, -b5 * pN5pr - b8 * pN8pr,
+                1.5 * (d6 * pN6pr - d5 * pN5pr), -pN2pr + e6 * pN6pr + e5 * pN5pr, -b6 * pN6pr - b5 * pN5pr,
+                1.5 * (d7 * pN7pr - d6 * pN6pr), -pN3pr + e7 * pN7pr + e6 * pN6pr, -b7 * pN7pr - b6 * pN6pr,
+                1.5 * (d8 * pN8pr - d7 * pN7pr), -pN4pr + e8 * pN8pr + e7 * pN7pr, -b8 * pN8pr - b7 * pN7pr
+            ], dtype=float)
 
-            pHyps = np.asarray([1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -pHxps[1],
-                                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -pHxps[4],
-                                1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -pHxps[7],
-                                1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -pHxps[10]], dtype=float)
+            pHyps = np.asarray([
+                1.5 * (d5 * pN5ps - d8 * pN8ps), -pN1ps + e5 * pN5ps + e8 * pN8ps, -pHxps[1],
+                1.5 * (d6 * pN6ps - d5 * pN5ps), -pN2ps + e6 * pN6ps + e5 * pN5ps, -pHxps[4],
+                1.5 * (d7 * pN7ps - d6 * pN6ps), -pN3ps + e7 * pN7ps + e6 * pN6ps, -pHxps[7],
+                1.5 * (d8 * pN8ps - d7 * pN7ps), -pN4ps + e8 * pN8ps + e7 * pN7ps, -pHxps[10]
+            ], dtype=float)
 
-            # Jacobi 2*2
+            # 计算雅可比矩阵和行列式
             J11 = 0.25 * (x12 - x34 + r * (x12 + x34))
             J12 = 0.25 * (y12 - y34 + r * (y12 + y34))
             J21 = 0.25 * (x23 - x41 + s * (x12 + x34))
@@ -796,61 +381,54 @@ class DKQPlate(ElementBaseClass, ABC):
             j21 = -J21
             j22 = J11
 
-            B = np.asarray([j11 * pHxpr + j12 * pHxps,
-                            j21 * pHypr + j22 * pHyps,
-                            j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps], dtype=float)
+            # 组装应变-位移矩阵B
+            B = np.asarray([
+                j11 * pHxpr + j12 * pHxps,
+                j21 * pHypr + j22 * pHyps,
+                j11 * pHypr + j12 * pHyps + j21 * pHxpr + j22 * pHxps
+            ], dtype=float)
+
+            # 保存B矩阵和积分权重
             self.B.append(B)
             self.integ.append(weight[ii] / detJ)
 
-            # 这里的除以det_J是因为B放大了detJ倍, 为了减少计算量
+            # 计算当前积分点对刚度矩阵的贡献
             self.K += B.T @ self.D @ B * weight[ii] / detJ
 
         return self.K
 
     def CalculateElementStress(self, displacement):
         """
-        Calculate element stress
+        计算单元应力
+        基于位移结果计算单元应力
+
+        :param displacement: 节点位移向量
+        :return: 节点应力数组
         """
+        # 计算高斯点应力
         gauss_stress = self.D @ self.B @ displacement
+
+        # 将高斯点应力外推到节点
         node_stress = ExtrapolateMatrix4to4() @ gauss_stress
+
         return node_stress
 
     def ElementMass(self):
+        """计算单元质量矩阵"""
         pass
 
     def CalculateBasic(self):
+        """计算基本参数"""
         pass
 
     def ReCalculateElementStiffness(self):
+        """
+        重新计算单元刚度矩阵
+        使用保存的B矩阵和积分权重重新计算刚度矩阵
+
+        :return: 更新后的单元刚度矩阵
+        """
         K = np.zeros((12, 12), dtype=float)
         for iii in range(len(self.integ)):
             K += self.B[iii].T @ self.D @ self.B[iii] * self.integ[iii]
         return K
-
-
-if __name__ == "__main__":
-    t_ele = KirchhoffQuaPlate()
-    t_ele.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
-    t_ele.node_coords = np.array([
-        [2, 0, 0],
-        [1, 0, 0],
-        [1, 1, 0],
-        [2, 1, 0]
-    ], dtype=float)
-    t_ele.CalculateBasic()
-    t_ele.CalElementDMatrix()
-    Ke = t_ele.ElementStiffness()
-
-    t_ele2 = DKQPlate()
-    t_ele2.cha_dict = {MaterialKey.Niu: 0.3, MaterialKey.E: 2e11, MaterialKey.Thickness: 0.01}
-    t_ele2.node_coords = np.array([
-        [2, 0],
-        [1, 0],
-        [1, 1],
-        [2, 1]
-    ], dtype=float)
-    t_ele2.CalculateBasic()
-    t_ele2.CalElementDMatrix()
-    Ke2 = t_ele2.ElementStiffness()
-
-    print("finish")

@@ -31,8 +31,6 @@ def fatigue_analysis(x, Su, material_params):
     idx = np.where(c[..., 1] < 0)  # 如果 c 是一个二维数组（例如 c 的形状为 (5, 3)），则 c[..., 1] 选择的是第二列
     c[..., 1][idx] = 0  # 将平均压应力统一设为 0，因为压应力一般对疲劳是有益的，但为了简化处理，统一设为0，相当于不再使用goodman模型修正了
 
-
-
     # 检查是否有平均应力大于Su的情况
     idx_invalid = np.where(c[..., 1] >= Su)
     if len(idx_invalid[0]) > 0:

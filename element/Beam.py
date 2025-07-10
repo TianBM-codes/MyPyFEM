@@ -24,7 +24,7 @@ class BeamCalculator:
     """
 
     @staticmethod
-    def CalculateMomentOfInertiaOfArea(sec_type: BeamSectionType, sec_data: list[float]) -> dict:
+    def CalculateMomentOfInertiaOfArea(sec_type: BeamSectionType, sec_data) -> dict:
         """
         计算梁横截面惯性矩, 抗扭刚度
         """
@@ -73,7 +73,7 @@ class BeamCalculator:
             sys.exit(1)
 
     @staticmethod
-    def CalEffectiveShearArea(sec_type: BeamSectionType, sec_data: list[float]) -> dict:
+    def CalEffectiveShearArea(sec_type: BeamSectionType, sec_data) -> dict:
         """
         计算截面的面积属性, 包括面积、两个方向的抗剪等效面积, 圆的输入是半径
         """
@@ -112,7 +112,6 @@ class Beam188(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 2  # 每个单元包含2个节点, 表示方向的辅助节点不计算在内
         self.vtu_type = "line"
-        self.stiffness = None
         self.stress = None
 
         # 截面相关, 面积、有效面积
@@ -238,7 +237,6 @@ class Beam189(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 3  # Each element has 3 nodes
         self.vtp_type = "line3"
-        self.stiffness = None
         self.stress = None
         self.I = None  # 惯性矩
         self.sec_type = None  # 截面类型
