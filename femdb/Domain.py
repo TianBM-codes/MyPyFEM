@@ -545,3 +545,19 @@ class Domain(object):
         self.femdb.history_v = v
         self.femdb.history_a = a
         self.femdb.history_step_count = len(u)
+
+
+if __name__ == "__main__":
+    import time
+
+    n = 1300000
+    a = np.random.rand(n)
+    b = np.random.rand(n)
+
+    start_time = time.time()
+    for ii in range(600):
+        c = 0.2 * a + 0.3 * b
+
+    elapsed_time = time.time() - start_time
+    print(f"Elapsed time: {elapsed_time:.6f}")
+
