@@ -129,15 +129,17 @@ class Domain(object):
         cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
         datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.float64)
         for kk, ele in enumerate(self.femdb.elements):
-            ele_nodes = ele.search_node_ids
+            search_node_ids = ele.search_node_ids
             if from_origin:
                 stiff_array = ele.ReCalculateElementStiffness()
             else:
                 stiff_array = self.femdb.stiff_list[kk]
-            n_nodes = len(ele_nodes)
+            n_nodes = len(search_node_ids)
             block_size = n_nodes * ModelInfo.PER_NODE_DOF
-            el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
-                                for x in ele_nodes]).flatten()
+
+            el_dofs = np.array([np.arange(self.femdb.node_list[x].start_eq_num, self.femdb.node_list[x].end_eq_num).tolist() for x in search_node_ids])
+            # el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
+            #                     for x in search_node_ids]).flatten()
             rows_block, cols_block = np.meshgrid(el_dofs, el_dofs)
             entries_count = block_size ** 2
             rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()

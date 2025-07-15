@@ -24,8 +24,7 @@ class Node(object):
             self.origin_coord = np.asarray([x, y, z], dtype=float)
 
         # 属性设置
-        self.vtk_type = ""
-        self.is_boundary_node = False  # 节点是否为边界节点, 即自由度是否有被约束
+        self.vtk_type = "vertex"
         self.is_assist_node = False  # 定义梁方向的节点为辅助节点, 在计算总刚维度的时候不予考虑
 
         # 结果保存
@@ -35,9 +34,9 @@ class Node(object):
 
         # 根据单元自由度改变的量, 默认节点有3个自由度
         self.dof_disp = np.asarray([None] * 3, dtype=float)
-        self.eq_num = np.asarray([0] * 3, dtype=np.uint32)
-        self.b_code = [False] * 3  # 如果自由度被约束, 那么为True
-        self.dof_count = 3
+        self.start_eq_num = None
+        self.end_eq_num = None
+        self.dof_count = None
 
     def __lt__(self, other):
         return self.id < other.id
@@ -54,30 +53,6 @@ class Node(object):
     def GetDofCount(self):
         return self.dof_count
 
-    def ChangeDofCount(self, dof_count):
-        """
-        更改节点自由度的个数, 结构单元为6, 连续介质模型为3, 会影响到位移的长度、方程号的长度
-        """
-        self.dof_count = dof_count
-        self.dof_disp = np.asarray([None] * dof_count, dtype=float)
-        self.eq_num = np.asarray([0] * dof_count, dtype=np.uint32)
-        self.b_code = [False] * dof_count
-
-    def SetEquationNumber(self, idx, eq_num):
-        """
-        节点每个自由度对应的方程号
-        """
-        self.eq_num[idx] = eq_num
-
-    def SetAllDofEqNum(self, eq_num):
-        """
-        如果节点是内部节点, 那么节点的所有自由度未被约束
-        :return: 节点自由度个数
-        """
-        for i in range(len(self.eq_num)):
-            self.eq_num[i] = eq_num + i
-        return len(self.eq_num)
-
     def CalNodeMagnitudeDisplacement(self):
         """
         计算节点空间位移
@@ -89,12 +64,6 @@ class Node(object):
         else:
             mlogger.fatal("Un support dof count: {}".format(self.dof_count))
             sys.exit(1)
-
-    def GetEquationNumbers(self):
-        """
-        返回节点对应的方程号
-        """
-        return self.eq_num
 
     def GetDisplacement(self):
         return self.displacement
@@ -110,3 +79,16 @@ class Node(object):
         平均节点的应力结果, 作为节点的应力结果输出
         """
         self.average_stress = np.sum(np.asarray(self.stress), axis=0)
+
+    def SetDof(self, node_dof):
+        """
+        设置节点的自由度大小
+        :param node_dof:
+        :return:
+        """
+        if node_dof == 3:
+            if self.dof_count != 6:
+                self.dof_count = 3
+                return
+        else:
+            self.dof_count = node_dof

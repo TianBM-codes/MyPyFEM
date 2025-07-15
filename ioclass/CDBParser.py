@@ -303,6 +303,15 @@ class CDBParser(object):
         _, node_connected_element_count = np.unique(self.node_search_ids_list, return_counts=True)
         self.femdb.node_connected_element_count = node_connected_element_count
 
+        """
+        计算每个节点在全局方程组中对应的起止编号
+        """
+        begin_idx = 0
+        for iter_node in self.femdb.node_list:
+            iter_node.start_eq_num = begin_idx
+            iter_node.end_eq_num = begin_idx + iter_node.dof_count
+            begin_idx += iter_node.dof_count
+
     def ReadEBlock(self, f_handle):
         """
         读取单元信息
@@ -367,7 +376,7 @@ class CDBParser(object):
 
                 ele_node_list = list(OrderedDict.fromkeys(search_ids))
                 self.node_search_ids_list.extend(ele_node_list)
-                iter_ele, e_node_count, ele_matrix_size = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
+                iter_ele, e_node_count, ele_matrix_size, node_dof = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
                 iter_ele.SetNodeSearchIndex(np.asarray(ele_node_list))
                 iter_ele.SetId(ele_num)
                 iter_ele.SetNodes(np.asarray(list(OrderedDict.fromkeys(node_ids))))
@@ -375,6 +384,8 @@ class CDBParser(object):
                 iter_ele.sec_id = sec_id
                 iter_ele.real_const_id = real_constant_num
                 self.femdb.matrix_num_count += ele_matrix_size
+                for iii in ele_node_list:
+                    self.femdb.node_list[iii].SetDof(node_dof)
 
                 """
                 计算单元包括的节点的坐标矩阵

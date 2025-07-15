@@ -3,6 +3,7 @@
 import sys
 
 from element.ElementBase import *
+from typing import List
 import numpy as np
 from abc import ABC
 
@@ -24,7 +25,7 @@ class BeamCalculator:
     """
 
     @staticmethod
-    def CalculateMomentOfInertiaOfArea(sec_type: BeamSectionType, sec_data: list[float]) -> dict:
+    def CalculateMomentOfInertiaOfArea(sec_type: BeamSectionType, sec_data: List[float]) -> dict:
         """
         计算梁横截面惯性矩, 抗扭刚度
         """
@@ -73,7 +74,7 @@ class BeamCalculator:
             sys.exit(1)
 
     @staticmethod
-    def CalEffectiveShearArea(sec_type: BeamSectionType, sec_data: list[float]) -> dict:
+    def CalEffectiveShearArea(sec_type: BeamSectionType, sec_data: List[float]) -> dict:
         """
         计算截面的面积属性, 包括面积、两个方向的抗剪等效面积, 圆的输入是半径
         """
@@ -266,7 +267,7 @@ class Beam189(ElementBaseClass, ABC):
 
         # 计算弯曲和剪切的刚度部分, 并组装成矩阵
         spt, weight = GaussIntegrationPoint.GetSamplePointAndWeight(2)
-        K = np.np.zeros((6, 6), dtype=float)
+        K = np.zeros((6, 6), dtype=float)
         for i in range(2):
             Ks1 = 2 * spt[i] / L - 1 / L
             Ks2 = spt[i] - 1 / 12

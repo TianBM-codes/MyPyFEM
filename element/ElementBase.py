@@ -46,6 +46,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.D = None  # 本构矩阵
         self.M = None  # 质量矩阵
         self.B_global = None  # 应变矩阵, 用于求解应力
+        self.block_size = None
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
