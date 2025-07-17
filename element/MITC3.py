@@ -56,16 +56,6 @@ class MITC3(ElementBaseClass, ABC):
         self._a2 = None
         self._a3 = None
 
-        self.stresses = {
-            'membrane': [],
-            'bending': [],
-            'shear': [],
-            'upper': [],
-            'lower': [],
-            'max': [],
-            'min': []
-        }
-
         self._T_small = None
         self._T = None
         self.K = np.zeros((18, 18), dtype=float)

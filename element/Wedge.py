@@ -39,6 +39,7 @@ class C3D6(ElementBaseClass, ABC):
         2. https://github.com/febiosoftware
         """
         assert self.node_coords.shape == (6, 3)
+        self.CalElementDMatrix()
 
         dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D6
         # 在6个高斯点上积分
