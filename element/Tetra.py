@@ -10,6 +10,7 @@ class C3D4(ElementBaseClass):
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "tetra"
         self.unv_code = 40800
+        self.block_size = 144
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -25,7 +26,7 @@ class C3D4(ElementBaseClass):
                                [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
                                [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         Reference:
         1. https://www.help.febio.org/FEBio/FEBio_tm_2_7/FEBio_tm_2-7-Subsection-4.1.3.html#prev
@@ -77,4 +78,7 @@ class C3D4(ElementBaseClass):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass

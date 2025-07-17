@@ -17,6 +17,7 @@ class CPS4(ElementBaseClass, ABC):
         self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
         self.B = []
+        self.block_size = 64
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -39,7 +40,7 @@ class CPS4(ElementBaseClass, ABC):
             mlogger.fatal("Unknown an_dimension")
             sys.exit(1)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: Wilson协调元, 王勖成P211, 剪切锁死
         Bathe 上册 P323
@@ -129,6 +130,9 @@ class CPS4(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class CPS3(ElementBaseClass, ABC):
     """ plane2D 3node Element class """
@@ -139,6 +143,7 @@ class CPS3(ElementBaseClass, ABC):
         self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
         self.B = None
+        self.block_size = 36
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -160,7 +165,7 @@ class CPS3(ElementBaseClass, ABC):
             mlogger.fatal("Unknown an_dimension")
             sys.exit(1)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: 积分过程是否正确?
         Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
@@ -205,6 +210,9 @@ class CPS3(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 

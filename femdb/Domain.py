@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import sys
+from copy import deepcopy
 
 import numpy as np
 from femdb.FEMDataBase import *
@@ -101,7 +102,7 @@ class Domain(object):
         redundant_set = nodes_set - ele_nodes_set
         print("Redundant Nodes:", list(redundant_set))
 
-    def AssembleStiffnessMatrixByPenalty(self):
+    def AssembleStiffnessMatrixByPenalty(self, from_origin=False):
         """
         与AssembleStiffnessMatrixByElimination不同的是，前者是将约束的自由度去掉, 而本方法是通过罚函数或者乘大数法来实现
         本方法限制所有节点的自由度是同一个数, 即不可以让有的节点自由度是3, 有的节点自由度是6
@@ -128,14 +129,20 @@ class Domain(object):
         cols = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.uint32)
         datas = np.zeros(self.femdb.matrix_num_count + ce_add_equations * 4, dtype=np.float64)
         for kk, ele in enumerate(self.femdb.elements):
-            ele_nodes = ele.search_node_ids
-            stiff_array = self.femdb.stiff_list[kk]
-            n_nodes = len(ele_nodes)
-            block_size = n_nodes * ModelInfo.PER_NODE_DOF
-            el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
-                                for x in ele_nodes]).flatten()
-            rows_block, cols_block = np.meshgrid(el_dofs, el_dofs)
-            entries_count = block_size ** 2
+            search_node_ids = ele.search_node_ids
+            if from_origin:
+                stiff_array = ele.ReCalculateElementStiffness()
+            else:
+                stiff_array = self.femdb.stiff_list[kk]
+
+            # start_eq_num = self.femdb.node_list[]
+            ele_dofs = np.array([np.arange(self.femdb.node_list[x].start_eq_num,
+                                           self.femdb.node_list[x].start_eq_num + ele.node_dof_count)
+                                 for x in search_node_ids])
+            # el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
+            #                     for x in search_node_ids]).flatten()
+            rows_block, cols_block = np.meshgrid(ele_dofs, ele_dofs)
+            entries_count = ele.block_size
             rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()
             cols[iter_loc:iter_loc + entries_count] = cols_block.ravel()
             datas[iter_loc:iter_loc + entries_count] = stiff_array.ravel()
@@ -254,6 +261,69 @@ class Domain(object):
         self.femdb.global_mass_matrix = sparse.coo_matrix((datas, (rows, cols)),
                                                           shape=(matrix_size, matrix_size)).tocsc()
 
+    def CalculateGreenFunction(self, output_dir):
+        """
+        计算格林函数并保存
+        :param output_dir: 保存路径
+        :return:
+        """
+        c_load = self.femdb.load_case.c_loads
+        force_nodes = [ii[0] for ii in c_load]
+        directories = [ii[1] for ii in c_load]
+        right_hand_back_up = deepcopy(self.right_hand)
+        for ii, nd in enumerate(force_nodes):
+            """
+            保存位移结果
+            """
+            eqa = self.femdb.node_hash[nd] * ModelInfo.PER_NODE_DOF
+            xyz = directories[ii]
+            self.right_hand = deepcopy(right_hand_back_up)
+            self.right_hand[eqa + xyz] = 1
+            temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
+            result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+            iter_linear_u = temp_results[:result_range]
+            np.save(output_dir / f"dis_node_{nd}.npy", iter_linear_u)
+            """
+            求解应力结果并保存
+            """
+            iter_sigma_xx = np.zeros(len(self.femdb.node_list))
+            iter_sigma_yy = np.zeros(len(self.femdb.node_list))
+            iter_sigma_zz = np.zeros(len(self.femdb.node_list))
+            iter_tau_xy = np.zeros(len(self.femdb.node_list))
+            iter_tau_xz = np.zeros(len(self.femdb.node_list))
+            iter_tau_yz = np.zeros(len(self.femdb.node_list))
+            for ele in self.femdb.elements:
+                search_idx = []
+                for ii in ele.search_node_ids:
+                    start = ii * ModelInfo.PER_NODE_DOF
+                    end = (ii + 1) * ModelInfo.PER_NODE_DOF
+                    search_idx.extend(np.arange(start, end, 1).tolist())
+
+                iter_u = iter_linear_u[search_idx].flatten()
+                sigma_x, sigma_y, sigma_z, tau_yz, tau_xz, tau_xy = ele.CalculateElementStress(iter_u)
+
+                for ii, n_search_id in enumerate(ele.search_node_ids):
+                    iter_sigma_xx[n_search_id] += sigma_x[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_sigma_yy[n_search_id] += sigma_y[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_sigma_zz[n_search_id] += sigma_z[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_tau_xy[n_search_id] += tau_xy[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_tau_yz[n_search_id] += tau_yz[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_tau_xz[n_search_id] += tau_xz[ii] / self.femdb.node_connected_element_count[n_search_id]
+
+            np.save(output_dir / f"sigma_xx_node_{nd}.npy", iter_sigma_xx)
+            np.save(output_dir / f"sigma_yy_node_{nd}.npy", iter_sigma_yy)
+            np.save(output_dir / f"sigma_zz_node_{nd}.npy", iter_sigma_zz)
+            np.save(output_dir / f"sigma_xy_node_{nd}.npy", iter_tau_xy)
+            np.save(output_dir / f"sigma_yz_node_{nd}.npy", iter_tau_yz)
+            np.save(output_dir / f"sigma_xz_node_{nd}.npy", iter_tau_xz)
+
+    def CalculateResultsWithGreenFunction(self, green_dir):
+        """
+        使用
+        :param green_dir:
+        :return:
+        """
+
     def SolveDisplacement(self):
         """
         求解节点位移
@@ -321,8 +391,10 @@ class Domain(object):
         for ele in self.femdb.elements:
             search_idx = []
             for ii in ele.search_node_ids:
-                start = ii * ModelInfo.PER_NODE_DOF
-                end = (ii + 1) * ModelInfo.PER_NODE_DOF
+                # start = ii * ModelInfo.PER_NODE_DOF
+                # end = (ii + 1) * ModelInfo.PER_NODE_DOF
+                start = self.femdb.node_list[ii].start_eq_num
+                end = start + ele.node_dof_count
                 search_idx.extend(np.arange(start, end, 1).tolist())
 
             u = self.femdb.linear_u[search_idx].flatten()
@@ -433,11 +505,6 @@ class Domain(object):
         self.femdb.history_a = a
         self.femdb.history_step_count = len(u)
 
-    def GenerateGeLinFunction(self):
-        """
-        生成格林函数, 并保存
-        :return:
-        """
 
 if __name__ == "__main__":
     from scipy.linalg import cho_factor, cho_solve

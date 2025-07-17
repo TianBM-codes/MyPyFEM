@@ -6,6 +6,8 @@ __pycache__
 /to_assemble_code
 /NumericalCases/Projects
 /output
+/data
+/venv
 
 __init__.py
 

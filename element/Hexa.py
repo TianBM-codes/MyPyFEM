@@ -19,6 +19,8 @@ class C3D8(ElementBaseClass, ABC):
         self.unv_code = 80600
         self.gs_count = 8
         self.Gaussian_B = []  # 高斯积分点处的应变矩阵
+        self.block_size = 576
+        self.node_dof_count = 3
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -39,7 +41,7 @@ class C3D8(ElementBaseClass, ABC):
         # cols = [0, 1, 2, 0, 1, 2, 0, 1, 2, 3, 4, 5]
         # self.D = a * sparse.csc_matrix((data, (rows, cols)), shape=(6, 6))
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: https://www.bilibili.com/video/BV19y4y1z76E/?vd_source=f964a6ab226be6b0cd5d082ed4135949 C3D20 还有二维单元的
         Bathe 上册 P323
@@ -133,6 +135,9 @@ class C3D8(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 

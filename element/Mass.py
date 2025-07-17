@@ -18,6 +18,7 @@ class Mass(ElementBaseClass, ABC):
         self.vtu_type = "vertex"
         self.stiffness = None
         self.stress = None
+        self.block_size = 9
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -25,7 +26,7 @@ class Mass(ElementBaseClass, ABC):
         """
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         Reference:
         """
@@ -43,6 +44,9 @@ class Mass(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 

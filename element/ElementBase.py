@@ -3,8 +3,6 @@
 
 import abc
 
-import numpy as np
-
 from femdb.Integration import *
 from utils.UtilsFunction import *
 import time
@@ -48,6 +46,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.D = None  # 本构矩阵
         self.M = None  # 质量矩阵
         self.B_global = None  # 应变矩阵, 用于求解应力
+        self.block_size = None
+        self.node_dof_count = None
 
         """
         包含节点的坐标, 假如有八个节点, dimension: 8 * 3,
@@ -71,7 +71,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.id = eid
 
     @abc.abstractmethod
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         Calculate element stiffness matrix, coords of nodes
         (Upper triangular matrix, stored as an array column by colum)
@@ -97,6 +97,10 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
     def ElementMass(self):
         pass
 
+    @abc.abstractmethod
+    def ReCalculateElementStiffness(self):
+        pass
+
     def __eq__(self, other):
         return self.id == other.id
 
@@ -109,8 +113,8 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.cha_dict = cha_dict
         self.CalElementDMatrix()
 
-    def SetEquationNumber(self, eq_nums: list[int]):
-        self.eq_numbers = eq_nums
+    # def SetEquationNumber(self, eq_nums: list[int]):
+    #     self.eq_numbers = eq_nums
 
     """
     设置类相关函数

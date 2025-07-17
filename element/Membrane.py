@@ -4,6 +4,8 @@
 from abc import ABC
 from typing import Tuple
 
+import numpy as np
+
 from femdb.ShapeFunctionsAndInteg import *
 from element.ElementBase import *
 
@@ -41,7 +43,7 @@ class CSTDrill(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         p代表偏导: partial, ph1pr 代表偏h1偏r
         """
@@ -90,6 +92,9 @@ class CSTDrill(ElementBaseClass, ABC):
         pass
 
     def ElementMass(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 
@@ -171,7 +176,7 @@ class Q4Mem(ElementBaseClass, ABC):
 
         return G
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """计算刚度矩阵"""
         # 膜部分
         Ke = np.zeros((12, 12))
@@ -223,6 +228,9 @@ class Q4Mem(ElementBaseClass, ABC):
     def CalculateBasic(self):
         pass
 
+    def ReCalculateElementStiffness(self):
+        pass
+
 
 class CPM6(ElementBaseClass, ABC):
     """
@@ -241,6 +249,7 @@ class CPM6(ElementBaseClass, ABC):
         self.vtu_type = "triangle"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
         self.B = []
+        self.integ = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -259,7 +268,7 @@ class CPM6(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         p代表偏导: partial, ph1pr 代表偏h1偏r
         """
@@ -298,6 +307,7 @@ class CPM6(ElementBaseClass, ABC):
             B[2, :] += B2[0, :]
             self.K += B.T @ self.D @ B * w * det_J
             B_local.append(B)
+            self.integ.append(w * det_J)
 
         # 以上是平面单元的刚度阵, 以下转换为膜单元刚度阵, 参考Reference2
         a1 = (self.node_coords[2, 0] - self.node_coords[1, 0]) * 0.125
@@ -330,12 +340,17 @@ class CPM6(ElementBaseClass, ABC):
         node_stress = ExtrapolateMatrix3to3() @ gauss_stress
         return node_stress
 
-
     def ElementMass(self):
         pass
 
     def CalculateBasic(self):
         pass
+
+    def ReCalculateElementStiffness(self):
+        K = np.zeros((9, 9), dtype=float)
+        for iii in range(len(self.integ)):
+            K += self.B_global[iii].T @ self.D @ self.B_global[iii] * self.integ[iii]
+        return K
 
 
 class CPM8(ElementBaseClass, ABC):
@@ -355,6 +370,7 @@ class CPM8(ElementBaseClass, ABC):
         self.K = np.zeros([16, 16], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
+        self.integ = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -373,7 +389,7 @@ class CPM8(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         p代表偏导: partial, phpr 代表偏hi偏r求和
         """
@@ -426,6 +442,7 @@ class CPM8(ElementBaseClass, ABC):
                 B = np.insert(B1, 1, B2[1, :], axis=0)
                 B[2, :] += B2[0, :]
                 B_local.append(B)
+                self.integ.append(w_r * w_s * det_J)
                 self.K += B.T @ self.D @ B * w_r * w_s * det_J
 
         """
@@ -478,6 +495,12 @@ class CPM8(ElementBaseClass, ABC):
 
     def CalculateBasic(self):
         pass
+
+    def ReCalculateElementStiffness(self):
+        K = np.zeros((12, 12), dtype=float)
+        for iii in range(len(self.integ)):
+            K += self.B_global[iii].T @ self.D @ self.B_global[iii] * self.integ[iii]
+        return K
 
 
 if __name__ == "__main__":

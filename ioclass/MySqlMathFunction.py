@@ -6,7 +6,7 @@ import sys
 import time
 import os
 
-import _mysql_connector
+# import _mysql_connector
 import mysql.connector
 import numpy as np
 from dateutil.relativedelta import relativedelta

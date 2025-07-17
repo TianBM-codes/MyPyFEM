@@ -17,6 +17,7 @@ class T3D2(ElementBaseClass, ABC):
         self.vtu_type = "line"
         self.stiffness = None
         self.stress = None
+        self.block_size = 36
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -24,7 +25,7 @@ class T3D2(ElementBaseClass, ABC):
         """
         pass
 
-    def ElementStiffness(self):
+    def ElementStiffness(self, from_origin=False):
         """
         TODO: 刚度阵中加eps的这种处理方式是否合理？
         TODO: 值不对的问题可以写一个二维杆端元, 然后与曾攀《有限元分析及应用》P123页对比结果
@@ -70,6 +71,9 @@ class T3D2(ElementBaseClass, ABC):
         pass
 
     def CalculateBasic(self):
+        pass
+
+    def ReCalculateElementStiffness(self):
         pass
 
 
