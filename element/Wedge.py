@@ -16,6 +16,7 @@ class C3D6(ElementBaseClass, ABC):
         self.vtu_type = "wedge"
         self.unv_code = 60600
         self.gs_count = 6  # 高斯积分点个数
+        self.block_size = 324
 
     def CalElementDMatrix(self, an_type=None):
         """

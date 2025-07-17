@@ -282,6 +282,8 @@ class CookTriShell(ElementBaseClass, ABC):
         """
         self.plate = DKTPlate(-1)
         self.membrane = CPM6(-1)
+        self.block_size = 324
+        self.node_dof_count = 6
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -424,6 +426,8 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.plate = DKQPlate(self.id)
         self.membrane = CPM8(self.id)
         self.T_matrix = None
+        self.block_size = 576
+        self.node_dof_count = 6
 
     def CalElementDMatrix(self, an_type=None):
         """

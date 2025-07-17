@@ -376,14 +376,14 @@ class CDBParser(object):
 
                 ele_node_list = list(OrderedDict.fromkeys(search_ids))
                 self.node_search_ids_list.extend(ele_node_list)
-                iter_ele, e_node_count, ele_matrix_size, node_dof = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
+                iter_ele, e_node_count, node_dof = ElementFactory.CreateElement(e_type=self.et_hash[e_type], opt=len(ele_node_list))
                 iter_ele.SetNodeSearchIndex(np.asarray(ele_node_list))
                 iter_ele.SetId(ele_num)
                 iter_ele.SetNodes(np.asarray(list(OrderedDict.fromkeys(node_ids))))
                 iter_ele.mat_id = mat_num
                 iter_ele.sec_id = sec_id
                 iter_ele.real_const_id = real_constant_num
-                self.femdb.matrix_num_count += ele_matrix_size
+                self.femdb.matrix_num_count += iter_ele.block_size
                 for iii in ele_node_list:
                     self.femdb.node_list[iii].SetDof(node_dof)
 

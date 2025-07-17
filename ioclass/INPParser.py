@@ -185,7 +185,7 @@ class InpParser(object):
                 # 将*视为结束
                 self.iter_line = f_handle.readline().strip()
                 while not self.iter_line.startswith("*"):
-                    iter_ele, n_cnt, ele_matrix_size = ElementFactory.CreateElement(e_type.strip())
+                    iter_ele, n_cnt, node_dof = ElementFactory.CreateElement(e_type.strip())
                     nds = np.zeros(n_cnt, dtype=np.uint32)
                     sp_line = self.iter_line.split(",")
                     if sp_line[-1] == "":
@@ -227,7 +227,7 @@ class InpParser(object):
                     self.fem_db.elements.append(iter_ele)
                     self.ele_count += 1
                     self.iter_line = f_handle.readline().strip()
-                    self.fem_db.matrix_num_count += ele_matrix_size
+                    self.fem_db.matrix_num_count += iter_ele.block_size
 
             elif self.iter_line.lower().startswith("*nset,"):
                 self.ReadNSet(f_handle)

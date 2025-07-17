@@ -134,14 +134,15 @@ class Domain(object):
                 stiff_array = ele.ReCalculateElementStiffness()
             else:
                 stiff_array = self.femdb.stiff_list[kk]
-            n_nodes = len(search_node_ids)
-            block_size = n_nodes * ModelInfo.PER_NODE_DOF
 
-            el_dofs = np.array([np.arange(self.femdb.node_list[x].start_eq_num, self.femdb.node_list[x].end_eq_num).tolist() for x in search_node_ids])
+            # start_eq_num = self.femdb.node_list[]
+            ele_dofs = np.array([np.arange(self.femdb.node_list[x].start_eq_num,
+                                           self.femdb.node_list[x].start_eq_num + ele.node_dof_count)
+                                 for x in search_node_ids])
             # el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
             #                     for x in search_node_ids]).flatten()
-            rows_block, cols_block = np.meshgrid(el_dofs, el_dofs)
-            entries_count = block_size ** 2
+            rows_block, cols_block = np.meshgrid(ele_dofs, ele_dofs)
+            entries_count = ele.block_size
             rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()
             cols[iter_loc:iter_loc + entries_count] = cols_block.ravel()
             datas[iter_loc:iter_loc + entries_count] = stiff_array.ravel()
@@ -390,8 +391,10 @@ class Domain(object):
         for ele in self.femdb.elements:
             search_idx = []
             for ii in ele.search_node_ids:
-                start = ii * ModelInfo.PER_NODE_DOF
-                end = (ii + 1) * ModelInfo.PER_NODE_DOF
+                # start = ii * ModelInfo.PER_NODE_DOF
+                # end = (ii + 1) * ModelInfo.PER_NODE_DOF
+                start = self.femdb.node_list[ii].start_eq_num
+                end = start + ele.node_dof_count
                 search_idx.extend(np.arange(start, end, 1).tolist())
 
             u = self.femdb.linear_u[search_idx].flatten()

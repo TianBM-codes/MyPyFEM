@@ -115,6 +115,8 @@ class Beam188(ElementBaseClass, ABC):
         self.vtu_type = "line"
         self.stiffness = None
         self.stress = None
+        self.block_size = 144
+        self.node_dof_count = 6
 
         # 截面相关, 面积、有效面积
         self.It, self.Is, self.Tor = None, None, None
@@ -244,6 +246,8 @@ class Beam189(ElementBaseClass, ABC):
         self.I = None  # 惯性矩
         self.sec_type = None  # 截面类型
         self.sec_data = None  # 截面参数
+        self.block_size = 324
+        self.node_dof_count = 6
 
     def CalElementDMatrix(self, an_type=None):
         pass

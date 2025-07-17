@@ -10,6 +10,7 @@ class C3D4(ElementBaseClass):
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
         self.vtu_type = "tetra"
         self.unv_code = 40800
+        self.block_size = 144
 
     def CalElementDMatrix(self, an_type=None):
         """

@@ -32,7 +32,7 @@ class ElementFactory:
     """
 
     @staticmethod
-    def CreateElement(e_type, e_id=-1, opt=None) -> Tuple[ElementBaseClass, int, int, int]:
+    def CreateElement(e_type, e_id=-1, opt=None) -> Tuple[ElementBaseClass, int, int]:
         """
         静态函数, 用于返回
         :param e_type: 单元类型，这里包含了Abaqus、Nastran和Ansys的
@@ -43,51 +43,51 @@ class ElementFactory:
         # 0D Element
         if e_type in [21]:
             # return Mass(e_id), 1, (ModelInfo.PER_NODE_DOF + 1) * ModelInfo.PER_NODE_DOF // 2
-            return Mass(e_id), 1, ModelInfo.PER_NODE_DOF ** 2, 3
+            return Mass(e_id), 1, 3
 
         # 1D Element
         elif e_type in ["T3D2"]:
-            return T3D2(e_id), 2, 36, 3
+            return T3D2(e_id), 2, 3
         elif e_type in ["B31", 188]:
             # return Beam188(e_id), 2, 78
-            return Beam188(e_id), 2, 144, 6
+            return Beam188(e_id), 2, 6
         elif e_type in [189]:
             # return Beam189(e_id), 3, 171
-            return Beam189(e_id), 3, 324, 6
+            return Beam189(e_id), 3, 6
 
         # 2D Element
         elif e_type in ["CPS3"]:
             # return CPS3(e_id), 3, 21
-            return CPS3(e_id), 3, 36, 2
+            return CPS3(e_id), 3, 2
         elif e_type in ["CPS4"]:
             # return CPS4(e_id), 4, 36
-            return CPS4(e_id), 4, 64, 2
+            return CPS4(e_id), 4, 2
 
         # 3D Element
         elif e_type in ["S3"]:
             # return CookTriShell(e_id), 3, 171
-            return CookTriShell(e_id), 3, 324, 6
+            return CookTriShell(e_id), 3, 6
         elif e_type in ["S4", "S4R", "S4RT"]:
             # return CookQuaShell(e_id), 4, 300
-            return CookQuaShell(e_id), 4, 576, 6
+            return CookQuaShell(e_id), 4, 6
         elif e_type in [181, 63]:
             if opt == 4:
                 # return CookQuaShell(e_id), 4, 300
-                return CookQuaShell(e_id), 4, 576, 6
+                return CookQuaShell(e_id), 4, 6
             elif opt == 3:
                 # return CookTriShell(e_id), 3, 171
-                return CookTriShell(e_id), 3, 324, 6
+                return CookTriShell(e_id), 3, 6
             else:
                 raise KeyError("Shell 181/63 don't support opt {}".format(opt))
 
         elif e_type in ["C3D8", 45]:
             # return C3D8(e_id), 8, 300
             if opt == 6:
-                return C3D6(e_id), 6, 324, 3
+                return C3D6(e_id), 6, 3
             elif opt == 8:
-                return C3D8(e_id), 8, 576, 3
+                return C3D8(e_id), 8, 3
             elif opt == 4:
-                return C3D4(e_id), 4, 144, 3
+                return C3D4(e_id), 4, 3
             else:
                 raise KeyError(f"Solid 45 don't support opt={opt}")
         elif e_type in ["C3D8R"]:
@@ -95,23 +95,23 @@ class ElementFactory:
             sys.exit(1)
         elif e_type in ["C3D6"]:
             # return C3D6(e_id), 6, 171
-            return C3D6(e_id), 6, 324, 3
+            return C3D6(e_id), 6, 3
         elif e_type in ["C3D4"]:
             # return C3D4(e_id), 4, 78
-            return C3D4(e_id), 4, 144, 3
+            return C3D4(e_id), 4, 3
         elif e_type in ["C3D20R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
         elif e_type == 185:
             if opt == 8:
                 # return C3D8(e_id), 8, 300
-                return C3D8(e_id), 8, 576, 3
+                return C3D8(e_id), 8, 3
             elif opt == 6:
                 # return C3D6(e_id), 6, 171
-                return C3D6(e_id), 6, 324, 3
+                return C3D6(e_id), 6, 3
             elif opt == 4:
                 # return C3D4(e_id), 4, 78
-                return C3D4(e_id), 4, 144, 3
+                return C3D4(e_id), 4, 3
             else:
                 raise KeyError("Wrong opt parameter: {}".format(opt))
 

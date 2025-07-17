@@ -19,6 +19,8 @@ class C3D8(ElementBaseClass, ABC):
         self.unv_code = 80600
         self.gs_count = 8
         self.Gaussian_B = []  # 高斯积分点处的应变矩阵
+        self.block_size = 576
+        self.node_dof_count = 3
 
     def CalElementDMatrix(self, an_type=None):
         """

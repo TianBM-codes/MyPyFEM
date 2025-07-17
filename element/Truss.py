@@ -17,6 +17,7 @@ class T3D2(ElementBaseClass, ABC):
         self.vtu_type = "line"
         self.stiffness = None
         self.stress = None
+        self.block_size = 36
 
     def CalElementDMatrix(self, an_type=None):
         """

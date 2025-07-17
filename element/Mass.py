@@ -18,6 +18,7 @@ class Mass(ElementBaseClass, ABC):
         self.vtu_type = "vertex"
         self.stiffness = None
         self.stress = None
+        self.block_size = 9
 
     def CalElementDMatrix(self, an_type=None):
         """

@@ -17,6 +17,7 @@ class CPS4(ElementBaseClass, ABC):
         self.K = np.zeros([8, 8], dtype=float)  # 刚度矩阵
         self.vtu_type = "quad"
         self.B = []
+        self.block_size = 64
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -142,6 +143,7 @@ class CPS3(ElementBaseClass, ABC):
         self.K = np.zeros([6, 6], dtype=float)  # 刚度矩阵
         self.vtu_type = "triangle"
         self.B = None
+        self.block_size = 36
 
     def CalElementDMatrix(self, an_type=None):
         """
