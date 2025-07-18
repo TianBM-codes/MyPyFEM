@@ -4,6 +4,7 @@
 from element.ElementBase import *
 from abc import ABC
 import numpy as np
+import math
 
 
 def shape2d(ss, tt, x):
@@ -225,6 +226,92 @@ class MITC4(ElementBaseClass, ABC):
         Reference:
         """
         assert self.node_coords.shape == (1, 3)
+        # 计算节点坐标间的差值
+        dx34 = self.node_coords[0][2] - self.node_coords[0][3]
+        dy34 = self.node_coords[1][2] - self.node_coords[1][3]
+        dx21 = self.node_coords[0][1] - self.node_coords[0][0]
+        dy21 = self.node_coords[1][1] - self.node_coords[1][0]
+        dx32 = self.node_coords[0][2] - self.node_coords[0][1]
+        dy32 = self.node_coords[1][2] - self.node_coords[1][1]
+        dx41 = self.node_coords[0][3] - self.node_coords[0][0]
+        dy41 = self.node_coords[1][3] - self.node_coords[1][0]
+        # 初始化4x12矩阵（全部置零）
+        G = np.zeros((4, 12), dtype=float)
+        one_over_four = 0.25  # 1/4的预计算值
+        # 填充矩阵G的值（按行赋值）
+        G[0][0] = -0.5
+        G[0][1] = -dy41 * one_over_four
+        G[0][2] = dx41 * one_over_four
+        G[0][9] = 0.5
+        G[0][10] = -dy41 * one_over_four
+        G[0][11] = dx41 * one_over_four
+        G[1][0] = -0.5
+        G[1][1] = -dy21 * one_over_four
+        G[1][2] = dx21 * one_over_four
+        G[1][3] = 0.5
+        G[1][4] = -dy21 * one_over_four
+        G[1][5] = dx21 * one_over_four
+        G[2][3] = -0.5
+        G[2][4] = -dy32 * one_over_four
+        G[2][5] = dx32 * one_over_four
+        G[2][6] = 0.5
+        G[2][7] = -dy32 * one_over_four
+        G[2][8] = dx32 * one_over_four
+        G[3][6] = 0.5
+        G[3][7] = -dy34 * one_over_four
+        G[3][8] = dx34 * one_over_four
+        G[3][9] = -0.5
+        G[3][10] = -dy34 * one_over_four
+        G[3][11] = dx34 * one_over_four
+
+        # 提取节点坐标
+        x = self.node_coords[0]  # x坐标数组 [x0, x1, x2, x3]
+        y = self.node_coords[1]  # y坐标数组 [y0, y1, y2, y3]
+        # 计算中间变量
+        Ax = -x[0] + x[1] + x[2] - x[3]
+        Bx = x[0] - x[1] + x[2] - x[3]
+        Cx = -x[0] - x[1] + x[2] + x[3]
+        Ay = -y[0] + y[1] + y[2] - y[3]
+        By = y[0] - y[1] + y[2] - y[3]
+        Cy = -y[0] - y[1] + y[2] + y[3]
+        # 使用atan2避免除零错误
+        alph = math.atan2(Ay, Ax)  # 计算α角度
+        beta = math.pi / 2 - math.atan2(Cx, Cy)  # 计算β角度
+        # 创建旋转矩阵
+        Rot = np.zeros((2, 2))
+        Rot[0, 0] = math.sin(beta)
+        Rot[0, 1] = -math.sin(alph)
+        Rot[1, 0] = -math.cos(beta)
+        Rot[1, 1] = math.cos(alph)
+
+        Ms = np.zeros((2, 4), dtype=float)
+        Bsv = np.zeros((2, 12), dtype=float)
+        Bs = np.zeros((2, 12), dtype=float)
+        # 初始化变量
+        r1 = 0.0
+        r2 = 0.0
+        r3 = 0.0
+
+        # 高斯积分点
+        sg = np.zeros(4, dtype=float)
+        tg = np.zeros(4, dtype=float)
+        wg = np.ones(4, dtype=float)
+        one_over_root3 = 1 / np.sqrt(3)
+        sg[0] = -one_over_root3
+        sg[1] = one_over_root3
+        sg[2] = one_over_root3
+        sg[3] = -one_over_root3
+
+        tg[0] = -one_over_root3
+        tg[1] = -one_over_root3
+        tg[2] = one_over_root3
+        tg[3] = one_over_root3
+
+        """
+        Gauss Loop
+        """
+        for igauss in range(4):
+
 
     def CalculateElementStress(self, displacement):
         """
