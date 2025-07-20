@@ -1,10 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
-from element.ElementBase import *
 from abc import ABC
 import numpy as np
 import math
+from enum import Enum
+
+
+class MaterialKey(Enum):
+    """ 材料参数关键字集合 """
+    E = 1
+    Density = 2
+    Niu = 3
+    G = 4
+    Thickness = 5
+    Conductivity = 6  # 热传导系数
+    Expansion = 7
+    SpecificHeat = 8
+    Area = 9
 
 
 def shape2d(ss, tt, x):
@@ -199,8 +211,11 @@ class ElasticMembranePlateSection:
 
         return t.copy()
 
+    def getInitTangent(self):
+        return self.getSectionTangent()
 
-class MITC4(ElementBaseClass, ABC):
+
+class MITC4():
     """
     MITC4 Element class.
     Reference:
@@ -208,7 +223,6 @@ class MITC4(ElementBaseClass, ABC):
     """
 
     def __init__(self, eid):
-        super().__init__(eid)
         self.nodes_count = 4
         self.vtu_type = "quad"
         self.stiffness = None
@@ -225,20 +239,34 @@ class MITC4(ElementBaseClass, ABC):
         """
         Reference:
         """
-        assert self.node_coords.shape == (1, 3)
+        coor0, coor1 = self.node_coords[:, 0], self.node_coords[:, 1]
+        coor2, coor3 = self.node_coords[:, 2], self.node_coords[:, 3]
+
+        v1 = 0.5 * (coor2 + coor1 - coor3 - coor0)
+        v2 = 0.5 * (coor3 + coor2 - coor1 - coor0)
+
+        v1 = v1 / np.linalg.norm(v1)
+        alpha = np.dot(v2, v1)
+        v2_proj = alpha * v1
+        v2_new = v2 - v2_proj
+        v2 = v2_new / np.linalg.norm(v2_new)
+        v3 = np.cross(v1, v2)
+        xl = np.zeros((2, 4), dtype=float)
+        for ii in range(4):
+            xl[0][ii] = self.node_coords[:, ii] @ v1
+            xl[1][ii] = self.node_coords[:, ii] @ v2
+
         # 计算节点坐标间的差值
-        dx34 = self.node_coords[0][2] - self.node_coords[0][3]
-        dy34 = self.node_coords[1][2] - self.node_coords[1][3]
-        dx21 = self.node_coords[0][1] - self.node_coords[0][0]
-        dy21 = self.node_coords[1][1] - self.node_coords[1][0]
-        dx32 = self.node_coords[0][2] - self.node_coords[0][1]
-        dy32 = self.node_coords[1][2] - self.node_coords[1][1]
-        dx41 = self.node_coords[0][3] - self.node_coords[0][0]
-        dy41 = self.node_coords[1][3] - self.node_coords[1][0]
-        # 初始化4x12矩阵（全部置零）
+        dx34 = xl[0][2] - xl[0][3]
+        dy34 = xl[1][2] - xl[1][3]
+        dx21 = xl[0][1] - xl[0][0]
+        dy21 = xl[1][1] - xl[1][0]
+        dx32 = xl[0][2] - xl[0][1]
+        dy32 = xl[1][2] - xl[1][1]
+        dx41 = xl[0][3] - xl[0][0]
+        dy41 = xl[1][3] - xl[1][0]
         G = np.zeros((4, 12), dtype=float)
-        one_over_four = 0.25  # 1/4的预计算值
-        # 填充矩阵G的值（按行赋值）
+        one_over_four = 0.25
         G[0][0] = -0.5
         G[0][1] = -dy41 * one_over_four
         G[0][2] = dx41 * one_over_four
@@ -265,8 +293,8 @@ class MITC4(ElementBaseClass, ABC):
         G[3][11] = dx34 * one_over_four
 
         # 提取节点坐标
-        x = self.node_coords[0]  # x坐标数组 [x0, x1, x2, x3]
-        y = self.node_coords[1]  # y坐标数组 [y0, y1, y2, y3]
+        x = xl[0]  # x坐标数组 [x0, x1, x2, x3]
+        y = xl[1]  # y坐标数组 [y0, y1, y2, y3]
         # 计算中间变量
         Ax = -x[0] + x[1] + x[2] - x[3]
         Bx = x[0] - x[1] + x[2] - x[3]
@@ -310,8 +338,126 @@ class MITC4(ElementBaseClass, ABC):
         """
         Gauss Loop
         """
-        for igauss in range(4):
+        ngauss = 4
+        volume = 0
+        nstress = 8
+        numnodes = 4
+        ndf = 6
+        saveB = np.zeros((nstress, ndf, numnodes), dtype=float)
+        Bshear = np.zeros((2, 3), dtype=float)
+        dvol = np.zeros(ngauss)
+        stiff = np.zeros((numnodes * ndf, numnodes * ndf))
+        resid = np.zeros(numnodes * ndf)
+        for igauss in range(ngauss):
+            r1 = Cx + sg[igauss] * Bx
+            r3 = Cy + sg[igauss] * By
+            r1 = np.sqrt(r1 ** 2 + r3 ** 2)
 
+            r2 = Ax + tg[igauss] * Bx
+            r3 = Ay + tg[igauss] * By
+            r2 = np.sqrt(r2 ** 2 + r3 ** 2)
+
+            # 计算形函数和 Jacobian
+            shp, xsj = shape2d(sg[igauss], tg[igauss], xl)
+
+            # 计算体积微元和总体积
+            dvol[igauss] = wg[igauss] * xsj
+            volume += dvol[igauss]
+
+            # 构建 Ms 矩阵 (2x4)
+            Ms = np.array([
+                [1 - sg[igauss], 0, 1 + sg[igauss], 0],
+                [0, 1 - tg[igauss], 0, 1 + tg[igauss]]
+            ])
+
+            Bsv = Ms @ G  # 矩阵乘法
+
+            # 缩放 Bsv 的每列
+            for j in range(12):
+                Bsv[0, j] *= r1 / (8 * xsj)
+                Bsv[1, j] *= r2 / (8 * xsj)
+
+            Bs = Rot @ Bsv
+            epsDrill = 0.0
+            strain = np.zeros(nstress)
+
+            for j in range(numnodes):
+                Bmembrane = computeBmembrane(j, shp)
+                Bbend = computeBbend(j, shp)
+                for p in range(3):
+                    Bshear[0, p] = Bs[0, j * 3 + p]
+                    Bshear[1, p] = Bs[1, j * 3 + p]
+                BJ = assembleB(Bmembrane, Bbend, Bshear, v1, v2, v3)
+                for p in range(nstress):
+                    for q in range(ndf):
+                        saveB[p][q][j] = BJ[p, q]
+                # ul = self.node_disps[j] - self.init_disp[j] if hasattr(self, 'init_disp') else self.node_disps[j]
+
+                # 计算应变
+                # strain += BJ @ ul
+
+                # 计算钻孔应变
+                BdrillJ = computeBdrill(j, shp, v1, v2, v3)
+                # epsDrill += np.dot(BdrillJ, ul)
+
+            # 获取材料响应
+            # success = self.materialPointers[igauss].setTrialSectionDeformation(strain)
+            # stress = self.materialPointers[igauss].getStressResultant()
+
+            # 钻孔应力
+            # tauDrill = self.Ktt * epsDrill
+
+            # 乘以体积微元
+            # stress *= dvol[igauss]
+            # tauDrill *= dvol[igauss]
+
+            elastic = ElasticMembranePlateSection(self.cha_dict[MaterialKey.E],
+                                                  self.cha_dict[MaterialKey.Niu],
+                                                  self.cha_dict[MaterialKey.Thickness])
+            dd = elastic.getSectionTangent()
+            tangent = elastic.getInitTangent()[:3, :3]
+            Ktt = np.min(np.linalg.eigvals(tangent))
+
+            jj = 0  # 当前节点在刚度矩阵中的起始行索引
+            for j in range(numnodes):
+                # 提取当前节点的B矩阵 (8x6)
+                BJ = saveB[:, :, j]
+
+                # 计算转置 B^T (6x8)
+                BJtran = BJ.T
+
+                # 计算 B^T D (6x8)
+                BJtranD = BJtran @ dd
+
+                # 计算钻孔B矩阵 (6x1)
+                BdrillJ = computeBdrill(j, shp, v1, v2, v3)
+
+                # 缩放钻孔矩阵
+                BdrillJ_scaled = BdrillJ * (Ktt * dvol[igauss])
+
+                # 内层节点循环
+                kk = 0  # 当前k节点在刚度矩阵中的起始列索引
+                for k in range(numnodes):
+                    # 提取k节点的B矩阵 (8x6)
+                    BK = saveB[:, :, k]
+
+                    # 计算钻孔B矩阵 (6x1)
+                    BdrillK = computeBdrill(k, shp, v1, v2, v3)
+
+                    # 计算刚度子矩阵: B_j^T D B_k (6x6)
+                    stiffJK = BJtranD @ BK  # (6x8) @ (8x6) = 6x6
+
+                    # 添加钻孔贡献: (B_drillJ)^T B_drillK
+                    drill_contribution = np.outer(BdrillJ_scaled, BdrillK)
+
+                    # 组装到全局刚度矩阵
+                    stiff[jj:jj + ndf, kk:kk + ndf] += stiffJK + drill_contribution
+
+                    kk += ndf  # 移动到下一节点的列索引
+
+                jj += ndf  # 移动到下一节点的行索引
+
+        print("ZZ")
 
     def CalculateElementStress(self, displacement):
         """
@@ -331,7 +477,13 @@ class MITC4(ElementBaseClass, ABC):
 
 if __name__ == "__main__":
     t_ele = MITC4(-1)
-    t_ele.ele_mat_dict = {MaterialKey.E: 1, MaterialKey.Area: np.sqrt(3)}
+    t_ele.cha_dict = {MaterialKey.Niu: 0.3,
+                      MaterialKey.E: 1e7,
+                      MaterialKey.Thickness: 1,
+                      MaterialKey.G: 2e11 / 2 / (1 + 0.3)
+                      }
     t_ele.node_coords = np.array([[0, 0, 0],
-                                  [1, 1, 1]], dtype=float)
+                                  [1, 0, 0],
+                                  [1, 1.6, 0],
+                                  [0, 1, 0]], dtype=float).T
     print(t_ele.ElementStiffness())
