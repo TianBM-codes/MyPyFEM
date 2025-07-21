@@ -336,6 +336,15 @@ class MITC4():
         tg[3] = one_over_root3
 
         """
+        Material
+        """
+        elastic = ElasticMembranePlateSection(self.cha_dict[MaterialKey.E],
+                                              self.cha_dict[MaterialKey.Niu],
+                                              self.cha_dict[MaterialKey.Thickness])
+        tangent = elastic.getInitTangent()[:3, :3]
+        Ktt = np.min(np.linalg.eigvals(tangent))
+
+        """
         Gauss Loop
         """
         ngauss = 4
@@ -360,14 +369,10 @@ class MITC4():
             # 计算形函数和 Jacobian
             shp, xsj = shape2d(sg[igauss], tg[igauss], xl)
 
-            # 计算体积微元和总体积
-            dvol[igauss] = wg[igauss] * xsj
-            volume += dvol[igauss]
-
             # 构建 Ms 矩阵 (2x4)
             Ms = np.array([
-                [1 - sg[igauss], 0, 1 + sg[igauss], 0],
-                [0, 1 - tg[igauss], 0, 1 + tg[igauss]]
+                [0, 1 - tg[igauss], 0, 1 + tg[igauss]],
+                [1 - sg[igauss], 0, 1 + sg[igauss], 0]
             ])
 
             Bsv = Ms @ G  # 矩阵乘法
@@ -411,20 +416,19 @@ class MITC4():
             # stress *= dvol[igauss]
             # tauDrill *= dvol[igauss]
 
-            elastic = ElasticMembranePlateSection(self.cha_dict[MaterialKey.E],
-                                                  self.cha_dict[MaterialKey.Niu],
-                                                  self.cha_dict[MaterialKey.Thickness])
-            dd = elastic.getSectionTangent()
-            tangent = elastic.getInitTangent()[:3, :3]
-            Ktt = np.min(np.linalg.eigvals(tangent))
-
             jj = 0  # 当前节点在刚度矩阵中的起始行索引
             for j in range(numnodes):
                 # 提取当前节点的B矩阵 (8x6)
-                BJ = saveB[:, :, j]
+                BJ = saveB[:, :, j].copy()
+                BJ[3:6, 3:6] *= -1
 
                 # 计算转置 B^T (6x8)
                 BJtran = BJ.T
+
+                # 计算体积微元和总体积
+                dvol[igauss] = wg[igauss] * xsj
+                dd = elastic.getSectionTangent() * dvol[igauss]
+                volume += dvol[igauss]
 
                 # 计算 B^T D (6x8)
                 BJtranD = BJtran @ dd

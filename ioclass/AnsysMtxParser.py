@@ -5,7 +5,7 @@ from ioclass.HarwellBoeingParser import HarwellBoeingMatrix
 import numpy as np
 
 
-def ReadANSYSStiffness(f_name, print_log=False):
+def ReadANSYSStiffness(f_name, print_log=False, save2file=False):
     """
     ANSYS命令流如下
     /AUX2
@@ -50,6 +50,9 @@ def ReadANSYSStiffness(f_name, print_log=False):
         print("ANSYS Stiffness.shape is:({},{})".format(K_hb.nrow, K_hb.ncol))
         print("请对比ANSYS计算结果(下列结果为读取文件计算出来的) :\n{}".format(np.matmul(np.linalg.inv(K_ANSYS), Q).flatten()))
 
+    if save2file:
+        np.savetxt("saved.txt", K_ANSYS)
+
     # 查看刚度矩阵的正负号性质
     kkk = np.zeros((K_hb.nrow, K_hb.ncol), dtype=int)
     for ii in range(K_hb.nrow):
@@ -66,6 +69,7 @@ if __name__ == "__main__":
     # f_path = "../../testcases/ANSYS/tempdirectory/Stiffness_mat.dat"
     # f_path = "D:/WorkSpace/Temp/ccc/stiffness_mat_one_shell.dat"
     # f_path = "D:/WorkSpace/Temp/ccc/stiffness_mat.dat"
-    f_path = "D:/WorkSpace/Temp/ccc/plane42_stiff.dat"
+    # f_path = "D:/WorkSpace/Temp/ccc/plane42_stiff.dat"
     # f_path = "D:/WorkSpace/Temp/ccc/shell63.dat"
-    ReadANSYSStiffness(f_path, True)
+    f_path = "D:/WorkSpace/Temp/mangren/Mass_mat.dat"
+    ReadANSYSStiffness(f_path, True, save2file=True)
