@@ -118,6 +118,7 @@ class MaterialKey(Enum):
     Expansion = 7
     SpecificHeat = 8
     Area = 9
+    Rho = 10
 
 
 class SectionKey(Enum):
@@ -188,6 +189,7 @@ class BeamSectionType(Enum):
     CircleSolid = 2
     Rectangle = 3
     CircleTube = 4
+    UserInput = 5
 
 
 # 全局变量, 用于存储分析类型、导入文件类型等信息

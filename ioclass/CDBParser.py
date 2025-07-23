@@ -494,7 +494,13 @@ class CDBParser(object):
             if splits[2] == "BEAM":
                 beam_type = splits[3].lstrip()
                 msec_data = f_handle.readline().strip().split(",")
-                sec_data = [float(msec_data[idx]) for idx in range(1, len(msec_data)) if msec_data[idx]]
+                sec_data = []
+                for iter_str in msec_data:
+                    try:
+                        sec_data.append(float(iter_str))
+                    except ValueError as _:
+                        pass
+
                 f_handle.readline()  # section offset
                 f_handle.readline()  # section control
                 if beam_type == "RECT":
@@ -505,6 +511,9 @@ class CDBParser(object):
                     inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.CircleSolid, sec_data)
                     area_character = BeamCalculator.CalEffectiveShearArea(BeamSectionType.CircleSolid, sec_data)
                     self.section_map[int(sec_num)] = {**inertia_character, **area_character}
+                elif beam_type == "USER":
+                    inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.UserInput, sec_data)
+                    self.section_map[int(sec_num)] = {**inertia_character}
                 else:
                     mlogger.fatal("UnSupport Beam Type:{}".format(beam_type))
                     sys.exit(1)
