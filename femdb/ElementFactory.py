@@ -80,16 +80,8 @@ class ElementFactory:
             else:
                 raise KeyError("Shell 181/63 don't support opt {}".format(opt))
 
-        elif e_type in ["C3D8", 45]:
-            # return C3D8(e_id), 8, 300
-            if opt == 6:
-                return C3D6(e_id), 6, 3
-            elif opt == 8:
-                return C3D8(e_id), 8, 3
-            elif opt == 4:
-                return C3D4(e_id), 4, 3
-            else:
-                raise KeyError(f"Solid 45 don't support opt={opt}")
+        elif e_type in ["C3D8"]:
+            return C3D8(e_id), 8, 3
         elif e_type in ["C3D8R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
@@ -102,7 +94,7 @@ class ElementFactory:
         elif e_type in ["C3D20R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
-        elif e_type == 185:
+        elif e_type in [185, 45]:
             if opt == 8:
                 # return C3D8(e_id), 8, 300
                 return C3D8(e_id), 8, 3

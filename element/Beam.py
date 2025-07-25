@@ -351,11 +351,6 @@ class Beam188(ElementBaseClass, ABC):
         """设置截面属性"""
         self.cha_dict[key] = value
 
-    def set_release_condition(self, releasez=0, releasey=0):
-        """设置端部释放条件"""
-        self.releasez = releasez
-        self.releasey = releasey
-
     def ElementStiffness(self, from_origin=False):
         """计算单元刚度矩阵"""
         E = self.cha_dict[MaterialKey.E]
@@ -365,37 +360,130 @@ class Beam188(ElementBaseClass, ABC):
         Iy = self.cha_dict[SectionKey.It]
         Iz = self.cha_dict[SectionKey.Is]
         L = self.length = self._calculate_length()
+        self._calculate_rotation_matrix()
 
         oneOverL = 1.0 / L
         EoverL = E * oneOverL
         kb = np.zeros((6, 6))
-
-        # 轴向刚度
         kb[0, 0] = A * EoverL
-
-        # 扭转刚度
         kb[5, 5] = G * Jx * oneOverL
         EIzoverL4 = 4.0 * E * Iz / L
         EIzoverL2 = 2.0 * E * Iz / L
         kb[1, 1] = kb[2, 2] = EIzoverL4
         kb[1, 2] = kb[2, 1] = EIzoverL2
-        kb[2, 2] = 3.0 * E * Iz / L
-        kb[1, 1] = 3.0 * E * Iz / L
 
         EIyoverL4 = 4.0 * E * Iy / L
         EIyoverL2 = 2.0 * E * Iy / L
         kb[3, 3] = kb[4, 4] = EIyoverL4
         kb[3, 4] = kb[4, 3] = EIyoverL2
-        kb[4, 4] = 3.0 * E * Iy / L
-        kb[3, 3] = 3.0 * E * Iy / L
 
+        # 第一步矩阵乘法: tmp = kb * T_bl
+        tmp = np.zeros((12, 12))
+        for i in range(6):
+            tmp[i, 0] = -kb[i, 0]
+            tmp[i, 1] = oneOverL * (kb[i, 1] + kb[i, 2])
+            tmp[i, 2] = -oneOverL * (kb[i, 3] + kb[i, 4])
+            tmp[i, 3] = -kb[i, 5]
+            tmp[i, 4] = kb[i, 3]
+            tmp[i, 5] = kb[i, 1]
+            tmp[i, 6] = kb[i, 0]
+            tmp[i, 7] = -tmp[i, 1]
+            tmp[i, 8] = -tmp[i, 2]
+            tmp[i, 9] = kb[i, 5]
+            tmp[i, 10] = kb[i, 4]
+            tmp[i, 11] = kb[i, 2]
 
+        # 第二步矩阵乘法: kl = T_bl^T * tmp
+        kl = np.zeros((12, 12))
+        for i in range(12):
+            kl[0, i] = -tmp[0, i]
+            kl[1, i] = oneOverL * (tmp[1, i] + tmp[2, i])
+            kl[2, i] = -oneOverL * (tmp[3, i] + tmp[4, i])
+            kl[3, i] = -tmp[5, i]
+            kl[4, i] = tmp[3, i]
+            kl[5, i] = tmp[1, i]
+            kl[6, i] = tmp[0, i]
+            kl[7, i] = -kl[1, i]
+            kl[8, i] = -kl[2, i]
+            kl[9, i] = tmp[5, i]
+            kl[10, i] = tmp[4, i]
+            kl[11, i] = tmp[2, i]
 
+        # 3. 将局部刚度矩阵转换为全局刚度矩阵
+        # 第一步: tmp2 = kl * T_lg
+        tmp2 = np.zeros((12, 12))
+        for m in range(12):
+            # 前3个自由度 (平移)
+            tmp2[m, 0] = kl[m, 0] * self.R[0, 0] + kl[m, 1] * self.R[1, 0] + kl[m, 2] * self.R[2, 0]
+            tmp2[m, 1] = kl[m, 0] * self.R[0, 1] + kl[m, 1] * self.R[1, 1] + kl[m, 2] * self.R[2, 1]
+            tmp2[m, 2] = kl[m, 0] * self.R[0, 2] + kl[m, 1] * self.R[1, 2] + kl[m, 2] * self.R[2, 2]
 
+            # 中间3个自由度 (节点I的旋转)
+            tmp2[m, 3] = kl[m, 3] * self.R[0, 0] + kl[m, 4] * self.R[1, 0] + kl[m, 5] * self.R[2, 0]
+            tmp2[m, 4] = kl[m, 3] * self.R[0, 1] + kl[m, 4] * self.R[1, 1] + kl[m, 5] * self.R[2, 1]
+            tmp2[m, 5] = kl[m, 3] * self.R[0, 2] + kl[m, 4] * self.R[1, 2] + kl[m, 5] * self.R[2, 2]
 
+            # 后3个自由度 (节点J的平移)
+            tmp2[m, 6] = kl[m, 6] * self.R[0, 0] + kl[m, 7] * self.R[1, 0] + kl[m, 8] * self.R[2, 0]
+            tmp2[m, 7] = kl[m, 6] * self.R[0, 1] + kl[m, 7] * self.R[1, 1] + kl[m, 8] * self.R[2, 1]
+            tmp2[m, 8] = kl[m, 6] * self.R[0, 2] + kl[m, 7] * self.R[1, 2] + kl[m, 8] * self.R[2, 2]
 
+            # 最后3个自由度 (节点J的旋转)
+            tmp2[m, 9] = kl[m, 9] * self.R[0, 0] + kl[m, 10] * self.R[1, 0] + kl[m, 11] * self.R[2, 0]
+            tmp2[m, 10] = kl[m, 9] * self.R[0, 1] + kl[m, 10] * self.R[1, 1] + kl[m, 11] * self.R[2, 1]
+            tmp2[m, 11] = kl[m, 9] * self.R[0, 2] + kl[m, 10] * self.R[1, 2] + kl[m, 11] * self.R[2, 2]
 
-        return self.stiffness
+        # 第二步: kg = T_lg^T * tmp2
+        kg = np.zeros((12, 12))
+        for m in range(12):
+            # 前3个自由度 (平移)
+            kg[0, m] = self.R[0, 0] * tmp2[0, m] + self.R[1, 0] * tmp2[1, m] + self.R[2, 0] * tmp2[2, m]
+            kg[1, m] = self.R[0, 1] * tmp2[0, m] + self.R[1, 1] * tmp2[1, m] + self.R[2, 1] * tmp2[2, m]
+            kg[2, m] = self.R[0, 2] * tmp2[0, m] + self.R[1, 2] * tmp2[1, m] + self.R[2, 2] * tmp2[2, m]
+
+            # 中间3个自由度 (节点I的旋转)
+            kg[3, m] = self.R[0, 0] * tmp2[3, m] + self.R[1, 0] * tmp2[4, m] + self.R[2, 0] * tmp2[5, m]
+            kg[4, m] = self.R[0, 1] * tmp2[3, m] + self.R[1, 1] * tmp2[4, m] + self.R[2, 1] * tmp2[5, m]
+            kg[5, m] = self.R[0, 2] * tmp2[3, m] + self.R[1, 2] * tmp2[4, m] + self.R[2, 2] * tmp2[5, m]
+
+            # 后3个自由度 (节点J的平移)
+            kg[6, m] = self.R[0, 0] * tmp2[6, m] + self.R[1, 0] * tmp2[7, m] + self.R[2, 0] * tmp2[8, m]
+            kg[7, m] = self.R[0, 1] * tmp2[6, m] + self.R[1, 1] * tmp2[7, m] + self.R[2, 1] * tmp2[8, m]
+            kg[8, m] = self.R[0, 2] * tmp2[6, m] + self.R[1, 2] * tmp2[7, m] + self.R[2, 2] * tmp2[8, m]
+
+            # 最后3个自由度 (节点J的旋转)
+            kg[9, m] = self.R[0, 0] * tmp2[9, m] + self.R[1, 0] * tmp2[10, m] + self.R[2, 0] * tmp2[11, m]
+            kg[10, m] = self.R[0, 1] * tmp2[9, m] + self.R[1, 1] * tmp2[10, m] + self.R[2, 1] * tmp2[11, m]
+            kg[11, m] = self.R[0, 2] * tmp2[9, m] + self.R[1, 2] * tmp2[10, m] + self.R[2, 2] * tmp2[11, m]
+
+        return kg
+
+    def _calculate_rotation_matrix(self):
+        """计算旋转矩阵"""
+        L = self.length
+        delta = self.node_coords[1] - self.node_coords[0]
+        x_local = delta / L  # 梁轴向方向
+
+        # 确定参考方向
+        if self.node_coords.shape[0] < 3:
+            # 如果没有第三个节点，使用默认参考方向
+            ref = np.array([0, 0, 1])
+            if np.allclose(np.cross(x_local, ref), 0):
+                ref = np.array([0, 1, 0])
+            normal_direct = ref
+        else:
+            # 如果有第三个节点，使用它确定参考方向
+            mid_point = (self.node_coords[0] + self.node_coords[1]) / 2
+            normal_direct = self.node_coords[2] - mid_point
+
+        # 构建局部坐标系
+        y_local = np.cross(normal_direct, x_local)
+        y_local /= np.linalg.norm(y_local)
+        z_local = np.cross(x_local, y_local)
+        z_local /= np.linalg.norm(z_local)
+
+        # 构建旋转矩阵
+        self.R = np.vstack([x_local, y_local, z_local])
 
     def ElementMass(self):
         """计算单元质量矩阵"""
@@ -458,12 +546,13 @@ class Beam188(ElementBaseClass, ABC):
 
     def CalculateElementStress(self, displacement):
         """计算单元内力 (基本内力)"""
+        return np.zeros(2), np.zeros(2), np.zeros(2), np.zeros(2), np.zeros(2), np.zeros(2)
         E = self.cha_dict[MaterialKey.E]
         G = self.cha_dict[MaterialKey.G]
         A = self.cha_dict[SectionKey.Area]
         Jx = self.cha_dict[SectionKey.Tor]
-        Iy = self.cha_dict[SectionKey.Iy]
-        Iz = self.cha_dict[SectionKey.Iz]
+        Iy = self.cha_dict[SectionKey.It]
+        Iz = self.cha_dict[SectionKey.Is]
         L = self.length
 
         # 提取基本位移
