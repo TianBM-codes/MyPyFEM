@@ -363,7 +363,7 @@ class Domain(object):
             temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
             result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
             self.femdb.linear_u = temp_results[:result_range]
-            print(f"Displacement: {self.femdb.linear_u}")
+            # print(f"Displacement: {self.femdb.linear_u}")
         except ValueError as e:
             matrix_csr = self.femdb.global_stiff_matrix.tocsr()
             zero_rows = []

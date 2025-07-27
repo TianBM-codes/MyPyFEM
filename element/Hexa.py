@@ -158,16 +158,13 @@ class C3D8(ElementBaseClass, ABC):
         self.ndm = 3  # Spatial dimension
         self.ndf = 3  # Degrees of freedom per node
         self.nstress = 6  # Stress/strain components
-        self.numberNodes = 8  # Nodes per element
+        self.nodes_count = 8  # Nodes per element
         self.numberGauss = 8  # Gauss points
         self.nShape = 4  # Shape function components
 
         # Integration points and weights (2x2x2 Gauss integration)
-        self.sg = np.array([-1, 1])  # Reduced integration points
+        self.sg = np.array([-1 / np.sqrt(3), 1 / np.sqrt(3)])  # Reduced integration points
         self.wg = np.array([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])  # Uniform weights
-
-        # Class variables
-        self.stiff = np.zeros((self.numberNodes * self.ndf, self.numberNodes * self.ndf))
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -193,19 +190,12 @@ class C3D8(ElementBaseClass, ABC):
         self.CalElementDMatrix()
 
         volume = 0.0
-        Shape = np.zeros((self.nShape, self.numberNodes, self.numberGauss))
+        Shape = np.zeros((self.nShape, self.nodes_count, self.numberGauss))
         dvol = np.zeros(self.numberGauss)
-        shpBar = np.zeros((self.nShape, self.numberNodes))
+        shpBar = np.zeros((self.nShape, self.nodes_count))
         gaussPoint = np.zeros(3)
 
-        # Zero stiffness and residual
-        # self.stiff.fill(0.0)
-
-        # Compute nodal coordinates
-        # self.computeBasis()
-
-        # Initialize mean shape functions
-        # shpBar.fill(0.0)
+        dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D8
 
         # Gauss loop to compute and save shape functions
         count = 0
@@ -217,7 +207,7 @@ class C3D8(ElementBaseClass, ABC):
 
                     # Save shape functions
                     for p in range(self.nShape):
-                        for q in range(self.numberNodes):
+                        for q in range(self.nodes_count):
                             Shape[p, q, count] = shp[p, q]
 
                     # Volume element
@@ -226,14 +216,14 @@ class C3D8(ElementBaseClass, ABC):
 
                     # Accumulate mean shape functions
                     for p in range(self.nShape):
-                        for q in range(self.numberNodes):
+                        for q in range(self.nodes_count):
                             shpBar[p, q] += dvol[count] * shp[p, q]
 
                     count += 1
 
         # Normalize mean shape functions
         for p in range(self.nShape):
-            for q in range(self.numberNodes):
+            for q in range(self.nodes_count):
                 shpBar[p, q] /= volume
 
         # Second Gauss loop for residual and tangent
@@ -243,10 +233,10 @@ class C3D8(ElementBaseClass, ABC):
 
             # Compute strain
             strain = np.zeros(self.nstress)
-            for j in range(self.numberNodes):
-                BJ = self.computeBbar(j, shp, shpBar)
-                ul = self.nodePointers[j].getTrialDisp()  # Assume returns [ux, uy, uz]
-                strain += BJ @ ul
+            # for j in range(self.nodes_count):
+            #     BJ = self.computeBbar(j, shp, shpBar)
+            # ul = self.nodePointers[j].getTrialDisp()  # Assume returns [ux, uy, uz]
+            # strain += BJ @ ul
 
             # Get material response
             # success = self.materialPointers[i].setTrialStrain(strain)
@@ -254,33 +244,32 @@ class C3D8(ElementBaseClass, ABC):
             # stress *= dvol[i]  # Scale by volume
 
             # Get tangent if needed
-            dd = np.zeros((self.nstress, self.nstress))
-            dd = self.materialPointers[i].getTangent() * dvol[i]
+            dd = self.D * dvol[i]
 
             # Residual and tangent calculations
             jj = 0
-            for j in range(self.numberNodes):
+            for j in range(self.nodes_count):
                 BJ = self.computeBbar(j, shp, shpBar)
                 BJtran = BJ.T
 
                 # Node residual
-                residJ = BJtran @ stress
-                for p in range(self.ndf):
-                    self.resid[jj + p] += residJ[p]
-                    if not self.applyLoad:
-                        self.resid[jj + p] -= dvol[i] * self.b[p] * shp[3, j]
-                    else:
-                        self.resid[jj + p] -= dvol[i] * self.appliedB[p] * shp[3, j]
+                # residJ = BJtran @ stress
+                # for p in range(self.ndf):
+                #     self.resid[jj + p] += residJ[p]
+                #     if not self.applyLoad:
+                #         self.resid[jj + p] -= dvol[i] * self.b[p] * shp[3, j]
+                #     else:
+                #         self.resid[jj + p] -= dvol[i] * self.appliedB[p] * shp[3, j]
 
                 # Tangent matrix
                 BJtranD = BJtran @ dd
                 kk = 0
-                for k in range(self.numberNodes):
+                for k in range(self.nodes_count):
                     BK = self.computeBbar(k, shp, shpBar)
                     stiffJK = BJtranD @ BK
                     for p in range(self.ndf):
                         for q in range(self.ndf):
-                            self.stiff[jj + p, kk + q] += stiffJK[p, q]
+                            self.K[jj + p, kk + q] += stiffJK[p, q]
                     kk += self.ndf
 
                 jj += self.ndf
@@ -426,7 +415,7 @@ class C3D8(ElementBaseClass, ABC):
 
         # 计算 Jacobian 矩阵
         xs = np.zeros((3, 3))
-        xl = self.xl  # 节点坐标数组 [3x8]
+        xl = self.node_coords.T  # 节点坐标数组 [3x8]
 
         # dx/dξ, dx/dη, dx/dζ
         xs[0, 0] = (xl[0, 1] - xl[0, 0]) * shp[0, 1] \
@@ -516,6 +505,52 @@ class C3D8(ElementBaseClass, ABC):
             shp[2, k] = c1 * xs_inv[0, 2] + c2 * xs_inv[1, 2] + c3 * xs_inv[2, 2]
 
         return xsj, shp
+
+    def computeBbar(self, node, shp, shpBar):
+        """计算 B-bar 矩阵（体积锁定修正）"""
+        one3 = 1.0 / 3.0
+        Bbar = np.zeros((6, 3))
+
+        # 提取当前节点的导数
+        dNdx = shp[0, node]
+        dNdy = shp[1, node]
+        dNdz = shp[2, node]
+
+        # 提取当前节点的平均导数
+        dNBar_dx = shpBar[0, node]
+        dNBar_dy = shpBar[1, node]
+        dNBar_dz = shpBar[2, node]
+
+        # 偏差部分 (deviatoric)
+        Bdev = np.array([
+            [2.0 * dNdx, -dNdy, -dNdz],
+            [-dNdx, 2.0 * dNdy, -dNdz],
+            [-dNdx, -dNdy, 2.0 * dNdz]
+        ])
+
+        # 体积部分 (volumetric)
+        BbarVol = np.array([
+            [dNBar_dx, dNBar_dy, dNBar_dz],
+            [dNBar_dx, dNBar_dy, dNBar_dz],
+            [dNBar_dx, dNBar_dy, dNBar_dz]
+        ])
+
+        # 组合法向项（前3行）
+        for i in range(3):
+            for j in range(3):
+                Bbar[i, j] = one3 * (Bdev[i, j] + BbarVol[i, j])
+
+        # 剪切项（后3行）
+        Bbar[3, 0] = dNdy  # gamma_xy: ε12
+        Bbar[3, 1] = dNdx
+
+        Bbar[4, 1] = dNdz  # gamma_yz: ε23
+        Bbar[4, 2] = dNdy
+
+        Bbar[5, 0] = dNdz  # gamma_zx: ε31
+        Bbar[5, 2] = dNdx
+
+        return Bbar
 
 
 """
