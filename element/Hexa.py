@@ -193,9 +193,6 @@ class C3D8(ElementBaseClass, ABC):
         Shape = np.zeros((self.nShape, self.nodes_count, self.numberGauss))
         dvol = np.zeros(self.numberGauss)
         shpBar = np.zeros((self.nShape, self.nodes_count))
-        gaussPoint = np.zeros(3)
-
-        dNdrs, weights = AllEleTypeDNDrAtGaussianPoint.C3D8
 
         # Gauss loop to compute and save shape functions
         count = 0
@@ -333,7 +330,47 @@ class C3D8(ElementBaseClass, ABC):
         return node_stress[:, 0], node_stress[:, 1], node_stress[:, 2], node_stress[:, 3], node_stress[:, 4], node_stress[:, 5]
 
     def ElementMass(self):
-        pass
+        mass = np.zeros((24, 24), dtype=float)
+        Shape = np.zeros((self.nShape, self.nodes_count, self.numberGauss))
+        dvol = np.zeros(self.numberGauss)
+        shpBar = np.zeros((self.nShape, self.nodes_count))
+
+        # Gauss loop to compute and save shape functions
+        count = 0
+        for i in range(2):
+            for j in range(2):
+                for k in range(2):
+                    gaussPoint = np.array([self.sg[i], self.sg[j], self.sg[k]])
+                    xsj, shp = self.shp3d(gaussPoint)
+
+                    # Save shape functions
+                    for p in range(self.nShape):
+                        for q in range(self.nodes_count):
+                            Shape[p, q, count] = shp[p, q]
+
+                    # Volume element
+                    dvol[count] = self.wg[count] * xsj
+
+                    count += 1
+
+        rho = self.cha_dict[MaterialKey.Density]
+        for i in range(self.numberGauss):
+            shp = Shape[:, :, i]
+            jj = 0
+            for j in range(self.nodes_count):
+                temp = shp[-1][j] * dvol[i] * rho
+
+                kk = 0
+                for k in range(self.nodes_count):
+                    massJK = temp * shp[-1][k]
+                    for p in range(self.ndf):
+                        mass[jj + p, kk + p] += massJK
+
+                    kk += self.ndf
+
+                jj += self.ndf
+
+        return mass
 
     def CalculateBasic(self):
         pass
