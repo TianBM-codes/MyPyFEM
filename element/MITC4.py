@@ -5,6 +5,8 @@ import numpy as np
 import math
 from enum import Enum
 
+from ElementBase import ElementBaseClass
+
 
 class MaterialKey(Enum):
     """ 材料参数关键字集合 """
@@ -215,7 +217,7 @@ class ElasticMembranePlateSection:
         return self.getSectionTangent()
 
 
-class MITC4():
+class MITC4(ElementBaseClass, ABC):
     """
     MITC4 Element class.
     Reference:
@@ -223,6 +225,7 @@ class MITC4():
     """
 
     def __init__(self, eid):
+        super().__init__(eid)
         self.nodes_count = 4
         self.vtu_type = "quad"
         self.stiffness = None
@@ -490,4 +493,6 @@ if __name__ == "__main__":
                                   [1, 0, 0],
                                   [1, 1.6, 0],
                                   [0, 1, 0]], dtype=float).T
+    dis = [0, 0, 0, 0, 0, 0, -0.000282235, -0.00062833, 0, 0, 0, -0.000713924, 0.000468651, -0.000685244, 0, 0, 0, -0.000743362, 0, 0, 0, 0, 0, 0]
+    t_ele.CalculateElementStress(dis)
     print(t_ele.ElementStiffness())
