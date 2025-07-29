@@ -3,22 +3,9 @@
 from abc import ABC
 import numpy as np
 import math
-from enum import Enum
+from femdb.GlobalEnum import *
 
 from ElementBase import ElementBaseClass
-
-
-class MaterialKey(Enum):
-    """ 材料参数关键字集合 """
-    E = 1
-    Density = 2
-    Niu = 3
-    G = 4
-    Thickness = 5
-    Conductivity = 6  # 热传导系数
-    Expansion = 7
-    SpecificHeat = 8
-    Area = 9
 
 
 def shape2d(ss, tt, x):
@@ -145,21 +132,9 @@ class ElasticMembranePlateSection:
         self.h = h
         self.rhoH = rho * h
         self.Ep = Em * Ep_modifier
-        self.strain = np.zeros(8)
-        self.stress = np.zeros(8)
         self.tangent = np.zeros((8, 8))
 
-    def setTrialSectionDeformation(self, strain):
-        self.strain = np.array(strain)
-        return 0
-
-    def getSectionDeformation(self):
-        return self.strain
-
-    def getRho(self):
-        return self.rhoH
-
-    def getStressResultant(self):
+    def getStressResultant(self, e):
         Em = self.Em
         nu = self.nu
         h = self.h
@@ -169,8 +144,7 @@ class ElasticMembranePlateSection:
         G = 0.5 * Em / (1.0 + nu) * h
 
         # Membrane
-        s = self.stress
-        e = self.strain
+        s = np.zeros(8)
         s[0] = M * e[0] + nu * M * e[1]
         s[1] = nu * M * e[0] + M * e[1]
         s[2] = G * e[2]
@@ -232,6 +206,22 @@ class MITC4(ElementBaseClass, ABC):
         self.stress = None
         self.block_size = 576
 
+        # saveB : [nstress][ndf][numnodes]
+        self.saveB = np.zeros((8, 3, 4), dtype=float)
+        self.v1 = None
+        self.v2 = None
+        self.v3 = None
+        self.xl = np.zeros((2, 4), dtype=float)
+
+        # 高斯积分点
+        self.sg = np.zeros(4, dtype=float)
+        self.tg = np.zeros(4, dtype=float)
+        self.wg = np.ones(4, dtype=float)
+
+        self.Ktt = None
+        self.elastic = None
+        self.dvol = np.zeros(4)
+
     def CalElementDMatrix(self, an_type=None):
         """
         质量单元无需计算D阵
@@ -242,32 +232,15 @@ class MITC4(ElementBaseClass, ABC):
         """
         Reference:
         """
-        coor0, coor1 = self.node_coords[:, 0], self.node_coords[:, 1]
-        coor2, coor3 = self.node_coords[:, 2], self.node_coords[:, 3]
-
-        v1 = 0.5 * (coor2 + coor1 - coor3 - coor0)
-        v2 = 0.5 * (coor3 + coor2 - coor1 - coor0)
-
-        v1 = v1 / np.linalg.norm(v1)
-        alpha = np.dot(v2, v1)
-        v2_proj = alpha * v1
-        v2_new = v2 - v2_proj
-        v2 = v2_new / np.linalg.norm(v2_new)
-        v3 = np.cross(v1, v2)
-        xl = np.zeros((2, 4), dtype=float)
-        for ii in range(4):
-            xl[0][ii] = self.node_coords[:, ii] @ v1
-            xl[1][ii] = self.node_coords[:, ii] @ v2
-
         # 计算节点坐标间的差值
-        dx34 = xl[0][2] - xl[0][3]
-        dy34 = xl[1][2] - xl[1][3]
-        dx21 = xl[0][1] - xl[0][0]
-        dy21 = xl[1][1] - xl[1][0]
-        dx32 = xl[0][2] - xl[0][1]
-        dy32 = xl[1][2] - xl[1][1]
-        dx41 = xl[0][3] - xl[0][0]
-        dy41 = xl[1][3] - xl[1][0]
+        dx34 = self.xl[0][2] - self.xl[0][3]
+        dy34 = self.xl[1][2] - self.xl[1][3]
+        dx21 = self.xl[0][1] - self.xl[0][0]
+        dy21 = self.xl[1][1] - self.xl[1][0]
+        dx32 = self.xl[0][2] - self.xl[0][1]
+        dy32 = self.xl[1][2] - self.xl[1][1]
+        dx41 = self.xl[0][3] - self.xl[0][0]
+        dy41 = self.xl[1][3] - self.xl[1][0]
         G = np.zeros((4, 12), dtype=float)
         one_over_four = 0.25
         G[0][0] = -0.5
@@ -296,8 +269,8 @@ class MITC4(ElementBaseClass, ABC):
         G[3][11] = dx34 * one_over_four
 
         # 提取节点坐标
-        x = xl[0]  # x坐标数组 [x0, x1, x2, x3]
-        y = xl[1]  # y坐标数组 [y0, y1, y2, y3]
+        x = self.xl[0]  # x坐标数组 [x0, x1, x2, x3]
+        y = self.xl[1]  # y坐标数组 [y0, y1, y2, y3]
         # 计算中间变量
         Ax = -x[0] + x[1] + x[2] - x[3]
         Bx = x[0] - x[1] + x[2] - x[3]
@@ -323,29 +296,14 @@ class MITC4(ElementBaseClass, ABC):
         r2 = 0.0
         r3 = 0.0
 
-        # 高斯积分点
-        sg = np.zeros(4, dtype=float)
-        tg = np.zeros(4, dtype=float)
-        wg = np.ones(4, dtype=float)
-        one_over_root3 = 1 / np.sqrt(3)
-        sg[0] = -one_over_root3
-        sg[1] = one_over_root3
-        sg[2] = one_over_root3
-        sg[3] = -one_over_root3
-
-        tg[0] = -one_over_root3
-        tg[1] = -one_over_root3
-        tg[2] = one_over_root3
-        tg[3] = one_over_root3
-
         """
         Material
         """
-        elastic = ElasticMembranePlateSection(self.cha_dict[MaterialKey.E],
-                                              self.cha_dict[MaterialKey.Niu],
-                                              self.cha_dict[MaterialKey.Thickness])
-        tangent = elastic.getInitTangent()[:3, :3]
-        Ktt = np.min(np.linalg.eigvals(tangent))
+        self.elastic = ElasticMembranePlateSection(self.cha_dict[MaterialKey.E],
+                                                   self.cha_dict[MaterialKey.Niu],
+                                                   self.cha_dict[MaterialKey.Thickness])
+        tangent = self.elastic.getInitTangent()[:3, :3]
+        self.Ktt = np.min(np.linalg.eigvals(tangent))
 
         """
         Gauss Loop
@@ -355,27 +313,24 @@ class MITC4(ElementBaseClass, ABC):
         nstress = 8
         numnodes = 4
         ndf = 6
-        saveB = np.zeros((nstress, ndf, numnodes), dtype=float)
         Bshear = np.zeros((2, 3), dtype=float)
-        dvol = np.zeros(ngauss)
         stiff = np.zeros((numnodes * ndf, numnodes * ndf))
-        resid = np.zeros(numnodes * ndf)
         for igauss in range(ngauss):
-            r1 = Cx + sg[igauss] * Bx
-            r3 = Cy + sg[igauss] * By
+            r1 = Cx + self.sg[igauss] * Bx
+            r3 = Cy + self.sg[igauss] * By
             r1 = np.sqrt(r1 ** 2 + r3 ** 2)
 
-            r2 = Ax + tg[igauss] * Bx
-            r3 = Ay + tg[igauss] * By
+            r2 = Ax + self.tg[igauss] * Bx
+            r3 = Ay + self.tg[igauss] * By
             r2 = np.sqrt(r2 ** 2 + r3 ** 2)
 
             # 计算形函数和 Jacobian
-            shp, xsj = shape2d(sg[igauss], tg[igauss], xl)
+            shp, xsj = shape2d(self.sg[igauss], self.tg[igauss], self.xl)
 
             # 构建 Ms 矩阵 (2x4)
             Ms = np.array([
-                [0, 1 - tg[igauss], 0, 1 + tg[igauss]],
-                [1 - sg[igauss], 0, 1 + sg[igauss], 0]
+                [0, 1 - self.tg[igauss], 0, 1 + self.tg[igauss]],
+                [1 - self.sg[igauss], 0, 1 + self.sg[igauss], 0]
             ])
 
             Bsv = Ms @ G  # 矩阵乘法
@@ -395,61 +350,42 @@ class MITC4(ElementBaseClass, ABC):
                 for p in range(3):
                     Bshear[0, p] = Bs[0, j * 3 + p]
                     Bshear[1, p] = Bs[1, j * 3 + p]
-                BJ = assembleB(Bmembrane, Bbend, Bshear, v1, v2, v3)
+                BJ = assembleB(Bmembrane, Bbend, Bshear, self.v1, self.v2, self.v3)
                 for p in range(nstress):
                     for q in range(ndf):
-                        saveB[p][q][j] = BJ[p, q]
-                # ul = self.node_disps[j] - self.init_disp[j] if hasattr(self, 'init_disp') else self.node_disps[j]
-
-                # 计算应变
-                # strain += BJ @ ul
-
-                # 计算钻孔应变
-                BdrillJ = computeBdrill(j, shp, v1, v2, v3)
-                # epsDrill += np.dot(BdrillJ, ul)
-
-            # 获取材料响应
-            # success = self.materialPointers[igauss].setTrialSectionDeformation(strain)
-            # stress = self.materialPointers[igauss].getStressResultant()
-
-            # 钻孔应力
-            # tauDrill = self.Ktt * epsDrill
-
-            # 乘以体积微元
-            # stress *= dvol[igauss]
-            # tauDrill *= dvol[igauss]
+                        self.saveB[p][q][j] = BJ[p, q]
 
             jj = 0  # 当前节点在刚度矩阵中的起始行索引
             for j in range(numnodes):
                 # 提取当前节点的B矩阵 (8x6)
-                BJ = saveB[:, :, j].copy()
+                BJ = self.saveB[:, :, j].copy()
                 BJ[3:6, 3:6] *= -1
 
                 # 计算转置 B^T (6x8)
                 BJtran = BJ.T
 
                 # 计算体积微元和总体积
-                dvol[igauss] = wg[igauss] * xsj
-                dd = elastic.getSectionTangent() * dvol[igauss]
-                volume += dvol[igauss]
+                self.dvol[igauss] = self.wg[igauss] * xsj
+                dd = self.elastic.getSectionTangent() * self.dvol[igauss]
+                volume += self.dvol[igauss]
 
                 # 计算 B^T D (6x8)
                 BJtranD = BJtran @ dd
 
                 # 计算钻孔B矩阵 (6x1)
-                BdrillJ = computeBdrill(j, shp, v1, v2, v3)
+                BdrillJ = computeBdrill(j, shp, self.v1, self.v2, self.v3)
 
                 # 缩放钻孔矩阵
-                BdrillJ_scaled = BdrillJ * (Ktt * dvol[igauss])
+                BdrillJ_scaled = BdrillJ * (self.Ktt * self.dvol[igauss])
 
                 # 内层节点循环
                 kk = 0  # 当前k节点在刚度矩阵中的起始列索引
                 for k in range(numnodes):
                     # 提取k节点的B矩阵 (8x6)
-                    BK = saveB[:, :, k]
+                    BK = self.saveB[:, :, k]
 
                     # 计算钻孔B矩阵 (6x1)
-                    BdrillK = computeBdrill(k, shp, v1, v2, v3)
+                    BdrillK = computeBdrill(k, shp, self.v1, self.v2, self.v3)
 
                     # 计算刚度子矩阵: B_j^T D B_k (6x6)
                     stiffJK = BJtranD @ BK  # (6x8) @ (8x6) = 6x6
@@ -468,15 +404,71 @@ class MITC4(ElementBaseClass, ABC):
 
     def CalculateElementStress(self, displacement):
         """
-        Calculate element stress, 刚体没有形变, 所以没有应力
+        Calculate element stress
         """
+        gauss_count = 4
+        num_nodes = 4
+        for igauss in range(gauss_count):
+            # 计算形函数和 Jacobian
+
+            shp, xsj = shape2d(self.sg[igauss], self.tg[igauss], self.xl)
+
+            epsDrill = 0.0
+            strain = np.zeros(8)
+
+            for j in range(num_nodes):
+                # 计算钻孔应变
+                BdrillJ = computeBdrill(j, shp, self.v1, self.v2, self.v3)
+                epsDrill += np.dot(BdrillJ, displacement[j * 6:(j + 1) * 6])
+
+                strain += self.saveB[:, :, j] @ displacement[j * 6:(j + 1) * 6]
+
+            tauDrill = self.Ktt * epsDrill * self.dvol[igauss]
+            stress = self.elastic.getStressResultant() * self.dvol[igauss]
+
+        """
+        Calculate Mises
+        """
+
         return np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
 
     def ElementMass(self):
         pass
 
     def CalculateBasic(self):
-        pass
+        """
+        计算的内容包括
+        1. 局部坐标
+        2. 高斯积分相关值
+        :return:
+        """
+        coor0, coor1 = self.node_coords[:, 0], self.node_coords[:, 1]
+        coor2, coor3 = self.node_coords[:, 2], self.node_coords[:, 3]
+
+        self.v1 = np.array(0.5 * (coor2 + coor1 - coor3 - coor0), dtype=float)
+        self.v2 = np.array(0.5 * (coor3 + coor2 - coor1 - coor0), dtype=float)
+
+        self.v1 = self.v1 / np.linalg.norm(self.v1)
+        alpha = np.dot(self.v2, self.v1)
+        v2_proj = alpha * self.v1
+        v2_new = np.array(self.v2 - v2_proj, dtype=float)
+        self.v2 = v2_new / np.linalg.norm(v2_new)
+        self.v3 = np.cross(self.v1, self.v2)
+
+        for ii in range(4):
+            self.xl[0][ii] = self.node_coords[:, ii] @ self.v1
+            self.xl[1][ii] = self.node_coords[:, ii] @ self.v2
+
+        one_over_root3 = 1 / np.sqrt(3)
+        self.sg[0] = -one_over_root3
+        self.sg[1] = one_over_root3
+        self.sg[2] = one_over_root3
+        self.sg[3] = -one_over_root3
+
+        self.tg[0] = -one_over_root3
+        self.tg[1] = -one_over_root3
+        self.tg[2] = one_over_root3
+        self.tg[3] = one_over_root3
 
     def ReCalculateElementStiffness(self):
         pass
