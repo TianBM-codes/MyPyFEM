@@ -4,7 +4,6 @@ from abc import ABC
 import numpy as np
 import math
 from femdb.GlobalEnum import *
-
 from ElementBase import ElementBaseClass
 
 
@@ -202,12 +201,12 @@ class MITC4(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 4
         self.vtu_type = "quad"
-        self.stiffness = None
+        self.K = np.zeros((24, 24), dtype=float)
         self.stress = None
         self.block_size = 576
 
-        # saveB : [nstress][ndf][numnodes]
-        self.saveB = np.zeros((8, 3, 4), dtype=float)
+        # saveB : [nstress][ndf][numnodes][gauss_count]
+        self.saveB = np.zeros((8, 6, 4, 4), dtype=float)
         self.v1 = None
         self.v2 = None
         self.v3 = None
@@ -314,7 +313,6 @@ class MITC4(ElementBaseClass, ABC):
         numnodes = 4
         ndf = 6
         Bshear = np.zeros((2, 3), dtype=float)
-        stiff = np.zeros((numnodes * ndf, numnodes * ndf))
         for igauss in range(ngauss):
             r1 = Cx + self.sg[igauss] * Bx
             r3 = Cy + self.sg[igauss] * By
@@ -353,12 +351,12 @@ class MITC4(ElementBaseClass, ABC):
                 BJ = assembleB(Bmembrane, Bbend, Bshear, self.v1, self.v2, self.v3)
                 for p in range(nstress):
                     for q in range(ndf):
-                        self.saveB[p][q][j] = BJ[p, q]
+                        self.saveB[p][q][j][igauss] = BJ[p, q]
 
             jj = 0  # 当前节点在刚度矩阵中的起始行索引
             for j in range(numnodes):
                 # 提取当前节点的B矩阵 (8x6)
-                BJ = self.saveB[:, :, j].copy()
+                BJ = self.saveB[:, :, j, igauss].copy()
                 BJ[3:6, 3:6] *= -1
 
                 # 计算转置 B^T (6x8)
@@ -382,7 +380,7 @@ class MITC4(ElementBaseClass, ABC):
                 kk = 0  # 当前k节点在刚度矩阵中的起始列索引
                 for k in range(numnodes):
                     # 提取k节点的B矩阵 (8x6)
-                    BK = self.saveB[:, :, k]
+                    BK = self.saveB[:, :, k, igauss]
 
                     # 计算钻孔B矩阵 (6x1)
                     BdrillK = computeBdrill(k, shp, self.v1, self.v2, self.v3)
@@ -394,13 +392,13 @@ class MITC4(ElementBaseClass, ABC):
                     drill_contribution = np.outer(BdrillJ_scaled, BdrillK)
 
                     # 组装到全局刚度矩阵
-                    stiff[jj:jj + ndf, kk:kk + ndf] += stiffJK + drill_contribution
+                    self.K[jj:jj + ndf, kk:kk + ndf] += stiffJK + drill_contribution
 
                     kk += ndf  # 移动到下一节点的列索引
 
                 jj += ndf  # 移动到下一节点的行索引
 
-        print("ZZ")
+        return self.K
 
     def CalculateElementStress(self, displacement):
         """
@@ -421,10 +419,12 @@ class MITC4(ElementBaseClass, ABC):
                 BdrillJ = computeBdrill(j, shp, self.v1, self.v2, self.v3)
                 epsDrill += np.dot(BdrillJ, displacement[j * 6:(j + 1) * 6])
 
-                strain += self.saveB[:, :, j] @ displacement[j * 6:(j + 1) * 6]
+                strain += self.saveB[:, :, j, igauss] @ displacement[j * 6:(j + 1) * 6]
 
             tauDrill = self.Ktt * epsDrill * self.dvol[igauss]
-            stress = self.elastic.getStressResultant() * self.dvol[igauss]
+            stress = self.elastic.getStressResultant(strain) * self.dvol[igauss]
+            print(f"tauDrill igauss{igauss}: {tauDrill}")
+            print(f"stress igauss{igauss}: {stress}")
 
         """
         Calculate Mises
@@ -485,6 +485,8 @@ if __name__ == "__main__":
                                   [1, 0, 0],
                                   [1, 1.6, 0],
                                   [0, 1, 0]], dtype=float).T
+
+    t_ele.CalculateBasic()
+    t_ele.ElementStiffness()
     dis = [0, 0, 0, 0, 0, 0, -0.000282235, -0.00062833, 0, 0, 0, -0.000713924, 0.000468651, -0.000685244, 0, 0, 0, -0.000743362, 0, 0, 0, 0, 0, 0]
     t_ele.CalculateElementStress(dis)
-    print(t_ele.ElementStiffness())
