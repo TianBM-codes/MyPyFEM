@@ -7,6 +7,8 @@ import time
 import pickle
 import sys
 import numpy as np
+from urllib3.filepost import writer
+
 from femdb.GlobalEnum import *
 from ioclass.INPParser import InpParser
 from ioclass.CDBParser import CDBParser
@@ -16,8 +18,10 @@ from femdb.Domain import Domain
 from femdb.GlobalFEMVariant import ModelInfo
 from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper
 import scipy.sparse as sparse
+from fatigue_cal import fatigue_analysis
 
 from flask import Flask, jsonify, request
+import meshio
 
 app = Flask(__name__)
 
@@ -235,6 +239,72 @@ class MyPyFEM:
                 raise ImportError("./green directory Don't exists")
             self.domain.CalculateResultsWithGreenFunction(green_dir)
             writer = ResultsWriter()
+            p_end = time.time()
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.GenerateDynGeLinFunction:
+            """
+            求解线弹性问题, 输出节点位移以及应力
+            """
+            self.domain.CalAllElementStiffness()
+            time_1 = time.time()
+            mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
+
+            self.domain.AssembleStiffnessMatrixByPenalty()
+            time_2 = time.time()
+            mlogger.debug(time_format.format("Assemble Global Stiff", time_2 - time_1))
+
+            self.domain.CalAllElementMassMatrix()
+            time_3 = time.time()
+            mlogger.debug(time_format.format("Calculate All Mass", time_3 - time_2))
+
+            self.domain.AssembleMassMatrixByPerturbation()
+            time_4 = time.time()
+            mlogger.debug(time_format.format("Assemble Global Mass", time_4 - time_3))
+
+            self.domain.AddBoundaryByPenalty()
+            time_5 = time.time()
+            mlogger.debug(time_format.format("Add Boundary Effect", time_5 - time_4))
+
+            green_dir = pathlib.Path(self.output_dir / "green")
+            if not green_dir.exists():
+                pathlib.Path(self.output_dir / "green").mkdir()
+            self.domain.NewMarkGeLin(green_dir)
+
+            p_end = time.time()
+            mlogger.debug(time_format.format("Write Output", p_end - time_5))
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.CalculateDynByGeLin:
+            p_end = time.time()
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.FatigueAnalysis:
+            """
+            计算疲劳云图
+            """
+            Su = 30  # 材料抗拉强度 (MPa)
+            material_params = {
+                'S_endurance': 17,  # 疲劳极限 (MPa)
+                'a': 1e12,  # Basquin方程参数a
+                'b': -3  # Basquin方程参数b
+            }
+            mises_path = pathlib.Path(self.output_files[0])
+            all_mises = []
+            for ii in range(44):
+                iter_path = str(mises_path.parent) + "/" + str(mises_path.stem) + f"_{ii}.vtu"
+                iter_vtu = meshio.read(iter_path)
+                iter_mises = iter_vtu.point_data['mises']
+                all_mises.append(iter_mises)
+
+            all_mises_array = np.array(all_mises) / 1e6 * 100
+            all_damage = []
+            for ii in range(all_mises_array.shape[1]):
+                iter_result = fatigue_analysis(all_mises_array[:, ii], Su, material_params)
+                iter_damage = iter_result['total_damage']
+                all_damage.append(iter_damage)
+
+            self.domain.femdb.damage_factor = np.array(all_damage)
+            input_file_stem = pathlib.Path(self.output_files[0]).stem
+            fatigure_path = pathlib.Path(self.output_files[0]).with_name(input_file_stem+"_fat.vtu")
+            writer = ResultsWriter()
+            writer.WriteFatigueResult(fatigure_path)
             p_end = time.time()
 
         else:

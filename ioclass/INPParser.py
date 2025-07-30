@@ -143,6 +143,15 @@ class InpParser(object):
         _, node_connected_element_count = np.unique(self.node_search_ids_list, return_counts=True)
         self.fem_db.node_connected_element_count = node_connected_element_count
 
+        """
+        计算每个节点在全局方程组中对应的起止编号
+        """
+        begin_idx = 0
+        for iter_node in self.fem_db.node_list:
+            iter_node.start_eq_num = begin_idx
+            iter_node.end_eq_num = begin_idx + iter_node.dof_count
+            begin_idx += iter_node.dof_count
+
     def ReadPart(self, f_handle):
         """
         读取part中的单元和节点, Part部分是以*End Part结束的, 先不读取Part中的*Elset, Part中包含节点、单元、节点集、单元集
@@ -182,7 +191,6 @@ class InpParser(object):
 
                 # 创建单元和单元组, ele_ids用来收集本组中单元的真实ID, nds是组成单个单元的真实节点号
                 ele_ids = []
-                # 将*视为结束
                 self.iter_line = f_handle.readline().strip()
                 while not self.iter_line.startswith("*"):
                     iter_ele, n_cnt, node_dof = ElementFactory.CreateElement(e_type.strip())
@@ -198,25 +206,31 @@ class InpParser(object):
                     for i in range(1, len(sp_line)):
                         nds[i - 1] = int(sp_line[i])
 
-                    # 第一行的节点数不够, 第二行还有节点需要添加
+                    """
+                    第一行的节点数不够, 第二行还有节点需要添加
+                    """
                     if first_line_node_count < n_cnt:
                         self.iter_line = f_handle.readline().strip()
                         sp_line = self.iter_line.split(",")
                         for j in range(first_line_node_count, n_cnt):
                             nds[j] = int(sp_line[j - first_line_node_count])
 
-                    # 读取数据完毕，首先设置单元包括的节点的搜索id
+                    """
+                    读取数据完毕，首先设置单元包括的节点的搜索id
+                    """
                     iter_ele.SetNodes(nds)
                     search_ids = np.array([self.fem_db.node_hash[ii] for ii in nds], dtype=np.uint32)
                     iter_ele.SetNodeSearchIndex(search_ids)
                     self.node_search_ids_list.extend(search_ids.tolist())
 
-                    # 计算单元包括的节点的坐标矩阵
+                    """
+                    计算单元包括的节点的坐标矩阵
+                    """
                     coords = []
                     for nid in search_ids:
                         n_coord = self.fem_db.node_list[nid].GetNodeCoord()
-                        # coords.append(np.stack((coords,n_coord)))
                         coords.append(n_coord)
+                        self.fem_db.node_list[nid].SetDof(node_dof)
                     coords = np.asarray(coords)
                     iter_ele.SetNodeCoords(coords)
 
@@ -449,34 +463,46 @@ class InpParser(object):
         self.iter_line = f_handle.readline().strip()
         keywords = self.iter_line.split(",")
         if len(keywords) == 2:
-            # 如果改行为一个逗号间隔, 那么约束方式是用字符串来标识的
-            # self.fem_db.load_case.AddBoundary(AbaqusBoundary(keywords[0].strip(), b_type=keywords[1].strip()))
-            # 如果该行用两个逗号间隔, 那么是固定该自由度为零
-            # 如果该行为三个逗号间隔, 那么为指定位移形式
-            nds = self.node_set[keywords[0].strip()]
-            d_nodes = []
-            directs = []
-            values = []
             if "ENCASTRE" in keywords[1]:
-                for nd in nds:
-                    for ii in range(ModelInfo.PER_NODE_DOF):
-                        d_nodes.append(nd)
-                        directs.append(ii)
-                        values.append(0)
-                bd = np.column_stack([d_nodes, directs, values])
-                self.fem_db.load_case.AddBoundary(bd)
+                boundary_type = BoundaryType.ENCASTRE
             elif "PINNED" in keywords[1]:
-                for nd in nds:
-                    for ii in range(3):
-                        d_nodes.append(nd)
-                        directs.append(ii)
-                        values.append(0)
-                bd = np.column_stack([d_nodes, directs, values])
-                self.fem_db.load_case.AddBoundary(bd)
+                boundary_type = BoundaryType.PINNED
             else:
                 raise KeyError(f"UnSupport Boundary Key: {self.iter_line}")
+        elif len(keywords) == 3:
+            if keywords[1] == "1" and keywords[2] == "6":
+                boundary_type = BoundaryType.ENCASTRE
+            elif keywords[2] == "3":
+                boundary_type = BoundaryType.PINNED
+            else:
+                raise KeyError("")
         else:
             raise ValueError(f"In Read Boundary: {self.iter_line}")
+
+        # 如果该行用两个逗号间隔, 那么是固定该自由度为零
+        # 如果该行为三个逗号间隔, 那么为指定位移形式
+        nds = self.node_set[keywords[0].strip()]
+        d_nodes = []
+        directs = []
+        values = []
+        if boundary_type == BoundaryType.ENCASTRE:
+            for nd in nds:
+                for ii in range(ModelInfo.PER_NODE_DOF):
+                    d_nodes.append(nd)
+                    directs.append(ii)
+                    values.append(0)
+            bd = np.column_stack([d_nodes, directs, values])
+            self.fem_db.load_case.AddBoundary(bd)
+        elif boundary_type == BoundaryType.PINNED:
+            for nd in nds:
+                for ii in range(3):
+                    d_nodes.append(nd)
+                    directs.append(ii)
+                    values.append(0)
+            bd = np.column_stack([d_nodes, directs, values])
+            self.fem_db.load_case.AddBoundary(bd)
+        else:
+            raise KeyError(f"UnSupport Boundary Key: {self.iter_line}")
 
         self.iter_line = f_handle.readline().strip()
 

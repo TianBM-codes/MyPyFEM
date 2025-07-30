@@ -135,12 +135,9 @@ class Domain(object):
             else:
                 stiff_array = self.femdb.stiff_list[kk]
 
-            # start_eq_num = self.femdb.node_list[]
             ele_dofs = np.array([np.arange(self.femdb.node_list[x].start_eq_num,
                                            self.femdb.node_list[x].start_eq_num + ele.node_dof_count)
                                  for x in search_node_ids])
-            # el_dofs = np.array([x * ModelInfo.PER_NODE_DOF + np.arange(ModelInfo.PER_NODE_DOF)
-            #                     for x in search_node_ids]).flatten()
             rows_block, cols_block = np.meshgrid(ele_dofs, ele_dofs)
             entries_count = ele.block_size
             rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()
@@ -505,6 +502,75 @@ class Domain(object):
         self.femdb.history_v = v
         self.femdb.history_a = a
         self.femdb.history_step_count = len(u)
+
+    def NewMarkGeLin(self, output_dir):
+        """
+        显式的动力学求解，使用NewMark方法
+        # TODO: 使用Bathe书上算例测试该算法
+        Reference:
+           《结构动力学基础》 张亚辉、林家浩 P94
+        :return:
+        """
+        """
+        初始化载荷, 计算初始加速度
+        """
+        his_load = self.femdb.load_case.history_loads
+        delta_t = his_load[0][-1][0, 1] - his_load[0][-1][0, 0]
+        alpha = 0.25
+        a0 = 1 / alpha / delta_t ** 2
+        K_hat = self.femdb.global_stiff_matrix + a0 * self.femdb.global_mass_matrix
+        solver = factorized(K_hat.tocsc())
+
+        force_nodes = [ii[0] for ii in his_load]
+        directories = [ii[1] for ii in his_load]
+        right_hand_back_up = deepcopy(self.right_hand)
+        for ii, nd in enumerate(force_nodes):
+            """
+            保存位移结果
+            """
+            eqa = self.femdb.node_hash[nd] * ModelInfo.PER_NODE_DOF
+            xyz = directories[ii]
+            self.right_hand = deepcopy(right_hand_back_up)
+            self.right_hand[eqa + xyz] = 1
+            temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
+            result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
+            iter_linear_u = temp_results[:result_range]
+            np.save(output_dir / f"dis_node_{nd}.npy", iter_linear_u)
+            """
+            求解应力结果并保存
+            """
+            iter_sigma_xx = np.zeros(len(self.femdb.node_list))
+            iter_sigma_yy = np.zeros(len(self.femdb.node_list))
+            iter_sigma_zz = np.zeros(len(self.femdb.node_list))
+            iter_tau_xy = np.zeros(len(self.femdb.node_list))
+            iter_tau_xz = np.zeros(len(self.femdb.node_list))
+            iter_tau_yz = np.zeros(len(self.femdb.node_list))
+            for ele in self.femdb.elements:
+                search_idx = []
+                for ii in ele.search_node_ids:
+                    start = ii * ModelInfo.PER_NODE_DOF
+                    end = (ii + 1) * ModelInfo.PER_NODE_DOF
+                    search_idx.extend(np.arange(start, end, 1).tolist())
+
+                iter_u = iter_linear_u[search_idx].flatten()
+                sigma_x, sigma_y, sigma_z, tau_yz, tau_xz, tau_xy = ele.CalculateElementStress(iter_u)
+
+                for ii, n_search_id in enumerate(ele.search_node_ids):
+                    iter_sigma_xx[n_search_id] += sigma_x[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_sigma_yy[n_search_id] += sigma_y[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_sigma_zz[n_search_id] += sigma_z[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_tau_xy[n_search_id] += tau_xy[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_tau_yz[n_search_id] += tau_yz[ii] / self.femdb.node_connected_element_count[n_search_id]
+                    iter_tau_xz[n_search_id] += tau_xz[ii] / self.femdb.node_connected_element_count[n_search_id]
+
+            np.save(output_dir / f"sigma_xx_node_{nd}.npy", iter_sigma_xx)
+            np.save(output_dir / f"sigma_yy_node_{nd}.npy", iter_sigma_yy)
+            np.save(output_dir / f"sigma_zz_node_{nd}.npy", iter_sigma_zz)
+            np.save(output_dir / f"sigma_xy_node_{nd}.npy", iter_tau_xy)
+            np.save(output_dir / f"sigma_yz_node_{nd}.npy", iter_tau_yz)
+            np.save(output_dir / f"sigma_xz_node_{nd}.npy", iter_tau_xz)
+
+
 
 
 if __name__ == "__main__":

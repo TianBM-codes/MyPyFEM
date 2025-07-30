@@ -170,6 +170,9 @@ class AnalyseType(Enum):
     ReSortModel = 6
     GenerateGeLinFunction = 7
     CalculateByGeLin = 8
+    GenerateDynGeLinFunction = 9
+    CalculateDynByGeLin = 10
+    FatigueAnalysis = 11
 
 
 class InputFileType(Enum):
@@ -179,6 +182,15 @@ class InputFileType(Enum):
     CDB = 1
     INP = 2
     BDF = 3
+
+
+class BoundaryType(Enum):
+    """
+    约束类型
+    """
+    NoneType = 0
+    ENCASTRE = 1
+    PINNED = 2
 
 
 class BeamSectionType(Enum):

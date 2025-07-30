@@ -769,6 +769,40 @@ class ResultsWriter(object):
                 point_data=time_result,
             )
 
+    def WriteFatigueResult(self, path):
+        """
+        将疲劳结果谢至vtu文件
+        :param path:
+        :return:
+        """
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        all_eles = {}
+
+        for iter_ele in self.femdb.elements:
+            iter_relation = iter_ele.GetNodeSearchIndex().tolist()
+            ele_type = iter_ele.vtu_type
+            if all_eles.__contains__(ele_type):
+                all_eles[ele_type].append(iter_relation)
+            else:
+                all_eles[ele_type] = [iter_relation]
+
+        for iter_ele_info in self.femdb.additional_elements:
+            iter_relation = [iter_ele_info[0], iter_ele_info[1]]
+            ele_type = iter_ele_info[2]
+            if all_eles[ele_type].__contains__(ele_type):
+                all_eles[ele_type].append(iter_relation)
+            else:
+                all_eles[ele_type] = [iter_relation]
+
+        # 疲劳结果
+        node_res = {"fatigue": self.femdb.damage_factor}
+        meshio.write_points_cells(
+            filename=path,
+            points=coords,
+            cells=all_eles,
+            point_data=node_res
+        )
+
     def WriteUNVFile(self, u_path):
         """
         将结果写入UNV文件用SiPESC平台查看
