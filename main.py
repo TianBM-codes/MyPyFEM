@@ -7,7 +7,6 @@ import time
 import pickle
 import sys
 import numpy as np
-from urllib3.filepost import writer
 
 from femdb.GlobalEnum import *
 from ioclass.INPParser import InpParser
@@ -137,9 +136,9 @@ class MyPyFEM:
             time_4 = time.time()
             mlogger.debug(time_format.format("Solve Displacement", time_4 - time_3))
 
-            # self.domain.SolveStress()
+            self.domain.SolveStress()
             time_5 = time.time()
-            # mlogger.debug(time_format.format("Solve Node Stress", time_5 - time_4))
+            mlogger.debug(time_format.format("Solve Node Stress", time_5 - time_4))
 
             writer = ResultsWriter()
             if self.output_path is not None:

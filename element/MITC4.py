@@ -5,6 +5,7 @@ import numpy as np
 import math
 from femdb.GlobalEnum import *
 from ElementBase import ElementBaseClass
+from femdb.ShapeFunctionsAndInteg import ExtrapolateMatrix4to4
 
 
 def shape2d(ss, tt, x):
@@ -158,7 +159,7 @@ class ElasticMembranePlateSection:
         s[6] = G * e[6]
         s[7] = G * e[7]
 
-        return s.copy()
+        return s
 
     def getSectionTangent(self):
         Em = self.Em
@@ -189,8 +190,44 @@ class ElasticMembranePlateSection:
     def getInitTangent(self):
         return self.getSectionTangent()
 
+    def computeMisesAtGaussPoint(self, stressRes):
+        """
+        计算高斯点上的mises应力
+        @param stressRes:
+        @return:
+        """
+        h = self.h
+        N00 = stressRes[0]  # 膜力 xx
+        N11 = stressRes[1]  # 膜力 yy
+        N01 = stressRes[2]  # 膜剪力 xy
+        M00 = stressRes[3]  # 弯矩 xx
+        M11 = stressRes[4]  # 弯矩 yy
+        M01 = stressRes[5]  # 扭矩 xy
 
-class MITC4(ElementBaseClass, ABC):
+        # 4. 计算上下表面的点应力
+        # 上表面 (z = h/2)
+        sig_xx_top = N00 / h + 6 * M00 / (h ** 2)
+        sig_yy_top = N11 / h + 6 * M11 / (h ** 2)
+        tau_xy_top = N01 / h + 6 * M01 / (h ** 2)
+
+        # 下表面 (z = -h/2)
+        sig_xx_bot = N00 / h - 6 * M00 / (h ** 2)
+        sig_yy_bot = N11 / h - 6 * M11 / (h ** 2)
+        tau_xy_bot = N01 / h - 6 * M01 / (h ** 2)
+
+        # 5. 计算Mises应力
+        mises_top = np.sqrt(
+            sig_xx_top ** 2 + sig_yy_top ** 2 - sig_xx_top * sig_yy_top + 3 * tau_xy_top ** 2
+        )
+
+        mises_bot = np.sqrt(
+            sig_xx_bot ** 2 + sig_yy_bot ** 2 - sig_xx_bot * sig_yy_bot + 3 * tau_xy_bot ** 2
+        )
+
+        return np.max([mises_top, mises_bot])
+
+
+class MITC4Shell(ElementBaseClass, ABC):
     """
     MITC4 Element class.
     Reference:
@@ -204,6 +241,7 @@ class MITC4(ElementBaseClass, ABC):
         self.K = np.zeros((24, 24), dtype=float)
         self.stress = None
         self.block_size = 576
+        self.node_dof_count = 6
 
         # saveB : [nstress][ndf][numnodes][gauss_count]
         self.saveB = np.zeros((8, 6, 4, 4), dtype=float)
@@ -225,7 +263,8 @@ class MITC4(ElementBaseClass, ABC):
         """
         质量单元无需计算D阵
         """
-        pass
+        if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
+            self.cha_dict[MaterialKey.Thickness] = self.cha_dict["RealConst"][0]
 
     def ElementStiffness(self, from_origin=False):
         """
@@ -406,31 +445,31 @@ class MITC4(ElementBaseClass, ABC):
         """
         gauss_count = 4
         num_nodes = 4
+        gauss_mises = np.zeros(gauss_count)
         for igauss in range(gauss_count):
             # 计算形函数和 Jacobian
-
-            shp, xsj = shape2d(self.sg[igauss], self.tg[igauss], self.xl)
-
-            epsDrill = 0.0
+            # shp, xsj = shape2d(self.sg[igauss], self.tg[igauss], self.xl)
+            # epsDrill = 0.0
             strain = np.zeros(8)
 
             for j in range(num_nodes):
                 # 计算钻孔应变
-                BdrillJ = computeBdrill(j, shp, self.v1, self.v2, self.v3)
-                epsDrill += np.dot(BdrillJ, displacement[j * 6:(j + 1) * 6])
+                # BdrillJ = computeBdrill(j, shp, self.v1, self.v2, self.v3)
+                # epsDrill += np.dot(BdrillJ, displacement[j * 6:(j + 1) * 6])
 
                 strain += self.saveB[:, :, j, igauss] @ displacement[j * 6:(j + 1) * 6]
+                # tauDrill = self.Ktt * epsDrill * self.dvol[igauss]
+                # stress = self.elastic.getStressResultant(strain) * self.dvol[igauss]
+                # print(f"tauDrill igauss{igauss}: {tauDrill}")
+                # print(f"stress igauss{igauss}: {stress}")
 
-            tauDrill = self.Ktt * epsDrill * self.dvol[igauss]
-            stress = self.elastic.getStressResultant(strain) * self.dvol[igauss]
-            print(f"tauDrill igauss{igauss}: {tauDrill}")
-            print(f"stress igauss{igauss}: {stress}")
+            stress = self.elastic.getStressResultant(strain)
+            gauss_mises[igauss] = self.elastic.computeMisesAtGaussPoint(stress)
 
         """
-        Calculate Mises
+        Extrapolate Gauss Mises To Node Mises
         """
-
-        return np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1), np.zeros(1)
+        return ExtrapolateMatrix4to4() @ gauss_mises
 
     def ElementMass(self):
         pass
@@ -442,6 +481,7 @@ class MITC4(ElementBaseClass, ABC):
         2. 高斯积分相关值
         :return:
         """
+        self.node_coords = self.node_coords.T
         coor0, coor1 = self.node_coords[:, 0], self.node_coords[:, 1]
         coor2, coor3 = self.node_coords[:, 2], self.node_coords[:, 3]
 
@@ -475,7 +515,7 @@ class MITC4(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    t_ele = MITC4(-1)
+    t_ele = MITC4Shell(-1)
     t_ele.cha_dict = {MaterialKey.Niu: 0.3,
                       MaterialKey.E: 1e7,
                       MaterialKey.Thickness: 1,
@@ -489,4 +529,4 @@ if __name__ == "__main__":
     t_ele.CalculateBasic()
     t_ele.ElementStiffness()
     dis = [0, 0, 0, 0, 0, 0, -0.000282235, -0.00062833, 0, 0, 0, -0.000713924, 0.000468651, -0.000685244, 0, 0, 0, -0.000743362, 0, 0, 0, 0, 0, 0]
-    t_ele.CalculateElementStress(dis)
+    print(t_ele.CalculateElementStress(dis))

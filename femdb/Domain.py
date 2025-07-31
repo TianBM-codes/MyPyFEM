@@ -466,21 +466,31 @@ class Domain(object):
                 u = self.femdb.linear_u[search_idx].flatten()
             else:
                 u = out_u[search_idx].flatten()
-            sigma_x, sigma_y, sigma_z, tau_yz, tau_xz, tau_xy = ele.CalculateElementStress(u)
-            term1 = (sigma_x - sigma_y) ** 2
-            term2 = (sigma_y - sigma_z) ** 2
-            term3 = (sigma_z - sigma_x) ** 2
-            term4 = 6 * (tau_xy ** 2 + tau_yz ** 2 + tau_xz ** 2)
-            von_mises = np.sqrt(0.5 * (term1 + term2 + term3 + term4))
+
+            """
+            对于壳单元, 返回的直接是mises, 因为返回的其实是上下表面mises的最大值, 而对于一般的单元, 返回的是应力分量
+            """
+            stress_res = ele.CalculateElementStress(u)
+            if len(stress_res) == 6:
+                sigma_x, sigma_y, sigma_z, tau_yz, tau_xz, tau_xy = stress_res
+                term1 = (sigma_x - sigma_y) ** 2
+                term2 = (sigma_y - sigma_z) ** 2
+                term3 = (sigma_z - sigma_x) ** 2
+                term4 = 6 * (tau_xy ** 2 + tau_yz ** 2 + tau_xz ** 2)
+                von_mises = np.sqrt(0.5 * (term1 + term2 + term3 + term4))
+            elif len(stress_res) == 4 or len(stress_res) == 3:
+                von_mises = stress_res
+            else:
+                raise ValueError(f"mises calculate error in ele's id: {ele.id}")
 
             for ii, n_search_id in enumerate(ele.search_node_ids):
                 self.femdb.linear_mises[n_search_id] += von_mises[ii] / self.femdb.node_connected_element_count[n_search_id]
-                self.femdb.sigma_xx[n_search_id] += sigma_x[ii] / self.femdb.node_connected_element_count[n_search_id]
-                self.femdb.sigma_yy[n_search_id] += sigma_y[ii] / self.femdb.node_connected_element_count[n_search_id]
-                self.femdb.sigma_zz[n_search_id] += sigma_z[ii] / self.femdb.node_connected_element_count[n_search_id]
-                self.femdb.tau_xy[n_search_id] += tau_xy[ii] / self.femdb.node_connected_element_count[n_search_id]
-                self.femdb.tau_yz[n_search_id] += tau_yz[ii] / self.femdb.node_connected_element_count[n_search_id]
-                self.femdb.tau_xz[n_search_id] += tau_xz[ii] / self.femdb.node_connected_element_count[n_search_id]
+                # self.femdb.sigma_xx[n_search_id] += sigma_x[ii] / self.femdb.node_connected_element_count[n_search_id]
+                # self.femdb.sigma_yy[n_search_id] += sigma_y[ii] / self.femdb.node_connected_element_count[n_search_id]
+                # self.femdb.sigma_zz[n_search_id] += sigma_z[ii] / self.femdb.node_connected_element_count[n_search_id]
+                # self.femdb.tau_xy[n_search_id] += tau_xy[ii] / self.femdb.node_connected_element_count[n_search_id]
+                # self.femdb.tau_yz[n_search_id] += tau_yz[ii] / self.femdb.node_connected_element_count[n_search_id]
+                # self.femdb.tau_xz[n_search_id] += tau_xz[ii] / self.femdb.node_connected_element_count[n_search_id]
 
         if out_u is not None:
             return deepcopy(self.femdb.linear_mises)

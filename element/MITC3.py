@@ -17,7 +17,7 @@ def calculate_von_mises(stress):
     ) / np.sqrt(2)
 
 
-class MITC3(ElementBaseClass, ABC):
+class MITC3Shell(ElementBaseClass, ABC):
     """
     Reference:
     1. https://github.com/luchete80/MITC_python
@@ -27,7 +27,8 @@ class MITC3(ElementBaseClass, ABC):
         super().__init__(eid)
         self.nodes_count = 3
         self.vtu_type = "triangle"
-        self.block_size = 18
+        self.block_size = 324
+        self.node_dof_count = 6
 
         self.thickness = None
         self.material = None
@@ -147,7 +148,7 @@ class MITC3(ElementBaseClass, ABC):
 
         K_bend = B_bend.T @ self.D_b @ B_bend * self.area * 0.5
 
-        self.B_b = np.zeros((3,6))
+        self.B_b = np.zeros((3, 6))
         for i in range(3):
             # Compute Cartesian derivatives
             # dN_dx = invJ[0,0]*dN_dxi[i] + invJ[0,1]*dN_deta[i]
@@ -345,9 +346,11 @@ class MITC3(ElementBaseClass, ABC):
         upper_von_mises = calculate_von_mises(upper_stress)
         lower_von_mises = calculate_von_mises(lower_stress)
 
-        # 取最大值
+        """
+        取壳单元上表面和下表面的最大mises值
+        """
         max_von_mises = max(upper_von_mises, lower_von_mises)
-        print("max_mises:", max_von_mises)
+        return np.array([max_von_mises] * 3)
 
     def CalculateBasic(self):
         """Compute and cache covariant basis vectors."""
@@ -377,7 +380,7 @@ class MITC3(ElementBaseClass, ABC):
 
 
 if __name__ == "__main__":
-    mitc3 = MITC3(-1)
+    mitc3 = MITC3Shell(-1)
     mitc3.cha_dict = {MaterialKey.Niu: 0.3,
                       MaterialKey.E: 2e11,
                       MaterialKey.Thickness: 0.1,
@@ -397,5 +400,4 @@ if __name__ == "__main__":
     disp[6 * 1 + 3] = 0.00097242
     disp[6 * 1 + 4] = 0.00664678
     stress_output = mitc3.CalculateElementStress(disp)
-    # print("Stress upper:", stress_output['upper'])
-    # print("Von Mises:", stress_output['von_mises'])
+    print(stress_output)

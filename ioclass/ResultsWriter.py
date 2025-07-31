@@ -119,8 +119,8 @@ class ResultsWriter(object):
 
         # 位移结果
         dis_value = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
-        # node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises}
-        node_res = {"displacement": dis_value}
+        node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises}
+        # node_res = {"displacement": dis_value}
         # node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises,
         #             "sigma_xx": self.femdb.sigma_xx, "sigma_yy": self.femdb.sigma_yy, "sigma_zz": self.femdb.sigma_zz,
         #             "tau_xy": self.femdb.tau_xy, "tau_xz": self.femdb.tau_xz, "tau_yz": self.femdb.tau_yz}
