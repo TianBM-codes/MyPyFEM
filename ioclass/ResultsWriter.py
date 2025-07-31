@@ -52,6 +52,8 @@ import zlib
 import struct
 from io import BytesIO
 import meshio
+import numpy as np
+
 from utils.MeshCleaner import *
 from element.MeshElementFactory import *
 from femdb.FEMDataBase import *
@@ -759,9 +761,12 @@ class ResultsWriter(object):
             u = self.femdb.history_u[ii]
             v = self.femdb.history_v[ii]
             a = self.femdb.history_a[ii]
+            s = self.femdb.history_s[ii]
             time_result = {"displacement": np.reshape(u, (-1, ModelInfo.PER_NODE_DOF))[:, :3],
                            "velocity": np.reshape(v, (-1, ModelInfo.PER_NODE_DOF))[:, :3],
-                           "acceleration": np.reshape(a, (-1, ModelInfo.PER_NODE_DOF))[:, :3]}
+                           "acceleration": np.reshape(a, (-1, ModelInfo.PER_NODE_DOF))[:, :3],
+                           "mises": s
+                           }
             meshio.write_points_cells(
                 filename=path,
                 points=coords,

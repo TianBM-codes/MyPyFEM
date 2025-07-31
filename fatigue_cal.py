@@ -1,6 +1,7 @@
 import numpy as np
 import rainflow as rf
 
+
 def fatigue_analysis(x, Su, material_params):
     """
     完整的疲劳分析流程：
@@ -30,8 +31,6 @@ def fatigue_analysis(x, Su, material_params):
     # --对非对称循环（平均应力不等于0）下的应力范围/应力幅进行修正，消除平均应力影响。
     idx = np.where(c[..., 1] < 0)  # 如果 c 是一个二维数组（例如 c 的形状为 (5, 3)），则 c[..., 1] 选择的是第二列
     c[..., 1][idx] = 0  # 将平均压应力统一设为 0，因为压应力一般对疲劳是有益的，但为了简化处理，统一设为0，相当于不再使用goodman模型修正了
-
-
 
     # 检查是否有平均应力大于Su的情况
     idx_invalid = np.where(c[..., 1] >= Su)
@@ -68,7 +67,7 @@ def fatigue_analysis(x, Su, material_params):
         remaining_cycles = 0  # 已失效
     else:
         # 计算还能承受多少次当前载荷谱的重复
-        remaining_cycles =  (1 / total_damage - 1) * sum(c[:, 2])
+        remaining_cycles = (1 / total_damage - 1) * sum(c[:, 2])
         # remaining_cycles = 1  / total_damage * 20
     # 整理结果
     result = {
@@ -76,9 +75,10 @@ def fatigue_analysis(x, Su, material_params):
         'total_damage': min(total_damage, 1.0),  # 损伤最大为1
         'fatigue_life': remaining_cycles,
         'num_cycles': len(c),
-        'total_cycle': sum(c[:, 2]) # 添加总循环次数
+        'total_cycle': sum(c[:, 2])  # 添加总循环次数
     }
     return result
+
 
 if __name__ == "__main__":
     # 1. 首先运行原始处理函数

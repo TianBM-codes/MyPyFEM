@@ -239,6 +239,7 @@ class MyPyFEM:
                 raise ImportError("./green directory Don't exists")
             self.domain.CalculateResultsWithGreenFunction(green_dir)
             writer = ResultsWriter()
+            writer.WriteStaticAnalysisVTUFile(self.output_files[0])
             p_end = time.time()
 
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.GenerateDynGeLinFunction:
@@ -268,18 +269,26 @@ class MyPyFEM:
             green_dir = pathlib.Path(self.output_dir / "green")
             if not green_dir.exists():
                 pathlib.Path(self.output_dir / "green").mkdir()
-            self.domain.NewMarkGeLin(green_dir)
+            self.domain.GenerateNewMarkGeLinFile(green_dir)
 
             p_end = time.time()
             mlogger.debug(time_format.format("Write Output", p_end - time_5))
 
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.CalculateDynByGeLin:
+            """
+            通过格林函数计算动力学模型结果
+            """
+            green_dir = pathlib.Path(self.output_dir / "green")
+            if not green_dir.exists():
+                raise ImportError("./green directory Don't exists")
+            self.domain.CalculateDynResultsWithGreenFunction(green_dir)
             p_end = time.time()
+
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.FatigueAnalysis:
             """
             计算疲劳云图
             """
-            Su = 30  # 材料抗拉强度 (MPa)
+            Su = 300  # 材料抗拉强度 (MPa)
             material_params = {
                 'S_endurance': 17,  # 疲劳极限 (MPa)
                 'a': 1e12,  # Basquin方程参数a
@@ -287,13 +296,13 @@ class MyPyFEM:
             }
             mises_path = pathlib.Path(self.output_files[0])
             all_mises = []
-            for ii in range(44):
+            for ii in range(100):
                 iter_path = str(mises_path.parent) + "/" + str(mises_path.stem) + f"_{ii}.vtu"
                 iter_vtu = meshio.read(iter_path)
                 iter_mises = iter_vtu.point_data['mises']
                 all_mises.append(iter_mises)
 
-            all_mises_array = np.array(all_mises) / 1e6 * 100
+            all_mises_array = np.array(all_mises) * 100
             all_damage = []
             for ii in range(all_mises_array.shape[1]):
                 iter_result = fatigue_analysis(all_mises_array[:, ii], Su, material_params)

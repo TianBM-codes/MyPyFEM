@@ -59,6 +59,7 @@ class FEMDataBase(object):
         self.history_u = None
         self.history_v = None
         self.history_a = None
+        self.history_s = None
         self.history_step_count = 0
 
         # Plot

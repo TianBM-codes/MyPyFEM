@@ -7,6 +7,7 @@ import numpy as np
 from femdb.FEMDataBase import *
 from femdb.GlobalFEMVariant import ModelInfo
 from scipy.sparse.linalg import factorized, spsolve
+from pathlib import Path
 from femdb.GlobalEnum import *
 import pypardiso
 
@@ -316,10 +317,76 @@ class Domain(object):
 
     def CalculateResultsWithGreenFunction(self, green_dir):
         """
-        使用
-        :param green_dir:
+        通过格林函数计算结果
         :return:
         """
+        c_load = self.femdb.load_case.c_loads
+        force_nodes = [ii[0] for ii in c_load]
+        directories = [ii[1] for ii in c_load]
+        amps = [ii[2] for ii in c_load]
+        sigma_xx = np.zeros(len(self.femdb.node_list))
+        sigma_yy = np.zeros(len(self.femdb.node_list))
+        sigma_zz = np.zeros(len(self.femdb.node_list))
+        tau_xy = np.zeros(len(self.femdb.node_list))
+        tau_yz = np.zeros(len(self.femdb.node_list))
+        tau_xz = np.zeros(len(self.femdb.node_list))
+        displacement_x = np.zeros(len(self.femdb.node_list))
+        displacement_y = np.zeros(len(self.femdb.node_list))
+        displacement_z = np.zeros(len(self.femdb.node_list))
+        for ii, nd in enumerate(force_nodes):
+            xyz = directories[ii]
+            sigma_xx_file_path = Path(green_dir / f"sigma_xx_node_{nd}_dir_{xyz}.npy")
+            sigma_yy_file_path = Path(green_dir / f"sigma_yy_node_{nd}_dir_{xyz}.npy")
+            sigma_zz_file_path = Path(green_dir / f"sigma_zz_node_{nd}_dir_{xyz}.npy")
+            sigma_xy_file_path = Path(green_dir / f"sigma_xy_node_{nd}_dir_{xyz}.npy")
+            sigma_yz_file_path = Path(green_dir / f"sigma_yz_node_{nd}_dir_{xyz}.npy")
+            sigma_xz_file_path = Path(green_dir / f"sigma_xz_node_{nd}_dir_{xyz}.npy")
+            dis_file_path_x = Path(green_dir / f"dis_node_{nd}_dir_{xyz}_x.npy")
+            dis_file_path_y = Path(green_dir / f"dis_node_{nd}_dir_{xyz}_y.npy")
+            dis_file_path_z = Path(green_dir / f"dis_node_{nd}_dir_{xyz}_z.npy")
+            if not sigma_xx_file_path.exists():
+                raise FileNotFoundError(f"File Don't Exists: {sigma_xx_file_path}")
+            if not sigma_yy_file_path.exists():
+                raise FileNotFoundError(f"File Don't Exists: {sigma_yy_file_path}")
+            if not sigma_zz_file_path.exists():
+                raise FileNotFoundError(f"File Don't Exists: {sigma_zz_file_path}")
+            if not sigma_xy_file_path.exists():
+                raise FileNotFoundError(f"File Don't Exists: {sigma_xy_file_path}")
+            if not sigma_yz_file_path.exists():
+                raise FileNotFoundError(f"File Don't Exists: {sigma_yz_file_path}")
+            if not sigma_xz_file_path.exists():
+                raise FileNotFoundError(f"File Don't Exists: {sigma_xz_file_path}")
+            if not dis_file_path_x.exists():
+                raise FileNotFoundError(f"File Don't Exists: {dis_file_path_x}")
+            if not dis_file_path_y.exists():
+                raise FileNotFoundError(f"File Don't Exists: {dis_file_path_y}")
+            if not dis_file_path_z.exists():
+                raise FileNotFoundError(f"File Don't Exists: {dis_file_path_z}")
+            iter_sigma_xx = np.load(sigma_xx_file_path)
+            iter_sigma_yy = np.load(sigma_yy_file_path)
+            iter_sigma_zz = np.load(sigma_zz_file_path)
+            iter_tau_xy = np.load(sigma_xy_file_path)
+            iter_tau_yz = np.load(sigma_yz_file_path)
+            iter_tau_xz = np.load(sigma_xz_file_path)
+            iter_dis_x = np.load(dis_file_path_x)
+            iter_dis_y = np.load(dis_file_path_y)
+            iter_dis_z = np.load(dis_file_path_z)
+            sigma_xx += amps[ii] * iter_sigma_xx
+            sigma_yy += amps[ii] * iter_sigma_yy
+            sigma_zz += amps[ii] * iter_sigma_zz
+            tau_xy += amps[ii] * iter_tau_xy
+            tau_yz += amps[ii] * iter_tau_yz
+            tau_xz += amps[ii] * iter_tau_xz
+            displacement_x += amps[ii] * iter_dis_x
+            displacement_y += amps[ii] * iter_dis_y
+            displacement_z += amps[ii] * iter_dis_z
+
+        term1 = (sigma_xx - sigma_yy) ** 2
+        term2 = (sigma_yy - sigma_zz) ** 2
+        term3 = (sigma_zz - sigma_xx) ** 2
+        term4 = 6 * (tau_xy ** 2 + tau_yz ** 2 + tau_xz ** 2)
+        self.femdb.linear_mises = np.sqrt(0.5 * (term1 + term2 + term3 + term4))
+        self.femdb.linear_u = np.sqrt(displacement_x ** 2 + displacement_y ** 2 + displacement_z ** 2)
 
     def SolveDisplacement(self):
         """
@@ -374,7 +441,7 @@ class Domain(object):
             self.CheckRedundantNodes()
             sys.exit(1)
 
-    def SolveStress(self):
+    def SolveStress(self, out_u=None):
         """
         求解模型节点的应力
         :return:
@@ -395,7 +462,10 @@ class Domain(object):
                 end = start + ele.node_dof_count
                 search_idx.extend(np.arange(start, end, 1).tolist())
 
-            u = self.femdb.linear_u[search_idx].flatten()
+            if out_u is None:
+                u = self.femdb.linear_u[search_idx].flatten()
+            else:
+                u = out_u[search_idx].flatten()
             sigma_x, sigma_y, sigma_z, tau_yz, tau_xz, tau_xy = ele.CalculateElementStress(u)
             term1 = (sigma_x - sigma_y) ** 2
             term2 = (sigma_y - sigma_z) ** 2
@@ -411,6 +481,91 @@ class Domain(object):
                 self.femdb.tau_xy[n_search_id] += tau_xy[ii] / self.femdb.node_connected_element_count[n_search_id]
                 self.femdb.tau_yz[n_search_id] += tau_yz[ii] / self.femdb.node_connected_element_count[n_search_id]
                 self.femdb.tau_xz[n_search_id] += tau_xz[ii] / self.femdb.node_connected_element_count[n_search_id]
+
+        if out_u is not None:
+            return deepcopy(self.femdb.linear_mises)
+        else:
+            return None
+
+    def CalculateDynResultsWithGreenFunction(self, green_dir):
+        """
+        通过格林函数计算结果
+        :return:
+        """
+        """
+        初始化载荷, 计算初始加速度
+        """
+        his_load = self.femdb.load_case.history_loads
+        force_nodes = [ii[0] for ii in his_load]
+        directories = [ii[1] for ii in his_load]
+        scale = [ii[2] for ii in his_load]
+        steps_count = his_load[0][-1].shape[1]
+        delta_t = his_load[0][-1][0, 1] - his_load[0][-1][0, 0]
+        node_count = len(self.femdb.node_list)
+        fem_all_dofs = ModelInfo.PER_NODE_DOF * node_count
+        his_vals = np.zeros((fem_all_dofs, steps_count), dtype=float)
+
+        for ii, nd in enumerate(force_nodes):
+            eqa = self.femdb.node_hash[nd] * ModelInfo.PER_NODE_DOF
+            xyz = directories[ii]
+            his_vals[eqa + xyz] = his_load[ii][-1][1, :] * scale[ii]
+
+        acc_0 = pypardiso.spsolve(self.femdb.global_mass_matrix, his_vals[:, 0])
+
+        """
+        计算初始参数
+        """
+        alpha = 0.25
+        delta = 0.5
+        a0 = 1 / alpha / delta_t ** 2
+        a1 = delta / alpha / delta_t
+        a2 = 1 / alpha / delta_t
+        a3 = 0.5 / alpha - 1
+        a4 = delta / alpha - 1
+        a5 = delta_t / 2 * (delta / alpha - 2)
+        a6 = delta_t * (1 - delta)
+        a7 = delta * delta_t
+        K_hat = self.femdb.global_stiff_matrix + a0 * self.femdb.global_mass_matrix
+        solver = factorized(K_hat.tocsc())
+
+        """
+        开始计算各个时间步的值
+        """
+        u = [np.zeros(fem_all_dofs, dtype=float)]
+        v = [np.zeros(fem_all_dofs, dtype=float)]
+        a = [acc_0]
+
+        """
+        读取格林函数
+        """
+        for ii in range(steps_count - 1):
+            """
+            结果置零
+            """
+            sigma_xx = np.zeros(len(self.femdb.node_list))
+            sigma_yy = np.zeros(len(self.femdb.node_list))
+            sigma_zz = np.zeros(len(self.femdb.node_list))
+            tau_xy = np.zeros(len(self.femdb.node_list))
+            tau_yz = np.zeros(len(self.femdb.node_list))
+            tau_xz = np.zeros(len(self.femdb.node_list))
+            displacement_x = np.zeros(len(self.femdb.node_list))
+            displacement_y = np.zeros(len(self.femdb.node_list))
+            displacement_z = np.zeros(len(self.femdb.node_list))
+
+            f_hat = his_vals[:, ii + 1] + self.femdb.global_mass_matrix @ (a0 * u[ii] + a2 * v[ii] + a3 * a[ii])
+            u_next = solver(f_hat)
+            a_next = a0 * (u_next - u[ii]) - a2 * v[ii] - a3 * a[ii]
+            v_next = v[ii] + a6 * a[ii] + a7 * a_next
+            u.append(u_next)
+            v.append(v_next)
+            a.append(a_next)
+
+        term1 = (sigma_xx - sigma_yy) ** 2
+        term2 = (sigma_yy - sigma_zz) ** 2
+        term3 = (sigma_zz - sigma_xx) ** 2
+        term4 = 6 * (tau_xy ** 2 + tau_yz ** 2 + tau_xz ** 2)
+        self.femdb.linear_mises = np.sqrt(0.5 * (term1 + term2 + term3 + term4))
+        self.femdb.linear_u = np.sqrt(displacement_x ** 2 + displacement_y ** 2 + displacement_z ** 2)
 
     def AddBoundaryByPenalty(self):
         """
@@ -488,6 +643,7 @@ class Domain(object):
         """
         u = [np.zeros(fem_all_dofs, dtype=float)]
         v = [np.zeros(fem_all_dofs, dtype=float)]
+        s = [np.zeros(len(self.femdb.node_list), dtype=float)]
         a = [acc_0]
         for ii in range(steps_count - 1):
             f_hat = his_vals[:, ii + 1] + self.femdb.global_mass_matrix @ (a0 * u[ii] + a2 * v[ii] + a3 * a[ii])
@@ -497,13 +653,15 @@ class Domain(object):
             u.append(u_next)
             v.append(v_next)
             a.append(a_next)
+            s.append(self.SolveStress(u_next))
 
         self.femdb.history_u = u
         self.femdb.history_v = v
         self.femdb.history_a = a
+        self.femdb.history_s = s
         self.femdb.history_step_count = len(u)
 
-    def NewMarkGeLin(self, output_dir):
+    def GenerateNewMarkGeLinFile(self, output_dir):
         """
         显式的动力学求解，使用NewMark方法
         # TODO: 使用Bathe书上算例测试该算法
@@ -519,7 +677,6 @@ class Domain(object):
         alpha = 0.25
         a0 = 1 / alpha / delta_t ** 2
         K_hat = self.femdb.global_stiff_matrix + a0 * self.femdb.global_mass_matrix
-        solver = factorized(K_hat.tocsc())
 
         force_nodes = [ii[0] for ii in his_load]
         directories = [ii[1] for ii in his_load]
@@ -532,7 +689,7 @@ class Domain(object):
             xyz = directories[ii]
             self.right_hand = deepcopy(right_hand_back_up)
             self.right_hand[eqa + xyz] = 1
-            temp_results = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.right_hand)
+            temp_results = pypardiso.spsolve(K_hat, self.right_hand)
             result_range = len(self.femdb.node_list) * ModelInfo.PER_NODE_DOF
             iter_linear_u = temp_results[:result_range]
             np.save(output_dir / f"dis_node_{nd}.npy", iter_linear_u)
@@ -569,8 +726,6 @@ class Domain(object):
             np.save(output_dir / f"sigma_xy_node_{nd}.npy", iter_tau_xy)
             np.save(output_dir / f"sigma_yz_node_{nd}.npy", iter_tau_yz)
             np.save(output_dir / f"sigma_xz_node_{nd}.npy", iter_tau_xz)
-
-
 
 
 if __name__ == "__main__":
