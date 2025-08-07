@@ -155,6 +155,9 @@ class C3D8(ElementBaseClass, ABC):
         self.block_size = 576
         self.node_dof_count = 3
 
+        # saveB : [nstress][ndf][numnodes][gauss_count]
+        self.saveB = np.zeros((3, 6, 4, 4), dtype=float)
+
         self.ndm = 3  # Spatial dimension
         self.ndf = 3  # Degrees of freedom per node
         self.nstress = 6  # Stress/strain components

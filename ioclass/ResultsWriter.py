@@ -378,8 +378,8 @@ class ResultsWriter(object):
                 map_npy.extend(tri)
 
         model_data["node_count"] = len(all_nodes)
-        model_data["node_coords"] = np.array(all_nodes).flatten()
-        model_data["node_normal"] = np.array(all_node_normal).flatten()
+        model_data["node_coords"] = list(np.array(all_nodes).flatten())
+        model_data["node_normal"] = list(np.array(all_node_normal).flatten())
         model_data["scalar_length"] = len(all_res)
         model_data["result"] = all_res
         model_data["tri_face_count"] = tri_face_count

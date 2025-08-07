@@ -337,6 +337,8 @@ class Beam188(ElementBaseClass, ABC):
         self.stress = None
         self.block_size = 144
         self.node_dof_count = 6
+        self.length = None
+        self.mass = np.zeros((12, 12))
 
     def _calculate_length(self):
         """计算单元长度"""
@@ -359,7 +361,8 @@ class Beam188(ElementBaseClass, ABC):
         Jx = self.cha_dict[SectionKey.Tor]
         Iy = self.cha_dict[SectionKey.It]
         Iz = self.cha_dict[SectionKey.Is]
-        L = self.length = self._calculate_length()
+        L = self._calculate_length()
+        self.length = L
         self._calculate_rotation_matrix()
 
         oneOverL = 1.0 / L
@@ -489,9 +492,6 @@ class Beam188(ElementBaseClass, ABC):
         """计算单元质量矩阵"""
         cMass = True
         rho = self.cha_dict.get(MaterialKey.Rho, 0.0)
-        if rho <= 0.0:
-            self.mass = np.zeros((12, 12))
-            return self.mass
 
         L = self.length
         A = self.cha_dict[SectionKey.Area]
@@ -502,45 +502,40 @@ class Beam188(ElementBaseClass, ABC):
         if not cMass:
             # 集中质量矩阵
             m = 0.5 * rho * L
-            mass_matrix = np.zeros((12, 12))
             for i in range(3):
-                mass_matrix[i, i] = m
-                mass_matrix[i + 6, i + 6] = m
-            self.mass = mass_matrix
+                self.mass[i, i] = m
+                self.mass[i + 6, i + 6] = m
         else:
             # 一致质量矩阵
             m = rho * L / 420.0
-            ml = np.zeros((12, 12))
 
             # 轴向质量
-            ml[0, 0] = ml[6, 6] = m * 140.0
-            ml[0, 6] = ml[6, 0] = m * 70.0
+            self.mass[0, 0] = self.mass[6, 6] = m * 140.0
+            self.mass[0, 6] = self.mass[6, 0] = m * 70.0
 
             # 扭转质量
-            ml[3, 3] = ml[9, 9] = m * (Jx / A) * 140.0
-            ml[3, 9] = ml[9, 3] = m * (Jx / A) * 70.0
+            self.mass[3, 3] = self.mass[9, 9] = m * (Jx / A) * 140.0
+            self.mass[3, 9] = self.mass[9, 3] = m * (Jx / A) * 70.0
 
             # z方向弯曲质量
-            ml[2, 2] = ml[8, 8] = m * 156.0
-            ml[2, 8] = ml[8, 2] = m * 54.0
-            ml[4, 4] = ml[10, 10] = m * 4.0 * L * L
-            ml[4, 10] = ml[10, 4] = -m * 3.0 * L * L
-            ml[2, 4] = ml[4, 2] = -m * 22.0 * L
-            ml[8, 10] = ml[10, 8] = -ml[2, 4]
-            ml[2, 10] = ml[10, 2] = m * 13.0 * L
-            ml[4, 8] = ml[8, 4] = -ml[2, 10]
+            self.mass[2, 2] = self.mass[8, 8] = m * 156.0
+            self.mass[2, 8] = self.mass[8, 2] = m * 54.0
+            self.mass[4, 4] = self.mass[10, 10] = m * 4.0 * L * L
+            self.mass[4, 10] = self.mass[10, 4] = -m * 3.0 * L * L
+            self.mass[2, 4] = self.mass[4, 2] = -m * 22.0 * L
+            self.mass[8, 10] = self.mass[10, 8] = -self.mass[2, 4]
+            self.mass[2, 10] = self.mass[10, 2] = m * 13.0 * L
+            self.mass[4, 8] = self.mass[8, 4] = -self.mass[2, 10]
 
             # y方向弯曲质量
-            ml[1, 1] = ml[7, 7] = m * 156.0
-            ml[1, 7] = ml[7, 1] = m * 54.0
-            ml[5, 5] = ml[11, 11] = m * 4.0 * L * L
-            ml[5, 11] = ml[11, 5] = -m * 3.0 * L * L
-            ml[1, 5] = ml[5, 1] = m * 22.0 * L
-            ml[7, 11] = ml[11, 7] = -ml[1, 5]
-            ml[1, 11] = ml[11, 1] = -m * 13.0 * L
-            ml[5, 7] = ml[7, 5] = -ml[1, 11]
-
-            self.mass = ml
+            self.mass[1, 1] = self.mass[7, 7] = m * 156.0
+            self.mass[1, 7] = self.mass[7, 1] = m * 54.0
+            self.mass[5, 5] = self.mass[11, 11] = m * 4.0 * L * L
+            self.mass[5, 11] = self.mass[11, 5] = -m * 3.0 * L * L
+            self.mass[1, 5] = self.mass[5, 1] = m * 22.0 * L
+            self.mass[7, 11] = self.mass[11, 7] = -self.mass[1, 5]
+            self.mass[1, 11] = self.mass[11, 1] = -m * 13.0 * L
+            self.mass[5, 7] = self.mass[7, 5] = -self.mass[1, 11]
 
         return self.mass
 

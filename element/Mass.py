@@ -18,7 +18,8 @@ class Mass(ElementBaseClass, ABC):
         self.vtu_type = "vertex"
         self.stiffness = None
         self.stress = None
-        self.block_size = 9
+        self.block_size = ModelInfo.PER_NODE_DOF * ModelInfo.PER_NODE_DOF
+        self.node_dof_count = ModelInfo.PER_NODE_DOF
 
     def CalElementDMatrix(self, an_type=None):
         """

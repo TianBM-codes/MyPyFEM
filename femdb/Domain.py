@@ -136,9 +136,14 @@ class Domain(object):
             else:
                 stiff_array = self.femdb.stiff_list[kk]
 
-            ele_dofs = np.array([np.arange(self.femdb.node_list[x].start_eq_num,
-                                           self.femdb.node_list[x].start_eq_num + ele.node_dof_count)
-                                 for x in search_node_ids])
+            try:
+                ele_dofs = np.array([np.arange(self.femdb.node_list[x].start_eq_num,
+                                               self.femdb.node_list[x].start_eq_num + ele.node_dof_count)
+                                     for x in search_node_ids])
+            except TypeError as e:
+                print(e)
+                raise TypeError(f"Element Node Dof Count Wrong in Element:{ele.id}")
+
             rows_block, cols_block = np.meshgrid(ele_dofs, ele_dofs)
             entries_count = ele.block_size
             rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()

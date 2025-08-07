@@ -4,8 +4,9 @@ from abc import ABC
 import numpy as np
 import math
 from femdb.GlobalEnum import *
-from ElementBase import ElementBaseClass
+from element.ElementBase import ElementBaseClass
 from femdb.ShapeFunctionsAndInteg import ExtrapolateMatrix4to4
+from utils.UtilsFunction import GetShellGlobal2LocalTransMatrix
 
 
 def shape2d(ss, tt, x):
@@ -437,6 +438,24 @@ class MITC4Shell(ElementBaseClass, ABC):
 
                 jj += ndf  # 移动到下一节点的行索引
 
+        # 创建整体坐标系的旋转矩阵 (3x3)
+        R = np.zeros((3, 3))
+        R[0, :] = self.v1
+        R[1, :] = self.v2
+        R[2, :] = self.v3
+
+        # 创建扩展的旋转矩阵 (6x6) 用于转换刚度矩阵
+        R_extended = np.zeros((6, 6))
+        R_extended[:3, :3] = R
+        R_extended[3:, 3:] = R
+
+        R_full = np.zeros((24, 24))
+        for i in range(4):  # 4个节点
+            R_full[i * 6:(i + 1) * 6, i * 6:(i + 1) * 6] = R_extended
+
+        # 转换刚度矩阵: K_global = R^T * K_local * R
+        self.K = R_full.T @ self.K @ R_full
+
         return self.K
 
     def CalculateElementStress(self, displacement):
@@ -510,6 +529,10 @@ class MITC4Shell(ElementBaseClass, ABC):
         self.tg[2] = one_over_root3
         self.tg[3] = one_over_root3
 
+        T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords.T)
+        R_matrix = T_matrix.T
+        print("DLfj")
+
     def ReCalculateElementStiffness(self):
         pass
 
@@ -522,9 +545,9 @@ if __name__ == "__main__":
                       MaterialKey.G: 2e11 / 2 / (1 + 0.3)
                       }
     t_ele.node_coords = np.array([[0, 0, 0],
-                                  [1, 0, 0],
-                                  [1, 1.6, 0],
-                                  [0, 1, 0]], dtype=float).T
+                                  [1, 0, 1],
+                                  [1, 1.6, 1],
+                                  [0, 1, 0]], dtype=float)
 
     t_ele.CalculateBasic()
     t_ele.ElementStiffness()
