@@ -267,6 +267,13 @@ class MITC4Shell(ElementBaseClass, ABC):
         if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
             self.cha_dict[MaterialKey.Thickness] = self.cha_dict["RealConst"][0]
 
+        self.elastic = ElasticMembranePlateSection(self.cha_dict[MaterialKey.E],
+                                                   self.cha_dict[MaterialKey.Niu],
+                                                   self.cha_dict[MaterialKey.Thickness])
+        tangent = self.elastic.getInitTangent()[:3, :3]
+        self.Ktt = np.min(np.linalg.eigvals(tangent))
+
+
     def ElementStiffness(self, from_origin=False):
         """
         Reference:
@@ -334,15 +341,6 @@ class MITC4Shell(ElementBaseClass, ABC):
         r1 = 0.0
         r2 = 0.0
         r3 = 0.0
-
-        """
-        Material
-        """
-        self.elastic = ElasticMembranePlateSection(self.cha_dict[MaterialKey.E],
-                                                   self.cha_dict[MaterialKey.Niu],
-                                                   self.cha_dict[MaterialKey.Thickness])
-        tangent = self.elastic.getInitTangent()[:3, :3]
-        self.Ktt = np.min(np.linalg.eigvals(tangent))
 
         """
         Gauss Loop

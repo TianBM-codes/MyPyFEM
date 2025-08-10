@@ -155,15 +155,14 @@ class C3D8(ElementBaseClass, ABC):
         self.block_size = 576
         self.node_dof_count = 3
 
-        # saveB : [nstress][ndf][numnodes][gauss_count]
-        self.saveB = np.zeros((3, 6, 4, 4), dtype=float)
-
         self.ndm = 3  # Spatial dimension
         self.ndf = 3  # Degrees of freedom per node
         self.nstress = 6  # Stress/strain components
         self.nodes_count = 8  # Nodes per element
         self.numberGauss = 8  # Gauss points
         self.nShape = 4  # Shape function components
+        self.saveB = np.zeros((self.nstress, self.ndf, self.nodes_count, self.numberGauss), dtype=float)
+        self.dvol = np.zeros(self.numberGauss)
 
         # Integration points and weights (2x2x2 Gauss integration)
         self.sg = np.array([-1 / np.sqrt(3), 1 / np.sqrt(3)])  # Reduced integration points
@@ -185,7 +184,6 @@ class C3D8(ElementBaseClass, ABC):
 
     def ElementStiffness(self, from_origin=False):
         """
-        TODO: https://www.bilibili.com/video/BV19y4y1z76E/?vd_source=f964a6ab226be6b0cd5d082ed4135949 C3D20 还有二维单元的
         Bathe 上册 P323
         dimension: 8*3, [[x1,y1,z1],[x2,y2,z2],...[x8,y8,z8]], type:np.ndarray, dtype:float
         """
@@ -194,7 +192,6 @@ class C3D8(ElementBaseClass, ABC):
 
         volume = 0.0
         Shape = np.zeros((self.nShape, self.nodes_count, self.numberGauss))
-        dvol = np.zeros(self.numberGauss)
         shpBar = np.zeros((self.nShape, self.nodes_count))
 
         # Gauss loop to compute and save shape functions
@@ -211,13 +208,13 @@ class C3D8(ElementBaseClass, ABC):
                             Shape[p, q, count] = shp[p, q]
 
                     # Volume element
-                    dvol[count] = self.wg[count] * xsj
-                    volume += dvol[count]
+                    self.dvol[count] = self.wg[count] * xsj
+                    volume += self.dvol[count]
 
                     # Accumulate mean shape functions
                     for p in range(self.nShape):
                         for q in range(self.nodes_count):
-                            shpBar[p, q] += dvol[count] * shp[p, q]
+                            shpBar[p, q] += self.dvol[count] * shp[p, q]
 
                     count += 1
 
@@ -231,37 +228,14 @@ class C3D8(ElementBaseClass, ABC):
             # Retrieve shape functions
             shp = Shape[:, :, i]
 
-            # Compute strain
-            strain = np.zeros(self.nstress)
-            # for j in range(self.nodes_count):
-            #     BJ = self.computeBbar(j, shp, shpBar)
-            # ul = self.nodePointers[j].getTrialDisp()  # Assume returns [ux, uy, uz]
-            # strain += BJ @ ul
-
-            # Get material response
-            # success = self.materialPointers[i].setTrialStrain(strain)
-            # stress = self.materialPointers[i].getStress()  # Returns (6,) array
-            # stress *= dvol[i]  # Scale by volume
-
-            # Get tangent if needed
-            dd = self.D * dvol[i]
+            dd = self.D * self.dvol[i]
 
             # Residual and tangent calculations
             jj = 0
             for j in range(self.nodes_count):
                 BJ = self.computeBbar(j, shp, shpBar)
+                self.saveB[:, :, j, i] = BJ
                 BJtran = BJ.T
-
-                # Node residual
-                # residJ = BJtran @ stress
-                # for p in range(self.ndf):
-                #     self.resid[jj + p] += residJ[p]
-                #     if not self.applyLoad:
-                #         self.resid[jj + p] -= dvol[i] * self.b[p] * shp[3, j]
-                #     else:
-                #         self.resid[jj + p] -= dvol[i] * self.appliedB[p] * shp[3, j]
-
-                # Tangent matrix
                 BJtranD = BJtran @ dd
                 kk = 0
                 for k in range(self.nodes_count):
@@ -288,27 +262,21 @@ class C3D8(ElementBaseClass, ABC):
         Reference:
         1. <<有限单元法>> 王勖成 P168-176
         """
-        # 计算高斯点的位移(矩阵中都是正数)
-        # Node2Gaussian: Nodes Displacement ==> Gaussian Points Displacement
-        a = 0.49056261216234404  # 0.125*(1+1/np.sqrt(3))**3
-        b = 0.13144585576580214  # 0.125*(1+1/np.sqrt(3))*2/3
-        c = 0.03522081090086451  # 0.125*(1-1/np.sqrt(3))*2/3
-        d = 0.00943738783765593  # 0.125*(1-1/np.sqrt(3))**3
-        Global2Gaussian = np.asarray([[a, b, c, b, b, c, d, c],
-                                      [b, a, b, c, c, b, c, d],
-                                      [c, b, a, b, d, c, b, c],
-                                      [b, c, b, a, c, d, c, b],
-                                      [b, c, d, c, a, b, c, b],
-                                      [c, b, c, d, b, a, b, c],
-                                      [d, c, b, c, c, b, a, b],
-                                      [c, d, c, b, b, c, b, a]], dtype=float)
+        gs_stress = np.zeros((self.numberGauss, 6), dtype=np.float32)
+        mu2 = self.D[0][0]
+        lam = self.D[0][1]
+        mu = self.D[3][3]
+        for i in range(self.numberGauss):
+            strain = np.zeros(self.nstress)
+            for j in range(self.nodes_count):
+                strain += self.saveB[:, :, j, i] @ displacement[j * 3:(j + 1) * 3]
 
-        # 计算高斯点的应力
-        gs_stress = []
-        gs_dis = np.matmul(Global2Gaussian, displacement.reshape((8, 3))).reshape((24,))
-        for ii in range(self.gs_count):
-            gs_stress.append(np.matmul(self.D, np.matmul(self.Gaussian_B[ii], gs_dis)))
-        gs_stress = np.asarray(gs_stress)
+            gs_stress[i][0] = (mu2 * strain[0] + lam * (strain[1] + strain[2])) * self.dvol[i]
+            gs_stress[i][1] = (mu2 * strain[1] + lam * (strain[0] + strain[2])) * self.dvol[i]
+            gs_stress[i][2] = (mu2 * strain[2] + lam * (strain[0] + strain[1])) * self.dvol[i]
+            gs_stress[i][3] = (mu * strain[3]) * self.dvol[i]
+            gs_stress[i][4] = (mu * strain[4]) * self.dvol[i]
+            gs_stress[i][5] = (mu * strain[5]) * self.dvol[i]
 
         """
         高斯点应力外推至节点
@@ -328,9 +296,10 @@ class C3D8(ElementBaseClass, ABC):
                                       [d, c, b, c, c, b, a, b],
                                       [c, d, c, b, b, c, b, a]], dtype=float)
 
-        node_stress = np.matmul(Gaussian2Global, gs_stress)
+        node_stress = Gaussian2Global @ gs_stress
 
-        return node_stress[:, 0], node_stress[:, 1], node_stress[:, 2], node_stress[:, 3], node_stress[:, 4], node_stress[:, 5]
+        # return node_stress[:, 0], node_stress[:, 1], node_stress[:, 2], node_stress[:, 3], node_stress[:, 4], node_stress[:, 5]
+        return gs_stress[:, 0], gs_stress[:, 1], gs_stress[:, 2], gs_stress[:, 3], gs_stress[:, 4], gs_stress[:, 5]
 
     def ElementMass(self):
         mass = np.zeros((24, 24), dtype=float)
