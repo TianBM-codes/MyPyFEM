@@ -273,7 +273,6 @@ class MITC4Shell(ElementBaseClass, ABC):
         tangent = self.elastic.getInitTangent()[:3, :3]
         self.Ktt = np.min(np.linalg.eigvals(tangent))
 
-
     def ElementStiffness(self, from_origin=False):
         """
         Reference:
@@ -529,7 +528,6 @@ class MITC4Shell(ElementBaseClass, ABC):
 
         T_matrix, origin = GetShellGlobal2LocalTransMatrix(self.node_coords.T)
         R_matrix = T_matrix.T
-        print("DLfj")
 
     def ReCalculateElementStiffness(self):
         pass

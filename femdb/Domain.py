@@ -440,6 +440,7 @@ class Domain(object):
                 row = matrix_csr.getrow(i)
                 if row.nnz == 0:
                     zero_rows.append(i)
+            print(f"len(zero_rows):{len(zero_rows)}\nzero_rows:{zero_rows}")
             """
             找出没有单元关系的
             """

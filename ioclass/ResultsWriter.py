@@ -140,7 +140,6 @@ class ResultsWriter(object):
         :return:
         """
         src = pathlib.Path(dat_path)
-        target_path = src.with_stem(src.stem + "_mises")
         buffer = BytesIO()
         buffer.write(struct.pack('i', len(self.femdb.linear_mises)))
         buffer.write(struct.pack(
@@ -150,8 +149,19 @@ class ResultsWriter(object):
         raw_data = buffer.getvalue()
         compressed = zlib.compress(raw_data, level=9)
 
-        with open(target_path, 'wb') as f:
+        with open(src, 'wb') as f:
             f.write(compressed)
+
+        if self.use_mysql:
+            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
+                   f"VALUES (NOW(), '{dat_path}', 'mises') "
+                   "ON DUPLICATE KEY UPDATE "
+                   "calculate_time = VALUES(calculate_time), "
+                   "file_name = VALUES(file_name), "
+                   "result_type = VALUES(result_type);"
+                   )
+            self.mysql_db.commit_sql(sql)
+
 
     def WriteStaticResult2DatFile2(self, dat_path, wrp):
         """

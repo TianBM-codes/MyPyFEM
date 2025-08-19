@@ -398,7 +398,7 @@ class MyPyFEM:
         dat_path = src.with_suffix(".dat")
         dat_path = dat_path.with_stem(dat_path.stem + f"{int(time.time())}")
         writer.WriteStaticResult2DatFile2(dat_path, wrapper)
-        # writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"))
+        writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"))
         time_end = time.time()
         total_time_elapsed = time_end - time1
         mlogger.debug(time_format.format("Write Output", time_end - time7))
