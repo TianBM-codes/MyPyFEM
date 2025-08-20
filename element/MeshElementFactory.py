@@ -63,11 +63,11 @@ class MeshElementFactory:
 
         elif e_type in [40600, 40800]:
             return MeshTetra(e_id), True
-        elif e_type in [40500, 'S4', "quad", "CookQuaShell"]:
+        elif e_type in [40500, 'S4', "quad", "CookQuaShell", "MITC4Shell"]:
             return MeshCQUAD4(e_id), True
         elif e_type in [20100, 188, 10, 4, 39, 14, 180, "Beam188"]:
             return MeshTruss(e_id), False
-        elif e_type in [30500, "triangle", "CookTriShell"]:
+        elif e_type in [30500, "triangle", "CookTriShell", "MITC3Shell"]:
             return MeshTRIA3(e_id), True
         elif e_type in [10000]:
             return None, False

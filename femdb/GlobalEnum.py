@@ -173,6 +173,7 @@ class AnalyseType(Enum):
     GenerateDynGeLinFunction = 9
     CalculateDynByGeLin = 10
     FatigueAnalysis = 11
+    TestFunction = 12
 
 
 class InputFileType(Enum):

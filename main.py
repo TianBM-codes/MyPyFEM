@@ -315,6 +315,12 @@ class MyPyFEM:
             writer.WriteFatigueResult(fatigure_path)
             p_end = time.time()
 
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.TestFunction:
+            writer = ResultsWriter(True)
+            sql = "SELECT sid struct_id, CONCAT('RSGB', sid) FROM t_sensor_basic_info WHERE sensor_type='RSGB';"
+            sids, struct_ids, tables = writer.mysql_db.execute_sql(sql)
+
+
         else:
             mlogger.fatal("UnSupport Analyse Type")
             sys.exit(1)
@@ -457,15 +463,17 @@ def re_calculate_element_stiff():
 
 
 if __name__ == "__main__":
-    # input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
+    input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
     # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\zhijiaRenumber.cdb"
     # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\triAndQuaCylinder.cdb"
     # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\allTriCylinder.cdb"
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\singleInclineQuaShell.cdb"
-    input_file = r"D:\WorkSpace\WebThreeJS\PyModelToJson\model\ansys\cdb\MQ1330_remesh_resort.cdb"
-    # my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.AsServer)
-    my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.ReSortModel)
-    # app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
+    # input_file = r"D:\WorkSpace\WebThreeJS\PyModelToJson\model\ansys\cdb\MQ1330_remesh_resort.cdb"
+
+    # my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.TestFunction)
+    my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.AsServer)
+    # my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.ReSortModel)
+    app.run(host='0.0.0.0', port=5000, debug=True, use_reloader=False)
     # app.run(host='0.0.0.0', port=5000, debug=True, reloader_type='watchdog')
 
     # my_fem.ReCalculateFEMModel(2.1e11)

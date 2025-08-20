@@ -162,7 +162,6 @@ class ResultsWriter(object):
                    )
             self.mysql_db.commit_sql(sql)
 
-
     def WriteStaticResult2DatFile2(self, dat_path, wrp):
         """
         对模型进行重新排序
@@ -305,11 +304,58 @@ class ResultsWriter(object):
             f.write(compressed)
 
         """
-        6. 如果涉及MySQL数据库, 将结果写入数据库
+        6. 写入韩昊兵的疲劳结果
+        """
+        with open("/root/TianPyFem/mypyfem/model/year_calculate_1.dat", 'rb') as fileData:
+            rawData = fileData.read()
+            uncompressed_data = zlib.decompress(rawData)
+            buffer = BytesIO(uncompressed_data)
+            _ = struct.unpack('i', buffer.read(4))[0]
+            res_length = struct.unpack('i', buffer.read(4))[0]
+            total_damage = struct.unpack(f'{res_length}f', buffer.read(res_length * 4))
+        buffer2 = BytesIO()
+        buffer2.write(struct.pack('i', model_data["plot_type"]))
+        buffer2.write(struct.pack('6f', *model_data["boundary_box"]))
+        buffer2.write(struct.pack('i', model_data["nFrames"]))
+
+        rot_info_length = len(np.array(model_data["rot_length"]))
+        buffer2.write(struct.pack('i', rot_info_length))
+        buffer2.write(struct.pack(f'{rot_info_length}i', *model_data["rot_length"]))
+
+        rr = len(model_data["rotation_info"])
+        buffer2.write(struct.pack('i', rr))
+        buffer2.write(struct.pack(f'{rr}f', *model_data["rotation_info"]))
+
+        buffer2.write(struct.pack('i', len(tri_face_idx)))
+        buffer2.write(struct.pack(f'{len(tri_face_idx)}i', *tri_face_idx))
+
+        buffer2.write(struct.pack('i', len(total_damage)))
+        buffer2.write(struct.pack(
+            f'{len(total_damage)}f',
+            # *model_data[f"iter_result_{iter_frame}"]
+            *total_damage
+        ))
+        raw_data = buffer2.getvalue()
+        compressed = zlib.compress(raw_data, level=9)
+
+        fatigue_path = dat_path.with_stem(dat_path.stem + "_fatigue")
+        with open(fatigue_path, 'wb') as f:
+            f.write(compressed)
+
+        """
+        7. 如果涉及MySQL数据库, 将结果写入数据库
         """
         if self.use_mysql:
             sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
                    f"VALUES (NOW(), '{dat_path}', 'rt') "
+                   "ON DUPLICATE KEY UPDATE "
+                   "calculate_time = VALUES(calculate_time), "
+                   "file_name = VALUES(file_name), "
+                   "result_type = VALUES(result_type);"
+                   )
+            self.mysql_db.commit_sql(sql)
+            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
+                   f"VALUES (NOW(), '{fatigue_path}', 'fatigue') "
                    "ON DUPLICATE KEY UPDATE "
                    "calculate_time = VALUES(calculate_time), "
                    "file_name = VALUES(file_name), "
@@ -329,7 +375,7 @@ class ResultsWriter(object):
 
     def WriteResortModel2DatFile(self, dat_path):
         """
-        对模型进行重新排序
+        对模型按单元集合进行重新排序
         :param dat_path:
         :return:
         """
