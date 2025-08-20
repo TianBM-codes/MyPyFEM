@@ -362,8 +362,8 @@ class ResultsWriter(object):
                    "result_type = VALUES(result_type);"
                    )
             self.mysql_db.commit_sql(sql)
-            sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4, value5) "
-                   f"VALUES (NOW(), '{D / 1000:.2f}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(self.femdb.linear_mises / 1000000)):.3f}', {H / 1000:.2f}) "
+            sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4, value5, struct_id) "
+                   f"VALUES (NOW(), '{D / 1000:.2f}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(self.femdb.linear_mises / 1000000)):.3f}', {H / 1000:.2f}, '1001') "
                    "ON DUPLICATE KEY UPDATE "
                    "value1= VALUES(value1), "
                    "value2= VALUES(value2), "
