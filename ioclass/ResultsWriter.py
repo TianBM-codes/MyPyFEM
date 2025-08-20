@@ -287,6 +287,9 @@ class ResultsWriter(object):
         """
         4. 起重机地下圈的显示
         """
+        buffer.write(struct.pack('f', D / 1000))
+        buffer.write(struct.pack('f', H / 1000))
+
         # D_H_xyz = [D + 1900, 0, 0, D + 1900, H, 0]
         # buffer.write(struct.pack(
         #     '6f',
