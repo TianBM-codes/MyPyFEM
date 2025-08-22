@@ -137,8 +137,10 @@ class ResultsWriter(object):
         """
         将Mises结果写入文件
         :param dat_path:
+        :param struct_id:
         :return:
         """
+        struct_id += 1001
         src = pathlib.Path(dat_path)
         buffer = BytesIO()
         buffer.write(struct.pack('i', len(self.femdb.linear_mises)))
@@ -170,6 +172,7 @@ class ResultsWriter(object):
         :param struct_id:
         :return:
         """
+        struct_id += 1001
         buffer = BytesIO()
         coords = np.asarray([node.coord for node in self.femdb.node_list])
         model_data = {"plot_type": 4,
