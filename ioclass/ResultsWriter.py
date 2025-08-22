@@ -164,12 +164,13 @@ class ResultsWriter(object):
                    )
             self.mysql_db.commit_sql(sql)
 
-    def WriteStaticResult2DatFile2(self, dat_path, wrp, struct_id):
+    def WriteStaticResult2DatFile2(self, dat_path, wrp, struct_id, load):
         """
         对模型进行重新排序
         :param dat_path:
         :param wrp:
         :param struct_id:
+        :param load:
         :return:
         """
         struct_id += 1001
@@ -298,6 +299,7 @@ class ResultsWriter(object):
         buffer.write(struct.pack('f', H / 1000))
         buffer.write(struct.pack('f', max_dis))
         buffer.write(struct.pack('f', max_mises))
+        buffer.write(struct.pack('f', load))
 
         # D_H_xyz = [D + 1900, 0, 0, D + 1900, H, 0]
         # buffer.write(struct.pack(

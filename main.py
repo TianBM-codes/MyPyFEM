@@ -361,12 +361,13 @@ class MyPyFEM:
         writer = ResultsWriter()
         writer.WriteStaticAnalysisVTUFile(self.output_files[0])
 
-    def RotateModel(self, theta, vtu_path, struct_id):
+    def RotateModel(self, theta, vtu_path, struct_id, load):
         """
         旋转模型, 以臂架为基准
         :param theta:
         :param vtu_path:
         :param struct_id:
+        :param load:
         :return:
         """
         time1 = time.time()
@@ -412,7 +413,7 @@ class MyPyFEM:
         # writer.WriteStaticAnalysisVTUFile(src)
         dat_path = src.with_suffix(".dat")
         dat_path = dat_path.with_stem(dat_path.stem + f"{int(time.time())}")
-        writer.WriteStaticResult2DatFile2(dat_path, wrapper, struct_id)
+        writer.WriteStaticResult2DatFile2(dat_path, wrapper, struct_id, load)
         writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"), struct_id)
         time_end = time.time()
         total_time_elapsed = time_end - time1
@@ -617,7 +618,7 @@ def MQ1330SimServer(save_path, sId):
                 my_fem.domain.femdb.load_case.c_loads = cload  ## 更新有限元数据库里载荷
 
                 iter_path = save_path.with_stem(f"theta{bjA}")
-                my_fem.RotateModel(bjA - 43.224, iter_path)  ## RotateModel给的角度是增量
+                my_fem.RotateModel(bjA - 43.224, iter_path, sId, load/9.8/1000)  ## RotateModel给的角度是增量
         except Exception as e:
             logging.error(f"MQ1330SimServer  failed: {str(e)}")
             time.sleep(1)
