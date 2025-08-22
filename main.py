@@ -642,7 +642,7 @@ def startServer():
             print(f"**************************  start Server structId: {structId}  *****************************")
             ## 计算线程已经停止，可以开始新任务
             stop[structId].clear()  # 复位
-            save_path = pathlib.Path(request.json.get('save_path'))
+            save_path = pathlib.Path(request.args.get('save_path'))
             ## 仿真计算服务
             threading.Thread(target=MQ1330SimServer, args=(save_path, structId), daemon=True).start()
             ## 循环检测更新吊重状态
