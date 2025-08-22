@@ -618,7 +618,7 @@ def MQ1330SimServer(save_path, sId):
                 my_fem.domain.femdb.load_case.c_loads = cload  ## 更新有限元数据库里载荷
 
                 iter_path = save_path.with_stem(f"theta{bjA}")
-                my_fem.RotateModel(bjA - 43.224, iter_path, sId, load/9.8/1000)  ## RotateModel给的角度是增量
+                my_fem.RotateModel(bjA - 43.224, iter_path, sId, float(load/9.8/1000))  ## RotateModel给的角度是增量
         except Exception as e:
             logging.error(f"MQ1330SimServer  failed: {str(e)}")
             time.sleep(1)

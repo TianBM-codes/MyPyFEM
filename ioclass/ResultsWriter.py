@@ -292,14 +292,14 @@ class ResultsWriter(object):
         """
         4. 起重机地下圈的显示
         """
-        max_dis = f"{np.max(np.array(dis_mag)):.2f}"
-        max_mises = f"{np.max(np.array(self.femdb.linear_mises)):.2f}"
+        max_dis = np.max(np.array(dis_mag))
+        max_mises = np.max(np.array(self.femdb.linear_mises))
 
         buffer.write(struct.pack('f', D / 1000))
         buffer.write(struct.pack('f', H / 1000))
         buffer.write(struct.pack('f', max_dis))
         buffer.write(struct.pack('f', max_mises))
-        buffer.write(struct.pack('f', load))
+        buffer.write(struct.pack('f', float(load)))
 
         # D_H_xyz = [D + 1900, 0, 0, D + 1900, H, 0]
         # buffer.write(struct.pack(
