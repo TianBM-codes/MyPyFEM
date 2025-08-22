@@ -133,7 +133,7 @@ class ResultsWriter(object):
             # field_data=field_data
         )
 
-    def WriteMises2DatFile(self, dat_path):
+    def WriteMises2DatFile(self, dat_path, struct_id):
         """
         将Mises结果写入文件
         :param dat_path:
@@ -153,8 +153,8 @@ class ResultsWriter(object):
             f.write(compressed)
 
         if self.use_mysql:
-            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
-                   f"VALUES (NOW(), '{dat_path}', 'mises') "
+            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type, struct_id) "
+                   f"VALUES (NOW(), '{dat_path}', 'mises', {struct_id}) "
                    "ON DUPLICATE KEY UPDATE "
                    "calculate_time = VALUES(calculate_time), "
                    "file_name = VALUES(file_name), "
@@ -162,11 +162,12 @@ class ResultsWriter(object):
                    )
             self.mysql_db.commit_sql(sql)
 
-    def WriteStaticResult2DatFile2(self, dat_path, wrp):
+    def WriteStaticResult2DatFile2(self, dat_path, wrp, struct_id):
         """
         对模型进行重新排序
         :param dat_path:
         :param wrp:
+        :param struct_id:
         :return:
         """
         buffer = BytesIO()
@@ -287,8 +288,13 @@ class ResultsWriter(object):
         """
         4. 起重机地下圈的显示
         """
+        max_dis = f"{np.max(np.array(dis_mag)):.2f}"
+        max_mises = f"{np.max(np.array(self.femdb.linear_mises)):.2f}"
+
         buffer.write(struct.pack('f', D / 1000))
         buffer.write(struct.pack('f', H / 1000))
+        buffer.write(struct.pack('f', max_dis))
+        buffer.write(struct.pack('f', max_mises))
 
         # D_H_xyz = [D + 1900, 0, 0, D + 1900, H, 0]
         # buffer.write(struct.pack(
@@ -349,16 +355,16 @@ class ResultsWriter(object):
         7. 如果涉及MySQL数据库, 将结果写入数据库
         """
         if self.use_mysql:
-            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
-                   f"VALUES (NOW(), '{dat_path}', 'rt') "
+            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type, struct_id) "
+                   f"VALUES (NOW(), '{dat_path}', 'rt', {struct_id}) "
                    "ON DUPLICATE KEY UPDATE "
                    "calculate_time = VALUES(calculate_time), "
                    "file_name = VALUES(file_name), "
                    "result_type = VALUES(result_type);"
                    )
             self.mysql_db.commit_sql(sql)
-            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type) "
-                   f"VALUES (NOW(), '{fatigue_path}', 'fatigue') "
+            sql = (f"INSERT INTO t_calculate_nephogram (calculate_time, file_name, result_type, struct_id) "
+                   f"VALUES (NOW(), '{fatigue_path}', 'fatigue', {struct_id}) "
                    "ON DUPLICATE KEY UPDATE "
                    "calculate_time = VALUES(calculate_time), "
                    "file_name = VALUES(file_name), "
@@ -366,7 +372,7 @@ class ResultsWriter(object):
                    )
             self.mysql_db.commit_sql(sql)
             sql = (f"INSERT INTO t_work_status (T, value1, value2, value3, value4, value5, struct_id) "
-                   f"VALUES (NOW(), '{D / 1000:.2f}', '13', '{np.max(np.array(dis_mag)):.3f}', '{np.max(np.array(self.femdb.linear_mises / 1000000)):.3f}', {H / 1000:.2f}, '1001') "
+                   f"VALUES (NOW(), '{D / 1000:.2f}', '13', {max_dis}, {max_mises}, {H / 1000:.2f}, {struct_id}) "
                    "ON DUPLICATE KEY UPDATE "
                    "value1= VALUES(value1), "
                    "value2= VALUES(value2), "
