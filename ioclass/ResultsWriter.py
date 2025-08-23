@@ -295,7 +295,10 @@ class ResultsWriter(object):
         max_dis = np.max(np.array(dis_mag))
         max_mises = np.max(np.array(self.femdb.linear_mises))
 
-        buffer.write(struct.pack('f', D / 1000))
+        sql = "SELECT value7 FROM nbport_qzj_db.t_data_work_status_info order by T desc limit 1;"
+        D = self.mysql_db.execute_sql(sql)[0][0]
+
+        buffer.write(struct.pack('f', D))
         buffer.write(struct.pack('f', H / 1000))
         buffer.write(struct.pack('f', max_dis))
         buffer.write(struct.pack('f', max_mises))
@@ -953,3 +956,5 @@ if __name__ == "__main__":
     new_name = file_lib.stem + "_mises"
     new_path = file_lib.with_stem(new_name)
     print(new_path)
+    res = ResultsWriter(use_mysql=True)
+
