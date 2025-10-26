@@ -5,6 +5,7 @@ import abc
 
 from femdb.Integration import *
 from utils.UtilsFunction import *
+import numba
 import time
 
 
