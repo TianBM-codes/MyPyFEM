@@ -453,12 +453,12 @@ class Domain(object):
         :return:
         """
         self.femdb.linear_mises = np.zeros(len(self.femdb.node_list))
-        self.femdb.sigma_xx = np.zeros(len(self.femdb.node_list))
-        self.femdb.sigma_yy = np.zeros(len(self.femdb.node_list))
-        self.femdb.sigma_zz = np.zeros(len(self.femdb.node_list))
-        self.femdb.tau_xy = np.zeros(len(self.femdb.node_list))
-        self.femdb.tau_xz = np.zeros(len(self.femdb.node_list))
-        self.femdb.tau_yz = np.zeros(len(self.femdb.node_list))
+        # self.femdb.sigma_xx = np.zeros(len(self.femdb.node_list))
+        # self.femdb.sigma_yy = np.zeros(len(self.femdb.node_list))
+        # self.femdb.sigma_zz = np.zeros(len(self.femdb.node_list))
+        # self.femdb.tau_xy = np.zeros(len(self.femdb.node_list))
+        # self.femdb.tau_xz = np.zeros(len(self.femdb.node_list))
+        # self.femdb.tau_yz = np.zeros(len(self.femdb.node_list))
         for ele in self.femdb.elements:
             search_idx = []
             for ii in ele.search_node_ids:

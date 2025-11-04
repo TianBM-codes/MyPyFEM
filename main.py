@@ -144,7 +144,7 @@ class MyPyFEM:
             time_4 = time.time()
             mlogger.debug(time_format.format("Solve Displacement", time_4 - time_3))
 
-            # self.domain.SolveStress()
+            self.domain.SolveStress()
             time_5 = time.time()
             mlogger.debug(time_format.format("Solve Node Stress", time_5 - time_4))
 

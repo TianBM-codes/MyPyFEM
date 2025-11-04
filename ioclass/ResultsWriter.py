@@ -117,20 +117,20 @@ class ResultsWriter(object):
             else:
                 all_eles[ele_type] = [iter_relation]
 
-        # 位移结果
         dis_value = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
-        # node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises}
-        node_res = {"displacement": dis_value}
-        # node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises,
-        #             "sigma_xx": self.femdb.sigma_xx, "sigma_yy": self.femdb.sigma_yy, "sigma_zz": self.femdb.sigma_zz,
-        #             "tau_xy": self.femdb.tau_xy, "tau_xz": self.femdb.tau_xz, "tau_yz": self.femdb.tau_yz}
+        if self.femdb.linear_mises is None:
+            node_res = {"displacement": dis_value}
+        elif self.femdb.sigma_zz is None:
+            node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises}
+        else:
+            node_res = {"displacement": dis_value, "mises": self.femdb.linear_mises,
+                        "sigma_xx": self.femdb.sigma_xx, "sigma_yy": self.femdb.sigma_yy, "sigma_zz": self.femdb.sigma_zz,
+                        "tau_xy": self.femdb.tau_xy, "tau_xz": self.femdb.tau_xz, "tau_yz": self.femdb.tau_yz}
         meshio.write_points_cells(
             filename=path,
             points=coords,
             cells=all_eles,
             point_data=node_res,
-            # cell_data=cell_data,
-            # field_data=field_data
         )
 
     def WriteMises2DatFile(self, dat_path, struct_id):
