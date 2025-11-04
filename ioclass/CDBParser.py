@@ -511,7 +511,7 @@ class CDBParser(object):
                     inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.CircleSolid, sec_data)
                     area_character = BeamCalculator.CalEffectiveShearArea(BeamSectionType.CircleSolid, sec_data)
                     self.section_map[int(sec_num)] = {**inertia_character, **area_character}
-                elif beam_type == "USER":
+                elif beam_type in ["USER", "ASEC"]:
                     inertia_character = BeamCalculator.CalculateMomentOfInertiaOfArea(BeamSectionType.UserInput, sec_data)
                     self.section_map[int(sec_num)] = {**inertia_character}
                 else:

@@ -63,7 +63,7 @@ class MyPyFEM:
         if plot_stiff:
             GlobalInfor[GlobalVariant.PlotGlobalStiffness] = True
 
-        self._fem_data = None
+        # self._fem_data = None
         self.input_file_path = file_path
         self.output_files = [file_path.with_suffix(".vtu"),
                              file_path.with_suffix(".unv"),
@@ -144,7 +144,7 @@ class MyPyFEM:
             time_4 = time.time()
             mlogger.debug(time_format.format("Solve Displacement", time_4 - time_3))
 
-            self.domain.SolveStress()
+            # self.domain.SolveStress()
             time_5 = time.time()
             mlogger.debug(time_format.format("Solve Node Stress", time_5 - time_4))
 

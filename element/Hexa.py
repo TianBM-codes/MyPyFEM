@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import pypardiso
-import scipy.sparse.linalg
 
 from element.ElementBase import *
 import numpy as np
@@ -141,6 +139,252 @@ class stdC3D8(ElementBaseClass, ABC):
         pass
 
 
+@numba.jit(nopython=True, fastmath=True, cache=True)
+def _shp3d_numba(ss, xl, shp, xs, ad, xs_inv):
+    """
+    Numba优化的形状函数计算
+    输入 ss: 自然坐标 [ξ, η, ζ]
+    返回 xsj: Jacobian 行列式
+    返回 shp: 形状函数和导数数组 [4x8]
+    """
+    # 计算辅助变量
+    ap1 = 1.0 + ss[0]
+    am1 = 1.0 - ss[0]
+    ap2 = 1.0 + ss[1]
+    am2 = 1.0 - ss[1]
+    ap3 = 1.0 + ss[2]
+    am3 = 1.0 - ss[2]
+
+    # 重置形状函数数组
+    shp[:, :] = 0.0
+
+    # (-,-) 区域节点 (0,3,4)
+    c1 = 0.125 * am1 * am2
+    c2 = 0.125 * am2 * am3
+    c3 = 0.125 * am1 * am3
+
+    shp[0, 0] = -c2
+    shp[0, 1] = c2
+    shp[1, 0] = -c3
+    shp[1, 3] = c3
+    shp[2, 0] = -c1
+    shp[2, 4] = c1
+    shp[3, 0] = c1 * am3
+    shp[3, 4] = c1 * ap3
+
+    # (+,+) 区域节点 (2,6,7)
+    c1 = 0.125 * ap1 * ap2
+    c2 = 0.125 * ap2 * ap3
+    c3 = 0.125 * ap1 * ap3
+
+    shp[0, 7] = -c2
+    shp[0, 6] = c2
+    shp[1, 5] = -c3
+    shp[1, 6] = c3
+    shp[2, 2] = -c1
+    shp[2, 6] = c1
+    shp[3, 2] = c1 * am3
+    shp[3, 6] = c1 * ap3
+
+    # (-,+) 区域节点 (3,4,7)
+    c1 = 0.125 * am1 * ap2
+    c2 = 0.125 * am2 * ap3
+    c3 = 0.125 * am1 * ap3
+
+    shp[0, 4] = -c2
+    shp[0, 5] = c2
+    shp[1, 4] = -c3
+    shp[1, 7] = c3
+    shp[2, 3] = -c1
+    shp[2, 7] = c1
+    shp[3, 3] = c1 * am3
+    shp[3, 7] = c1 * ap3
+
+    # (+,-) 区域节点 (1,2,5)
+    c1 = 0.125 * ap1 * am2
+    c2 = 0.125 * ap2 * am3
+    c3 = 0.125 * ap1 * am3
+
+    shp[0, 3] = -c2
+    shp[0, 2] = c2
+    shp[1, 1] = -c3
+    shp[1, 2] = c3
+    shp[2, 1] = -c1
+    shp[2, 5] = c1
+    shp[3, 1] = c1 * am3
+    shp[3, 5] = c1 * ap3
+
+    # 计算 Jacobian 矩阵
+    xs[:, :] = 0.0
+
+    # dx/dξ, dx/dη, dx/dζ
+    xs[0, 0] = (xl[0, 1] - xl[0, 0]) * shp[0, 1] \
+               + (xl[0, 2] - xl[0, 3]) * shp[0, 2] \
+               + (xl[0, 5] - xl[0, 4]) * shp[0, 5] \
+               + (xl[0, 6] - xl[0, 7]) * shp[0, 6]
+
+    xs[1, 0] = (xl[1, 1] - xl[1, 0]) * shp[0, 1] \
+               + (xl[1, 2] - xl[1, 3]) * shp[0, 2] \
+               + (xl[1, 5] - xl[1, 4]) * shp[0, 5] \
+               + (xl[1, 6] - xl[1, 7]) * shp[0, 6]
+
+    xs[2, 0] = (xl[2, 1] - xl[2, 0]) * shp[0, 1] \
+               + (xl[2, 2] - xl[2, 3]) * shp[0, 2] \
+               + (xl[2, 5] - xl[2, 4]) * shp[0, 5] \
+               + (xl[2, 6] - xl[2, 7]) * shp[0, 6]
+
+    # dy/dξ, dy/dη, dy/dζ
+    xs[0, 1] = (xl[0, 2] - xl[0, 1]) * shp[1, 2] \
+               + (xl[0, 3] - xl[0, 0]) * shp[1, 3] \
+               + (xl[0, 6] - xl[0, 5]) * shp[1, 6] \
+               + (xl[0, 7] - xl[0, 4]) * shp[1, 7]
+
+    xs[1, 1] = (xl[1, 2] - xl[1, 1]) * shp[1, 2] \
+               + (xl[1, 3] - xl[1, 0]) * shp[1, 3] \
+               + (xl[1, 6] - xl[1, 5]) * shp[1, 6] \
+               + (xl[1, 7] - xl[1, 4]) * shp[1, 7]
+
+    xs[2, 1] = (xl[2, 2] - xl[2, 1]) * shp[1, 2] \
+               + (xl[2, 3] - xl[2, 0]) * shp[1, 3] \
+               + (xl[2, 6] - xl[2, 5]) * shp[1, 6] \
+               + (xl[2, 7] - xl[2, 4]) * shp[1, 7]
+
+    # dz/dξ, dz/dη, dz/dζ
+    xs[0, 2] = (xl[0, 4] - xl[0, 0]) * shp[2, 4] \
+               + (xl[0, 5] - xl[0, 1]) * shp[2, 5] \
+               + (xl[0, 6] - xl[0, 2]) * shp[2, 6] \
+               + (xl[0, 7] - xl[0, 3]) * shp[2, 7]
+
+    xs[1, 2] = (xl[1, 4] - xl[1, 0]) * shp[2, 4] \
+               + (xl[1, 5] - xl[1, 1]) * shp[2, 5] \
+               + (xl[1, 6] - xl[1, 2]) * shp[2, 6] \
+               + (xl[1, 7] - xl[1, 3]) * shp[2, 7]
+
+    xs[2, 2] = (xl[2, 4] - xl[2, 0]) * shp[2, 4] \
+               + (xl[2, 5] - xl[2, 1]) * shp[2, 5] \
+               + (xl[2, 6] - xl[2, 2]) * shp[2, 6] \
+               + (xl[2, 7] - xl[2, 3]) * shp[2, 7]
+
+    # 计算伴随矩阵 (ad) = cofactor(xs)
+    ad[0, 0] = xs[1, 1] * xs[2, 2] - xs[1, 2] * xs[2, 1]
+    ad[0, 1] = xs[2, 1] * xs[0, 2] - xs[2, 2] * xs[0, 1]
+    ad[0, 2] = xs[0, 1] * xs[1, 2] - xs[0, 2] * xs[1, 1]
+
+    ad[1, 0] = xs[1, 2] * xs[2, 0] - xs[1, 0] * xs[2, 2]
+    ad[1, 1] = xs[2, 2] * xs[0, 0] - xs[2, 0] * xs[0, 2]
+    ad[1, 2] = xs[0, 2] * xs[1, 0] - xs[0, 0] * xs[1, 2]
+
+    ad[2, 0] = xs[1, 0] * xs[2, 1] - xs[1, 1] * xs[2, 0]
+    ad[2, 1] = xs[2, 0] * xs[0, 1] - xs[2, 1] * xs[0, 0]
+    ad[2, 2] = xs[0, 0] * xs[1, 1] - xs[0, 1] * xs[1, 0]
+
+    # 计算 Jacobian 行列式
+    xsj = xs[0, 0] * ad[0, 0] + xs[0, 1] * ad[1, 0] + xs[0, 2] * ad[2, 0]
+
+    # 避免除零错误
+    if abs(xsj) < 1e-15:
+        xsj = 1e-15
+
+    rxsj = 1.0 / xsj
+
+    # 计算逆 Jacobian 矩阵
+    for j in range(3):
+        for i in range(3):
+            xs_inv[i, j] = ad[i, j] * rxsj
+
+    # 将自然导数转换为全局导数
+    for k in range(8):
+        c1 = shp[0, k]
+        c2 = shp[1, k]
+        c3 = shp[2, k]
+
+        shp[0, k] = c1 * xs_inv[0, 0] + c2 * xs_inv[1, 0] + c3 * xs_inv[2, 0]
+        shp[1, k] = c1 * xs_inv[0, 1] + c2 * xs_inv[1, 1] + c3 * xs_inv[2, 1]
+        shp[2, k] = c1 * xs_inv[0, 2] + c2 * xs_inv[1, 2] + c3 * xs_inv[2, 2]
+
+    return xsj, shp
+
+
+@numba.jit(nopython=True, fastmath=True, cache=True)
+def _computeBBar_numba(node, shp, shpBar):
+    """
+    Numba优化的B-bar矩阵计算（体积锁定修正）
+    返回 B-bar 矩阵 (6x3)
+    """
+    one3 = 1.0 / 3.0
+    Bbar = np.zeros((6, 3), dtype=np.float32)
+
+    dNdx = shp[0, node]
+    dNdy = shp[1, node]
+    dNdz = shp[2, node]
+
+    dNBar_dx = shpBar[0, node]
+    dNBar_dy = shpBar[1, node]
+    dNBar_dz = shpBar[2, node]
+
+    # 偏差部分 (deviatoric)
+    Bdev = np.array([
+        [2.0 * dNdx, -dNdy, -dNdz],
+        [-dNdx, 2.0 * dNdy, -dNdz],
+        [-dNdx, -dNdy, 2.0 * dNdz]
+    ], dtype=np.float32)
+
+    # 体积部分 (volumetric)
+    BbarVol = np.array([
+        [dNBar_dx, dNBar_dy, dNBar_dz],
+        [dNBar_dx, dNBar_dy, dNBar_dz],
+        [dNBar_dx, dNBar_dy, dNBar_dz]
+    ], dtype=np.float32)
+
+    # 组合法向项（前3行）
+    for i in range(3):
+        for j in range(3):
+            Bbar[i, j] = one3 * (Bdev[i, j] + BbarVol[i, j])
+
+    # 剪切项（后3行）
+    Bbar[3, 0] = dNdy  # gamma_xy: ε12
+    Bbar[3, 1] = dNdx
+
+    Bbar[4, 1] = dNdz  # gamma_yz: ε23
+    Bbar[4, 2] = dNdy
+
+    Bbar[5, 0] = dNdz  # gamma_zx: ε31
+    Bbar[5, 2] = dNdx
+
+    return Bbar
+
+
+@numba.jit(nopython=True, fastmath=True, cache=True)
+def _add_gauss_contribution(K, shp, shpBar, D, dvol):
+    """
+    添加单个高斯点对刚度矩阵的贡献
+    使用 B-bar 方法避免体积锁定
+    """
+    # 预分配B矩阵
+    B = np.zeros((6, 24), dtype=np.float32)
+
+    # 构建B矩阵
+    for node in range(8):
+        BBar = _computeBBar_numba(node, shp, shpBar)
+        col_start = node * 3
+
+        # 填充B矩阵
+        for i in range(3):
+            for j in range(3):
+                B[i, col_start + j] = BBar[i, j]
+
+        # 剪切项
+        B[3, col_start] = BBar[3, 0]  # γxy
+        B[3, col_start + 1] = BBar[3, 1]
+        B[4, col_start + 1] = BBar[4, 1]  # γyz
+        B[4, col_start + 2] = BBar[4, 2]
+        B[5, col_start] = BBar[5, 0]  # γxz
+        B[5, col_start + 2] = BBar[5, 2]
+
+    BTDB = B.T @ (D @ B)
+    K += BTDB * dvol
+
+
 class C3D8(ElementBaseClass, ABC):
     """ hexa Element class """
 
@@ -175,12 +419,23 @@ class C3D8(ElementBaseClass, ABC):
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
         a = e / ((1 + niu) * (1 - 2 * niu))
-        self.D = a * np.array([[1 - niu, niu, niu, 0, 0, 0],
-                               [niu, 1 - niu, niu, 0, 0, 0],
-                               [niu, niu, 1 - niu, 0, 0, 0],
-                               [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
-                               [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
-                               [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+        b = (1 - niu) * a
+        c = niu * a
+        d = 0.5 * (1 - 2 * niu) * a
+
+        self.D = np.zeros((6, 6), dtype=np.float32)
+        self.D[0, 0] = b
+        self.D[1, 1] = b
+        self.D[2, 2] = b
+        self.D[0, 1] = c
+        self.D[0, 2] = c
+        self.D[1, 0] = c
+        self.D[1, 2] = c
+        self.D[2, 0] = c
+        self.D[2, 1] = c
+        self.D[3, 3] = d
+        self.D[4, 4] = d
+        self.D[5, 5] = d
 
     def ElementStiffness(self, from_origin=False):
         """
@@ -190,65 +445,108 @@ class C3D8(ElementBaseClass, ABC):
         assert self.node_coords.shape == (8, 3)
         self.CalElementDMatrix()
 
-        volume = 0.0
-        Shape = np.zeros((self.nShape, self.nodes_count, self.numberGauss))
-        shpBar = np.zeros((self.nShape, self.nodes_count))
+        # 重置刚度矩阵
+        self.K.fill(0.0)
 
-        # Gauss loop to compute and save shape functions
-        count = 0
+        # 调用Numba优化的计算函数
+        # 注意：node_coords需要转置为3x8以便内存连续访问
+        self.K = self._compute_stiffness_numba(
+            self.node_coords.T,  # 转置为3x8
+            self.D,
+            self.sg,
+            self.wg
+        )
+        return self.K
+
+    @staticmethod
+    @numba.jit(nopython=True, parallel=True, fastmath=True, cache=True)
+    def _compute_stiffness_numba(node_coords, D, sg, wg):
+        """
+        Numba优化的刚度矩阵计算核心
+        使用B-bar方法避免体积锁定
+        """
+        # 预分配刚度矩阵
+        K = np.zeros((24, 24), dtype=np.float32)
+
+        # 预分配工作数组（用于串行部分）
+        shp_serial = np.zeros((4, 8), dtype=np.float32)
+        xs_serial = np.zeros((3, 3), dtype=np.float32)
+        ad_serial = np.zeros((3, 3), dtype=np.float32)
+        xs_inv_serial = np.zeros((3, 3), dtype=np.float32)
+
+        # 预计算平均形状函数（用于B-bar方法）
+        volume = 0.0
+        shpBar = np.zeros((4, 8), dtype=np.float32)
+
+        # 第一遍：计算平均形状函数（串行）
         for i in range(2):
             for j in range(2):
                 for k in range(2):
-                    gaussPoint = np.array([self.sg[i], self.sg[j], self.sg[k]])
-                    xsj, shp = self.shp3d(gaussPoint)
+                    gauss_point = np.array([sg[i], sg[j], sg[k]], dtype=np.float32)
 
-                    # Save shape functions
-                    for p in range(self.nShape):
-                        for q in range(self.nodes_count):
-                            Shape[p, q, count] = shp[p, q]
+                    # 重置工作数组
+                    shp_serial.fill(0.0)
+                    xs_serial.fill(0.0)
+                    ad_serial.fill(0.0)
+                    xs_inv_serial.fill(0.0)
 
-                    # Volume element
-                    self.dvol[count] = self.wg[count] * xsj
-                    volume += self.dvol[count]
+                    xsj, shp_serial = _shp3d_numba(
+                        gauss_point,
+                        node_coords,
+                        shp_serial,
+                        xs_serial,
+                        ad_serial,
+                        xs_inv_serial
+                    )
+                    dvol = wg[i * 4 + j * 2 + k] * xsj
+                    volume += dvol
 
-                    # Accumulate mean shape functions
-                    for p in range(self.nShape):
-                        for q in range(self.nodes_count):
-                            shpBar[p, q] += self.dvol[count] * shp[p, q]
+                    # 累积形状函数
+                    for p in range(4):
+                        for q in range(8):
+                            shpBar[p, q] += dvol * shp_serial[p, q]
 
-                    count += 1
+        # 归一化平均形状函数
+        if abs(volume) > 1e-15:
+            for p in range(4):
+                for q in range(8):
+                    shpBar[p, q] /= volume
 
-        # Normalize mean shape functions
-        for p in range(self.nShape):
-            for q in range(self.nodes_count):
-                shpBar[p, q] /= volume
+        # 创建线程本地存储
+        K_local_list = [np.zeros((24, 24), dtype=np.float32) for _ in range(8)]
 
-        # Second Gauss loop for residual and tangent
-        for i in range(self.numberGauss):
-            # Retrieve shape functions
-            shp = Shape[:, :, i]
+        # 第二遍：计算刚度矩阵（并行处理高斯点）
+        for gauss_index in numba.prange(8):
+            i = gauss_index // 4
+            j = (gauss_index % 4) // 2
+            k = gauss_index % 2
 
-            dd = self.D * self.dvol[i]
+            gauss_point = np.array([sg[i], sg[j], sg[k]], dtype=np.float32)
 
-            # Residual and tangent calculations
-            jj = 0
-            for j in range(self.nodes_count):
-                BJ = self.computeBbar(j, shp, shpBar)
-                self.saveB[:, :, j, i] = BJ
-                BJtran = BJ.T
-                BJtranD = BJtran @ dd
-                kk = 0
-                for k in range(self.nodes_count):
-                    BK = self.computeBbar(k, shp, shpBar)
-                    stiffJK = BJtranD @ BK
-                    for p in range(self.ndf):
-                        for q in range(self.ndf):
-                            self.K[jj + p, kk + q] += stiffJK[p, q]
-                    kk += self.ndf
+            # 为每个线程创建独立的工作数组
+            shp_local = np.zeros((4, 8), dtype=np.float32)
+            xs_local = np.zeros((3, 3), dtype=np.float32)
+            ad_local = np.zeros((3, 3), dtype=np.float32)
+            xs_inv_local = np.zeros((3, 3), dtype=np.float32)
 
-                jj += self.ndf
+            xsj, shp_local = _shp3d_numba(
+                gauss_point,
+                node_coords,
+                shp_local,
+                xs_local,
+                ad_local,
+                xs_inv_local
+            )
+            dvol = wg[gauss_index] * xsj
 
-        return self.K
+            # 计算局部贡献到线程本地存储
+            _add_gauss_contribution(K_local_list[gauss_index], shp_local, shpBar, D, dvol)
+
+        # 串行累加所有线程的贡献
+        for i in range(8):
+            K += K_local_list[i]
+
+        return K
 
     def CalculateElementStress(self, displacement):
         """
@@ -514,52 +812,6 @@ class C3D8(ElementBaseClass, ABC):
             shp[2, k] = c1 * xs_inv[0, 2] + c2 * xs_inv[1, 2] + c3 * xs_inv[2, 2]
 
         return xsj, shp
-
-    def computeBbar(self, node, shp, shpBar):
-        """计算 B-bar 矩阵（体积锁定修正）"""
-        one3 = 1.0 / 3.0
-        Bbar = np.zeros((6, 3))
-
-        # 提取当前节点的导数
-        dNdx = shp[0, node]
-        dNdy = shp[1, node]
-        dNdz = shp[2, node]
-
-        # 提取当前节点的平均导数
-        dNBar_dx = shpBar[0, node]
-        dNBar_dy = shpBar[1, node]
-        dNBar_dz = shpBar[2, node]
-
-        # 偏差部分 (deviatoric)
-        Bdev = np.array([
-            [2.0 * dNdx, -dNdy, -dNdz],
-            [-dNdx, 2.0 * dNdy, -dNdz],
-            [-dNdx, -dNdy, 2.0 * dNdz]
-        ])
-
-        # 体积部分 (volumetric)
-        BbarVol = np.array([
-            [dNBar_dx, dNBar_dy, dNBar_dz],
-            [dNBar_dx, dNBar_dy, dNBar_dz],
-            [dNBar_dx, dNBar_dy, dNBar_dz]
-        ])
-
-        # 组合法向项（前3行）
-        for i in range(3):
-            for j in range(3):
-                Bbar[i, j] = one3 * (Bdev[i, j] + BbarVol[i, j])
-
-        # 剪切项（后3行）
-        Bbar[3, 0] = dNdy  # gamma_xy: ε12
-        Bbar[3, 1] = dNdx
-
-        Bbar[4, 1] = dNdz  # gamma_yz: ε23
-        Bbar[4, 2] = dNdy
-
-        Bbar[5, 0] = dNdz  # gamma_zx: ε31
-        Bbar[5, 2] = dNdx
-
-        return Bbar
 
 
 """

@@ -36,8 +36,7 @@ class Node(object):
         self.dof_disp = np.asarray([None] * 3, dtype=float)
         self.start_eq_num = None
         self.end_eq_num = None
-        # self.dof_count = None
-        self.dof_count = 6
+        self.dof_count = None
 
     def __lt__(self, other):
         return self.id < other.id
