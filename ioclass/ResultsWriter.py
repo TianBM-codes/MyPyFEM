@@ -174,7 +174,6 @@ class ResultsWriter(object):
         :return:
         """
         struct_id += 1001
-        buffer = BytesIO()
         coords = np.asarray([node.coord for node in self.femdb.node_list])
         model_data = {"plot_type": 4,
                       "boundary_box": [np.min(coords[:, 0]), np.max(coords[:, 0]),
@@ -251,6 +250,7 @@ class ResultsWriter(object):
         # npy_file_path = pathlib.Path(dat_path).with_suffix(".npy")
         # np.save(npy_file_path, np.array(map_npy))
 
+        buffer = BytesIO()
         """
         1. 头部数据写入
         """
@@ -389,6 +389,23 @@ class ResultsWriter(object):
                    "value5= VALUES(value5);"
                    )
             self.mysql_db.commit_sql(sql)
+
+    def WriteResult2CSV(self, csv_path):
+        """
+        将结果保存至csv文件
+        :param csv_path:
+        :return:
+        """
+        node_ids = np.asarray([node.id for node in self.femdb.node_list])
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        dis_value = np.reshape(self.femdb.linear_u, (-1, ModelInfo.PER_NODE_DOF))
+        mises = self.femdb.linear_mises
+        combined_data = np.column_stack((node_ids, coords, dis_value, mises))
+
+        # 保存为 CSV 文件
+        np.savetxt(csv_path, combined_data, delimiter=',',
+                   header='NodeID,X,Y,Z,UX,UY,UZ,RX,RY,RZ,Mises',
+                   comments='')
 
     def WriteResortModel2DatFile(self, dat_path):
         """
@@ -957,4 +974,3 @@ if __name__ == "__main__":
     new_path = file_lib.with_stem(new_name)
     print(new_path)
     res = ResultsWriter(use_mysql=True)
-

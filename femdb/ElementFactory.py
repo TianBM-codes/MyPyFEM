@@ -77,12 +77,12 @@ class ElementFactory:
         elif e_type in [181, 63]:
             if opt == 4:
                 # return CookQuaShell(e_id), 4, 300
-                # return CookQuaShell(e_id), 4, 6
-                return MITC4Shell(e_id), 4, 6
+                return CookQuaShell(e_id), 4, 6
+                # return MITC4Shell(e_id), 4, 6
             elif opt == 3:
                 # return CookTriShell(e_id), 3, 171
-                # return CookTriShell(e_id), 3, 6
-                return MITC3Shell(e_id), 3, 6
+                return CookTriShell(e_id), 3, 6
+                # return MITC3Shell(e_id), 3, 6
             else:
                 raise KeyError("Shell 181/63 don't support opt {}".format(opt))
 

@@ -198,7 +198,7 @@ class MyPyFEM:
             """
             有限元程序作为服务, 动态返回结果
             """
-            self.domain.CalAllElementStiffness()
+            # self.domain.CalAllElementStiffness()
             time_1 = time.time()
             mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
             p_end = time.time()
@@ -413,8 +413,10 @@ class MyPyFEM:
         # writer.WriteStaticAnalysisVTUFile(src)
         dat_path = src.with_suffix(".dat")
         dat_path = dat_path.with_stem(dat_path.stem + f"{int(time.time())}")
-        writer.WriteStaticResult2DatFile2(dat_path, wrapper, struct_id, load)
-        writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"), struct_id)
+        # writer.WriteStaticResult2DatFile2(dat_path, wrapper, struct_id, load)
+        # writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"), struct_id)
+        csv_path = src.with_suffix(".csv")
+        writer.WriteResult2CSV(csv_path)
         time_end = time.time()
         total_time_elapsed = time_end - time1
         mlogger.debug(time_format.format("Write Output", time_end - time7))
@@ -557,17 +559,17 @@ def MQ1330SimServer(save_path, sId):
     while not stop[sId].wait(1):  # 每 1 秒检查一次
         try:
             # load = 13000
-            if (loadFlag[sId].wait(1)):  ## 只有吊重标记才进行计算
-                if hasattr(loadFlag[sId], "load") and hasattr(loadFlag[sId], "load0"):  ## 获取载荷
-                    load = loadFlag[sId].load - loadFlag[sId].load0  ## 单位 T
-                    load *= 10000  ## 单位转化为N
+            if loadFlag[sId].wait(1):  # 只有吊重标记才进行计算
+                if hasattr(loadFlag[sId], "load") and hasattr(loadFlag[sId], "load0"):  # 获取载荷
+                    load = loadFlag[sId].load - loadFlag[sId].load0  # 单位 T
+                    load *= 10000  # 单位转化为N
                     print(f"sim Load: {load}")
                 else:
                     print(f"loadFlag[{sId}] hassttr 'load' is False!!")
                     time.sleep(1)
                     continue
 
-                if hasattr(loadFlag[sId], "time"):  ## 获取吊载时刻
+                if hasattr(loadFlag[sId], "time"):  # 获取吊载时刻
                     ti = loadFlag[sId].time
                     print(f"sim time: {ti}")
                 else:
@@ -615,10 +617,10 @@ def MQ1330SimServer(save_path, sId):
                     cload.append((i, 1, FrzYn / 4))
                 cload.append((70793, 1, -95000))
                 cload.append((81146, 1, -95000))
-                my_fem.domain.femdb.load_case.c_loads = cload  ## 更新有限元数据库里载荷
+                my_fem.domain.femdb.load_case.c_loads = cload  # 更新有限元数据库里载荷
 
                 iter_path = save_path.with_stem(f"theta{bjA}")
-                my_fem.RotateModel(bjA - 43.224, iter_path, sId, float(load/9.8/1000))  ## RotateModel给的角度是增量
+                my_fem.RotateModel(bjA - 43.224, iter_path, sId, float(load / 9.8 / 1000))  # RotateModel给的角度是增量
         except Exception as e:
             logging.error(f"MQ1330SimServer  failed: {str(e)}")
             time.sleep(1)
@@ -681,6 +683,78 @@ def stopServer():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/rotate_model_save_csv', methods=['POST'])
+def rotate_model_save_csv():
+    """
+    将郭进需要的结果保存至csv
+    :return:
+    """
+    global my_fem
+    if not my_fem:
+        return jsonify({"error": "FEM model not loaded"}), 400
+
+    try:
+        param = request.json
+        theta = param.get('rotate_theta', None)
+        p_save_path = param.get('save_path', None)
+        save_path = pathlib.Path(p_save_path)
+        mq1330 = MQ1330()
+        load = 13000000
+        current_theta = 1 + 43.224
+        step = 1
+        while True:
+            if current_theta >= 33 + 43.224:
+                step = -1
+            elif current_theta <= 1 + 43.224:
+                step = 1
+            current_theta += step
+            bj, xb, dl, xl, _, _, = mq1330.getPartOrientation(current_theta)
+            FxbX = -load * np.cos(xb)
+            FxbY = load * (-np.sin(xb) - 1)
+
+            FdlX = load * np.cos(xb) - load * np.cos(dl)
+            FdlY = load * (np.sin(xb) - np.sin(dl))
+
+            FrzXw = load * (np.cos(dl) - np.cos(76.9 * np.pi / 180))
+            FrzYw = load * (np.sin(dl) - np.sin(76.9 * np.pi / 180))
+
+            FrzXn = load * (np.cos(dl) - np.cos(87.3 * np.pi / 180))
+            FrzYn = load * (np.sin(dl) - np.sin(87.3 * np.pi / 180))
+
+            cload = []
+            for i in [111594, 111595, 111596, 111597]:
+                cload.append((i, 0, FxbX / 4))
+                cload.append((i, 1, FxbY / 4))
+            for i in [111602, 111603, 111604, 111605]:
+                cload.append((i, 0, FdlX / 4))
+                cload.append((i, 1, FdlY / 4))
+            for i in [6002, 6005]:
+                cload.append((i, 0, FrzXw / 4))
+                cload.append((i, 1, FrzYw / 4))
+            for i in [6003, 6004]:
+                cload.append((i, 0, FrzXn / 4))
+                cload.append((i, 1, FrzYn / 4))
+            cload.append((70793, 1, -95000))
+            cload.append((81146, 1, -95000))
+            my_fem.domain.femdb.load_case.c_loads = cload  # 更新有限元数据库里载荷
+
+            iter_path = save_path.with_stem(f"theta{current_theta}_force")
+            iter_path = iter_path.with_suffix(".txt")
+            with open(iter_path, 'w') as f:
+                for iter_cload in cload:
+                    f.write(f"node:{iter_cload[0]}, directory:{iter_cload[1]}, value:{iter_cload[2]}\n")
+            # my_fem.RotateModel(current_theta - 43.224, iter_path, 1, float(load / 9.8 / 1000))  # RotateModel给的角度是增量
+            # iter_path = save_path.with_stem(f"theta{current}")
+            # my_fem.RotateModel(current, iter_path)
+
+        result = {"status": "success"}
+        return jsonify(result), 200
+
+    except Exception as e:
+        logging.error(f"Rotation  failed: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+
 @app.route('/api/rotate_model', methods=['POST'])
 def rotate_model_endpoint():
     """
@@ -729,12 +803,12 @@ def re_calculate_element_stiff():
 
 
 if __name__ == "__main__":
-    input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
+    # input_file = "./NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
     # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\zhijiaRenumber.cdb"
     # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\triAndQuaCylinder.cdb"
     # input_file = r"D:\WorkSpace\FEM\MyPyFEM\numerical example\ANSYS\allTriCylinder.cdb"
     # input_file = r"D:\WorkSpace\FEM\testcases\ANSYS\shell\singleInclineQuaShell.cdb"
-    # input_file = r"D:\WorkSpace\WebThreeJS\PyModelToJson\model\ansys\cdb\MQ1330_remesh_resort.cdb"
+    input_file = r"D:\WorkSpace\WebThreeJS\PyModelToJson\model\ansys\cdb\MQ1330_remesh_resort.cdb"
 
     # my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.TestFunction)
     my_fem = MyPyFEM(pathlib.Path(input_file), AnaType=AnalyseType.AsServer)
