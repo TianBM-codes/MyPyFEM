@@ -353,6 +353,148 @@ class CPM6(ElementBaseClass, ABC):
         return K
 
 
+@numba.jit(nopython=True, cache=True)
+def calculate_shape_functions(r, s):
+    """计算形函数导数 - 使用@符号和fastmath"""
+    r2 = r * r
+    s2 = s * s
+
+    ph1pr = 0.25 * (s2 + s) + 0.5 * (1.0 + s) * r
+    ph2pr = -0.25 * (s2 + s) + 0.5 * (1.0 + s) * r
+    ph3pr = 0.25 * (s - s2) + 0.5 * r * (1.0 - s)
+    ph4pr = 0.25 * (s2 - s) + 0.5 * r * (1.0 - s)
+    ph5pr = -r * (1.0 + s)
+    ph6pr = 0.5 * (s2 - 1.0)
+    ph7pr = r * (s - 1.0)
+    ph8pr = 0.5 * (1.0 - s2)
+
+    ph1ps = 0.25 * (r2 + r) + 0.5 * s * (1.0 + r)
+    ph2ps = 0.25 * (r2 - r) + 0.5 * s * (1.0 - r)
+    ph3ps = 0.25 * (r - r2) + 0.5 * s * (1.0 - r)
+    ph4ps = -0.25 * (r2 + r) + 0.5 * s * (1.0 + r)
+    ph5ps = 0.5 * (1.0 - r2)
+    ph6ps = s * (r - 1.0)
+    ph7ps = 0.5 * (r2 - 1.0)
+    ph8ps = -s * (1.0 + r)
+
+    return (
+        np.array([ph1pr, ph2pr, ph3pr, ph4pr, ph5pr, ph6pr, ph7pr, ph8pr]),
+        np.array([ph1ps, ph2ps, ph3ps, ph4ps, ph5ps, ph6ps, ph7ps, ph8ps])
+    )
+
+
+@numba.jit(nopython=True, cache=True)
+def calculate_jacobian(phpr, phps, node_coords):
+    """计算雅可比矩阵 - 使用@符号"""
+    # 更简洁的实现
+    J_ij = np.array([
+        [phpr @ node_coords[:, 0], phpr @ node_coords[:, 1]],
+        [phps @ node_coords[:, 0], phps @ node_coords[:, 1]]
+    ])
+
+    det_J = J_ij[0, 0] * J_ij[1, 1] - J_ij[0, 1] * J_ij[1, 0]
+
+    inv_det = 1.0 / det_J
+    J_inv = np.array([
+        [J_ij[1, 1] * inv_det, -J_ij[0, 1] * inv_det],
+        [-J_ij[1, 0] * inv_det, J_ij[0, 0] * inv_det]
+    ])
+
+    return J_ij, det_J, J_inv
+
+
+@numba.jit(nopython=True, cache=True)
+def calculate_B_matrix(phpr, phps, J_inv):
+    """计算B矩阵 - 使用@符号"""
+    # 构建形状函数导数矩阵
+    pupxy = np.zeros((2, 16))
+    pvpxy = np.zeros((2, 16))
+
+    # 填充u的导数矩阵
+    for i in range(8):
+        pupxy[0, 2 * i] = phpr[i]  # ∂N_i/∂r 对u的x导数贡献
+        pupxy[1, 2 * i] = phps[i]  # ∂N_i/∂s 对u的y导数贡献
+
+    # 填充v的导数矩阵
+    for i in range(8):
+        pvpxy[0, 2 * i + 1] = phpr[i]  # ∂N_i/∂r 对v的x导数贡献
+        pvpxy[1, 2 * i + 1] = phps[i]  # ∂N_i/∂s 对v的y导数贡献
+
+    # 转换到全局坐标系
+    B1 = J_inv @ pupxy  # u的全局导数
+    B2 = J_inv @ pvpxy  # v的全局导数
+
+    # 组装B矩阵 - 与备份版本完全一致
+    B = np.zeros((3, 16))
+    B[0, :] = B1[0, :]  # ε_xx = ∂u/∂x
+    B[1, :] = B2[1, :]  # ε_yy = ∂v/∂y
+    B[2, :] = B1[1, :] + B2[0, :]  # γ_xy = ∂u/∂y + ∂v/∂x
+
+    return B
+
+
+@numba.jit(nopython=True, cache=True)
+def calculate_stiffness_integral(node_coords, D, points, weights):
+    """主积分计算函数 - 使用@符号"""
+    K = np.zeros((16, 16))
+    integ = np.zeros(9)
+    B_local = []
+
+    idx = 0
+    for ri in range(3):
+        r, w_r = points[ri], weights[ri]
+        for si in range(3):
+            s, w_s = points[si], weights[si]
+
+            phpr, phps = calculate_shape_functions(r, s)
+            J_ij, det_J, J_inv = calculate_jacobian(phpr, phps, node_coords)
+            B = calculate_B_matrix(phpr, phps, J_inv)
+
+            B_local.append(B.copy())
+            weight = w_r * w_s * det_J
+            integ[idx] = weight
+
+            # 使用@符号进行矩阵运算 - 更简洁清晰
+            K += (B.T @ D @ B) * weight
+            idx += 1
+
+    return K, integ, B_local
+
+
+@numba.jit(nopython=True, cache=True)
+def calculate_transformation_matrix(node_coords):
+    """计算转换矩阵T - 使用@符号"""
+    a12 = (node_coords[1, 0] - node_coords[0, 0]) * 0.125
+    a23 = (node_coords[2, 0] - node_coords[1, 0]) * 0.125
+    a34 = (node_coords[3, 0] - node_coords[2, 0]) * 0.125
+    a41 = (node_coords[0, 0] - node_coords[3, 0]) * 0.125
+
+    b12 = (node_coords[1, 1] - node_coords[0, 1]) * 0.125
+    b23 = (node_coords[2, 1] - node_coords[1, 1]) * 0.125
+    b34 = (node_coords[3, 1] - node_coords[2, 1]) * 0.125
+    b41 = (node_coords[0, 1] - node_coords[3, 1]) * 0.125
+
+    T = np.zeros((16, 12))
+    T[0, 0], T[1, 1], T[2, 3], T[3, 4] = 1.0, 1.0, 1.0, 1.0
+    T[4, 6], T[5, 7], T[6, 9], T[7, 10] = 1.0, 1.0, 1.0, 1.0
+    T[8, 0], T[8, 2], T[8, 3], T[8, 5] = 0.5, b12, 0.5, -b12
+    T[9, 1], T[9, 2], T[9, 4], T[9, 5] = 0.5, a12, 0.5, -a12
+    T[10, 3], T[10, 5], T[10, 6], T[10, 8] = 0.5, b23, 0.5, -b23
+    T[11, 4], T[11, 5], T[11, 7], T[11, 8] = 0.5, a23, 0.5, -a23
+    T[12, 6], T[12, 8], T[12, 9], T[12, 11] = 0.5, b34, 0.5, -b34
+    T[13, 7], T[13, 8], T[13, 10], T[13, 11] = 0.5, a34, 0.5, -a34
+    T[14, 0], T[14, 2], T[14, 9], T[14, 11] = 0.5, -b41, 0.5, b41
+    T[15, 1], T[15, 2], T[15, 10], T[15, 11] = 0.5, -a41, 0.5, a41
+
+    return T
+
+
+@numba.jit(nopython=True, cache=True)
+def transform_stiffness_matrix(K, T):
+    """转换刚度矩阵 - 使用@符号"""
+    return T.T @ K @ T
+
+
 class CPM8(ElementBaseClass, ABC):
     """
     8-node quadratic plane strain quadrangle, 在这里用作Cook膜单元
@@ -390,6 +532,29 @@ class CPM8(ElementBaseClass, ABC):
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementStiffness(self, from_origin=False):
+        """
+        p代表偏导: partial, phpr 代表偏hi偏r求和
+        """
+        assert self.node_coords.shape == (8, 2)
+
+        points, weights = GaussIntegrationPoint.GetSamplePointAndWeight(3)
+
+        # 计算主要部分
+        K, integ, B_local = calculate_stiffness_integral(
+            self.node_coords, self.D, points, weights
+        )
+
+        T = calculate_transformation_matrix(self.node_coords)
+        K_transformed = transform_stiffness_matrix(K, T)
+
+        # 更新实例变量
+        self.K = K
+        self.integ = integ
+        self.B_global = [B @ T for B in B_local]  # 这里也使用@符号
+
+        return K_transformed
+
+    def ElementStiffness_BackUp(self, from_origin=False):
         """
         p代表偏导: partial, phpr 代表偏hi偏r求和
         """
@@ -476,10 +641,7 @@ class CPM8(ElementBaseClass, ABC):
                         [0.5, 0, -b41, 0, 0, 0, 0, 0, 0, 0.5, 0, b41],
                         [0, 0.5, -a41, 0, 0, 0, 0, 0, 0, 0, 0.5, a41]], dtype=float)
 
-        # self.B_global = B_local @ T
-        self.B_global = []
-        for B in B_local:
-            self.B_global.append(B @ T)
+        self.B_global = [B @ T for B in B_local]
         return T.T @ self.K @ T
 
     def CalculateElementStress(self, displacement):
@@ -493,22 +655,14 @@ class CPM8(ElementBaseClass, ABC):
         # node_stress = np.linalg.solve(A.T @ A, A.T @ gauss_stress)
         # return node_stress
 
-        # TODO: 简化==> stresses = self.D@self.B_global@displacement
-        stresses = []
-        for B in self.B_global:
-            strain = B @ displacement
-            stress = self.D @ strain  # 这里实际上是膜力 (N/m)
-            stresses.append(stress)
-
-        # 高斯点应力外推到节点
-        gauss_stresses = np.array(stresses)  # 9x3
-
-        # 使用适当的外推矩阵将高斯点结果外推到节点
-        # 这里使用简化的外推，实际应该使用正确的外推矩阵
+        """
+        高斯点应力外推到节点, 这里简化为与高斯点平均值一致
+        """
+        gauss_stresses = self.D @ self.B_global @ displacement
         node_stresses = np.mean(gauss_stresses, axis=0)
         node_stresses = np.tile(node_stresses, (4, 1))
 
-        return node_stresses  # 返回膜力 (N/m)
+        return node_stresses
 
     def ElementMass(self):
         pass

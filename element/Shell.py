@@ -433,7 +433,9 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        pass
+        if not self.cha_dict.__contains__(MaterialKey.Thickness):
+            if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
+                self.cha_dict[MaterialKey.Thickness] = self.cha_dict["RealConst"][0]
 
     def ElementStiffness(self, from_origin=False):
         """
@@ -519,14 +521,84 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+        """
+        转换位移到局部坐标系, 提取膜和板的自由度
+        """
         local_dis = self.local2global_matrix @ displacement
         membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
         plate_indices = [i * 6 + j for i in range(4) for j in [2, 3, 4]]
-        membrane_stress = self.membrane.CalculateElementStress(local_dis[membrane_indices])
-        plate_stress = self.plate.CalculateElementStress(local_dis[plate_indices])
-        sigma_xx, sigma_yy, tau_xy = membrane_stress[:, 0], membrane_stress[:, 1], membrane_stress[:, 2]
-        sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
-        return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])
+
+        """
+        获取膜力和弯矩
+        """
+        membrane_forces = self.membrane.CalculateElementStress(local_dis[membrane_indices])
+        plate_moments = self.plate.CalculateElementStress(local_dis[plate_indices])
+
+        """
+        材料参数
+        """
+        thickness = self.cha_dict[MaterialKey.Thickness]
+
+        """
+        计算组合应力 Pa
+        """
+        stresses = []
+        for i in range(4):
+            """
+            膜力分量 (N/m)
+            """
+            N_xx = membrane_forces[i, 0] if i < len(membrane_forces) else 0
+            N_yy = membrane_forces[i, 1] if i < len(membrane_forces) else 0
+            N_xy = membrane_forces[i, 2] if i < len(membrane_forces) else 0
+
+            """
+            弯矩分量 (N·m/m)
+            """
+            M_xx = plate_moments[i, 0] if i < len(plate_moments) else 0
+            M_yy = plate_moments[i, 1] if i < len(plate_moments) else 0
+            M_xy = plate_moments[i, 2] if i < len(plate_moments) else 0
+
+            """
+            膜应力 = 膜力 / 厚度 (Pa)
+            """
+            membrane_stress_xx = N_xx / thickness
+            membrane_stress_yy = N_yy / thickness
+            membrane_stress_xy = N_xy / thickness
+
+            """
+            弯曲应力 = 6 * 弯矩 / 厚度² (Pa)
+            """
+            bending_stress_xx = 6 * M_xx / (thickness ** 2)
+            bending_stress_yy = 6 * M_yy / (thickness ** 2)
+            bending_stress_xy = 6 * M_xy / (thickness ** 2)
+
+            """
+            组合应力 (上下表面)
+            """
+            sigma_xx_top = membrane_stress_xx + bending_stress_xx
+            sigma_yy_top = membrane_stress_yy + bending_stress_yy
+            tau_xy_top = membrane_stress_xy + bending_stress_xy
+
+            sigma_xx_bot = membrane_stress_xx - bending_stress_xx
+            sigma_yy_bot = membrane_stress_yy - bending_stress_yy
+            tau_xy_bot = membrane_stress_xy - bending_stress_xy
+
+            """
+            取绝对值最大的作为设计应力
+            """
+            sigma_xx = np.where(np.abs(sigma_xx_top) > np.abs(sigma_xx_bot), sigma_xx_top, sigma_xx_bot)
+            sigma_yy = np.where(np.abs(sigma_yy_top) > np.abs(sigma_yy_bot), sigma_yy_top, sigma_yy_bot)
+            tau_xy = np.where(np.abs(tau_xy_top) > np.abs(tau_xy_bot), tau_xy_top, tau_xy_bot)
+
+            """
+            计算Mises应力
+            """
+            mises_stress = np.sqrt(
+                sigma_xx ** 2 + sigma_yy ** 2 - sigma_xx * sigma_yy + 3 * tau_xy ** 2
+            )
+            stresses.append(mises_stress)
+
+        return np.array(stresses)
 
     def ElementMass(self):
         """
