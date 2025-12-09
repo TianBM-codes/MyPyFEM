@@ -433,7 +433,9 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        pass
+        if not self.cha_dict.__contains__(MaterialKey.Thickness):
+            if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
+                self.cha_dict[MaterialKey.Thickness] = self.cha_dict["RealConst"][0]
 
     def ElementStiffness(self, from_origin=False):
         """
@@ -525,8 +527,13 @@ class CookQuaShell(ElementBaseClass, ABC):
         local_dis = self.local2global_matrix @ displacement
         membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
         plate_indices = [i * 6 + j for i in range(4) for j in [2, 3, 4]]
+
+        """
+        获取膜力和弯矩
+        """
         membrane_forces = self.membrane.CalculateElementStress(local_dis[membrane_indices])
         plate_moments = self.plate.CalculateElementStress(local_dis[plate_indices])
+
         """
         材料参数
         """
@@ -584,29 +591,13 @@ class CookQuaShell(ElementBaseClass, ABC):
             sigma_yy = np.where(np.abs(sigma_yy_top) > np.abs(sigma_yy_bot), sigma_yy_top, sigma_yy_bot)
             tau_xy = np.where(np.abs(tau_xy_top) > np.abs(tau_xy_bot), tau_xy_top, tau_xy_bot)
 
-            # 应用应力修正因子
-            # sigma_xx *= self.stress_correction_factor
-            # sigma_yy *= self.stress_correction_factor
-            # tau_xy *= self.stress_correction_factor
-
-            # print(f"Node {i+1} stress - sigma_xx: {sigma_xx:.2e}, sigma_yy: {sigma_yy:.2e}, tau_xy: {tau_xy:.2e} Pa")
-
-            # 计算Mises应力
+            """
+            计算Mises应力
+            """
             mises_stress = np.sqrt(
                 sigma_xx ** 2 + sigma_yy ** 2 - sigma_xx * sigma_yy + 3 * tau_xy ** 2
             )
-            term1 = (sigma_xx - sigma_yy) ** 2
-            term2 = (sigma_yy) ** 2
-            term3 = (sigma_xx) ** 2
-            term4 = 6 * (tau_xy ** 2)
-            mises_stress = np.sqrt(0.5 * (term1 + term2 + term3 + term4))
-
-            # 完整的应力张量
-            sigma_zz = 0.0  # 平面应力假设
-            tau_yz = 0.0
-            tau_xz = 0.0
-
-            stresses.append([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy, mises_stress])
+            stresses.append(mises_stress)
 
         return np.array(stresses)
 
