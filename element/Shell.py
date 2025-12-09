@@ -519,14 +519,96 @@ class CookQuaShell(ElementBaseClass, ABC):
         """
         Calculate element stress
         """
+        """
+        转换位移到局部坐标系，提取膜和板自由度，提取膜力和弯矩
+        """
         local_dis = self.local2global_matrix @ displacement
         membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
         plate_indices = [i * 6 + j for i in range(4) for j in [2, 3, 4]]
-        membrane_stress = self.membrane.CalculateElementStress(local_dis[membrane_indices])
-        plate_stress = self.plate.CalculateElementStress(local_dis[plate_indices])
-        sigma_xx, sigma_yy, tau_xy = membrane_stress[:, 0], membrane_stress[:, 1], membrane_stress[:, 2]
-        sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
-        return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])
+        membrane_forces = self.membrane.CalculateElementStress(local_dis[membrane_indices])
+        plate_moments = self.plate.CalculateElementStress(local_dis[plate_indices])
+        """
+        材料参数
+        """
+        thickness = self.cha_dict[MaterialKey.Thickness]
+        E = self.cha_dict[MaterialKey.E]
+        nu = self.cha_dict[MaterialKey.Niu]
+        """
+        计算组合应力
+        """
+        stresses = []
+        for i in range(4):
+            """
+            膜力分量 (N/m)
+            """
+            N_xx = membrane_forces[i, 0] if i < len(membrane_forces) else 0
+            N_yy = membrane_forces[i, 1] if i < len(membrane_forces) else 0
+            N_xy = membrane_forces[i, 2] if i < len(membrane_forces) else 0
+
+            """
+            弯矩分量 (N·m/m)
+            """
+            M_xx = plate_moments[i, 0] if i < len(plate_moments) else 0
+            M_yy = plate_moments[i, 1] if i < len(plate_moments) else 0
+            M_xy = plate_moments[i, 2] if i < len(plate_moments) else 0
+
+            """
+            膜应力 = 膜力 / 厚度 (Pa)
+            """
+            membrane_stress_xx = N_xx / thickness
+            membrane_stress_yy = N_yy / thickness
+            membrane_stress_xy = N_xy / thickness
+
+            """
+            弯曲应力 = 6 * 弯矩 / 厚度² (Pa)
+            """
+            bending_stress_xx = 6 * M_xx / (thickness ** 2)
+            bending_stress_yy = 6 * M_yy / (thickness ** 2)
+            bending_stress_xy = 6 * M_xy / (thickness ** 2)
+
+            """
+            组合应力 (上下表面)
+            """
+            sigma_xx_top = membrane_stress_xx + bending_stress_xx
+            sigma_yy_top = membrane_stress_yy + bending_stress_yy
+            tau_xy_top = membrane_stress_xy + bending_stress_xy
+
+            sigma_xx_bot = membrane_stress_xx - bending_stress_xx
+            sigma_yy_bot = membrane_stress_yy - bending_stress_yy
+            tau_xy_bot = membrane_stress_xy - bending_stress_xy
+
+            """
+            取绝对值最大的作为设计应力
+            """
+            sigma_xx = np.where(np.abs(sigma_xx_top) > np.abs(sigma_xx_bot), sigma_xx_top, sigma_xx_bot)
+            sigma_yy = np.where(np.abs(sigma_yy_top) > np.abs(sigma_yy_bot), sigma_yy_top, sigma_yy_bot)
+            tau_xy = np.where(np.abs(tau_xy_top) > np.abs(tau_xy_bot), tau_xy_top, tau_xy_bot)
+
+            # 应用应力修正因子
+            # sigma_xx *= self.stress_correction_factor
+            # sigma_yy *= self.stress_correction_factor
+            # tau_xy *= self.stress_correction_factor
+
+            # print(f"Node {i+1} stress - sigma_xx: {sigma_xx:.2e}, sigma_yy: {sigma_yy:.2e}, tau_xy: {tau_xy:.2e} Pa")
+
+            # 计算Mises应力
+            mises_stress = np.sqrt(
+                sigma_xx ** 2 + sigma_yy ** 2 - sigma_xx * sigma_yy + 3 * tau_xy ** 2
+            )
+            term1 = (sigma_xx - sigma_yy) ** 2
+            term2 = (sigma_yy) ** 2
+            term3 = (sigma_xx) ** 2
+            term4 = 6 * (tau_xy ** 2)
+            mises_stress = np.sqrt(0.5 * (term1 + term2 + term3 + term4))
+
+            # 完整的应力张量
+            sigma_zz = 0.0  # 平面应力假设
+            tau_yz = 0.0
+            tau_xz = 0.0
+
+            stresses.append([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy, mises_stress])
+
+        return np.array(stresses)
 
     def ElementMass(self):
         """
