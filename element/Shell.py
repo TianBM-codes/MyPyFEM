@@ -522,7 +522,7 @@ class CookQuaShell(ElementBaseClass, ABC):
         Calculate element stress
         """
         """
-        转换位移到局部坐标系, 提取膜和板的自由度
+        转换位移到局部坐标系，提取膜和板自由度，提取膜力和弯矩
         """
         local_dis = self.local2global_matrix @ displacement
         membrane_indices = [i * 6 + j for i in range(4) for j in [0, 1, 5]]  # [0,1,5,6,7,11,...]
@@ -538,9 +538,10 @@ class CookQuaShell(ElementBaseClass, ABC):
         材料参数
         """
         thickness = self.cha_dict[MaterialKey.Thickness]
-
+        E = self.cha_dict[MaterialKey.E]
+        nu = self.cha_dict[MaterialKey.Niu]
         """
-        计算组合应力 Pa
+        计算组合应力
         """
         stresses = []
         for i in range(4):
