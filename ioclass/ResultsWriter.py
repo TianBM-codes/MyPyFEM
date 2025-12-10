@@ -968,7 +968,8 @@ class ResultsWriter(object):
 
 
 if __name__ == "__main__":
-    file_path = "D:/WorkSpace/FEM/MyPyFEM/NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
+    # file_path = "D:/WorkSpace/FEM/MyPyFEM/NumericalCases/Projects/qizhongji/last/MQ1330_remesh.cdb"
+    file_path = r"D:\WorkSpace\WebThreeJS\PyModelToJson\model\ansys\cdb\MQ1330_remesh_resort.cdb"
     file_lib = pathlib.Path(file_path)
     new_name = file_lib.stem + "_mises"
     new_path = file_lib.with_stem(new_name)
