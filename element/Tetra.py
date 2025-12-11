@@ -8,6 +8,7 @@ class C3D4(ElementBaseClass):
         super().__init__(eid)
         self.nodes_count = 4  # Each element has 4 nodes
         self.K = np.zeros([12, 12], dtype=float)  # 刚度矩阵
+        self.Kt = np.zeros([4, 4], dtype=float)  # 热导率矩阵
         self.vtu_type = "tetra"
         self.unv_code = 40800
         self.block_size = 144
@@ -16,6 +17,12 @@ class C3D4(ElementBaseClass):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
+        """
+        有些工况没有弹性模量, 直接返回, 比如热稳态
+        """
+        if MaterialKey.E not in self.cha_dict:
+            return
+
         e = self.cha_dict[MaterialKey.E]
         niu = self.cha_dict[MaterialKey.Niu]
         a = e / ((1 + niu) * (1 - 2 * niu))
@@ -25,6 +32,43 @@ class C3D4(ElementBaseClass):
                                [0, 0, 0, (1 - 2 * niu) / 2., 0, 0],
                                [0, 0, 0, 0, (1 - 2 * niu) / 2., 0],
                                [0, 0, 0, 0, 0, (1 - 2 * niu) / 2.]])
+
+    def ElementThermalMatrix(self):
+        """
+        线性四面体 C3D4 稳态导热单元矩阵 Kt (4x4)
+        控制方程：-div(k grad T) = Q
+        这里构造的是 ∫(gradN^T * k * gradN dV)
+        """
+        assert self.node_coords.shape == (4, 3)
+
+        """
+        导热率（各向同性标量）和结构刚度里一样的形函数导数（在局部坐标 r,s,t）
+        """
+        kappa = self.cha_dict[MaterialKey.Conductivity]
+        dNdr = np.array([[-1, -1, -1],
+                         [1, 0, 0],
+                         [0, 1, 0],
+                         [0, 0, 1]], dtype=float).T  # 3x4
+
+        # Jacobi 3x3
+        J = np.matmul(dNdr, self.node_coords)
+        det_J = np.linalg.det(J)
+        J_inv = np.linalg.inv(J)
+
+        # grad(N) = dN/dx, dN/dy, dN/dz = J_inv * dNdr
+        # gradN = np.matmul(J_inv, dNdr)  # 3x4
+        gradN = J_inv @ dNdr
+
+        # 线性四面体体积积分权重
+        weight = 1.0 / 6.0  # 和你结构里的一样 0.166666667
+
+        # 单元体积 V = det_J * weight
+        # V = det_J * weight
+
+        # 热导矩阵 Kt（4x4）
+        self.Kt = self.Kt + kappa * np.matmul(gradN.T, gradN) * det_J * weight
+
+        return self.Kt
 
     def ElementStiffness(self, from_origin=False):
         """

@@ -100,7 +100,7 @@ class ElementFactory:
         elif e_type in ["C3D20R"]:
             mlogger.fatal("No impl such element")
             sys.exit(1)
-        elif e_type in [185, 45]:
+        elif e_type in [185, 45, 70]:
             if opt == 8:
                 # return C3D8(e_id), 8, 300
                 return C3D8(e_id), 8, 3
@@ -141,7 +141,7 @@ class ElementFactory:
             return 2
 
         # 3D Element
-        elif e_type in ["C3D8", 185, "C3D6", "C3D4", 45]:
+        elif e_type in ["C3D8", 185, "C3D6", "C3D4", 45, 70]:
             return 3
         elif e_type in ["C3D8R"]:
             return 3

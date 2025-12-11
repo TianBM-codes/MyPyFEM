@@ -89,6 +89,52 @@ class Domain(object):
                 #     print(f"calculated ele's stiff count: {calculated_eles_count}")
             self.femdb.stiff_list.append(stiff)
 
+
+    def CalAllElementThermalMatrixAndAssemble(self):
+        """
+        计算所有单元的稳态导热矩阵
+        :return:
+        """
+        num_elems = len(self.femdb.elements)
+
+        # 线性四面体：单元温度矩阵 4x4，有 16 个非零
+        nnz_per_elem = 16
+        total_nnz = num_elems * nnz_per_elem
+
+        rows = np.zeros(total_nnz, dtype=np.uint32)
+        cols = np.zeros(total_nnz, dtype=np.uint32)
+        datas = np.zeros(total_nnz, dtype=np.float64)
+
+        iter_loc = 0
+
+        for kk, ele in enumerate(self.femdb.elements):
+            search_node_ids = ele.search_node_ids
+            Kt = ele.ElementThermalMatrix()
+            try:
+                ele_dofs = np.array(
+                    [self.femdb.node_list[x].temp_eq_num for x in search_node_ids],
+                    dtype=np.uint32
+                )
+            except AttributeError as e:
+                print(e)
+                raise TypeError(f"Node temp_eq_num not set correctly in Element: {ele.id}")
+
+            rows_block, cols_block = np.meshgrid(ele_dofs, ele_dofs)
+            entries_count = Kt.size
+
+            rows[iter_loc:iter_loc + entries_count] = rows_block.ravel()
+            cols[iter_loc:iter_loc + entries_count] = cols_block.ravel()
+            datas[iter_loc:iter_loc + entries_count] = Kt.ravel()
+
+            iter_loc += entries_count
+
+        matrix_dimension = len(self.femdb.node_list)
+        self.femdb.global_thermal_matrix = sparse.coo_matrix(
+            (datas, (rows, cols)),
+            shape=(matrix_dimension, matrix_dimension)
+        ).tocsc()
+
+
     def CheckRedundantNodes(self):
         no_dup_nodes = np.zeros(len(self.femdb.node_list), dtype=np.uint32)
         for ii, iter_node in enumerate(self.femdb.node_list):

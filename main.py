@@ -328,6 +328,11 @@ class MyPyFEM:
             sql = "SELECT sid struct_id, CONCAT('RSGB', sid) FROM t_sensor_basic_info WHERE sensor_type='RSGB';"
             sids, struct_ids, tables = writer.mysql_db.execute_sql(sql)
 
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.SteadyThermal:
+            self.domain.CalAllElementThermalMatrixAndAssemble()
+            time_1 = time.time()
+            mlogger.debug(time_format.format("Calculate Thermal Matrix", time_1 - self.parsed_time))
+            p_end = time.time()
 
         else:
             mlogger.fatal("UnSupport Analyse Type")

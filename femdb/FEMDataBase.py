@@ -34,10 +34,12 @@ class FEMDataBase(object):
         # constrain equation
         self.equation_constrain_couple = []
         self.equation_constrain_idx = []
+        self.temp_constrain = []
 
         # Preprocess Fem
         self.matrix_num_count = 0
         self.stiff_list = []
+        self.thermal_stiff_list = []
         self.global_stiff_matrix = None
         self.global_mass_matrix = None
         self.load_case = LoadCase()
