@@ -135,6 +135,14 @@ class Domain(object):
         ).tocsc()
 
 
+        # for (node_id, T_val) in self.femdb.temperature_constrain:
+        #     node_index = self.femdb.node_hash[node_id]
+        #     dof = self.femdb.node_list[node_index].temp_eq_num
+        #     self.femdb.global_thermal_matrix[:, dof] = 0.0
+        #     self.femdb.global_thermal_matrix[dof, :] = 0.0
+        #     self.femdb.global_thermal_matrix[dof, dof] = 1.0
+
+
     def CheckRedundantNodes(self):
         no_dup_nodes = np.zeros(len(self.femdb.node_list), dtype=np.uint32)
         for ii, iter_node in enumerate(self.femdb.node_list):
@@ -309,6 +317,20 @@ class Domain(object):
             datas.append(1e-12)
         self.femdb.global_mass_matrix = sparse.coo_matrix((datas, (rows, cols)),
                                                           shape=(matrix_size, matrix_size)).tocsc()
+
+    def CalculateSteadyTemperature(self):
+        """
+        计算稳态热传导各个节点的温度
+        :return:
+        """
+        f = np.zeros(len(self.femdb.node_list), dtype=np.float64)
+        for (node_id, T_val) in self.femdb.temperature_constrain:
+            node_index = self.femdb.node_hash[node_id]
+            dof = self.femdb.node_list[node_index].temp_eq_num
+            self.femdb.global_thermal_matrix[dof, dof] = 1e21
+            f[dof] = T_val*1e21
+        self.femdb.temperature_res = pypardiso.spsolve(self.femdb.global_thermal_matrix.tocsc(), f)
+
 
     def CalculateGreenFunction(self, output_dir):
         """

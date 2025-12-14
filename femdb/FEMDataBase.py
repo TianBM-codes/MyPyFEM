@@ -34,7 +34,7 @@ class FEMDataBase(object):
         # constrain equation
         self.equation_constrain_couple = []
         self.equation_constrain_idx = []
-        self.temp_constrain = []
+        self.temperature_constrain = []
 
         # Preprocess Fem
         self.matrix_num_count = 0
@@ -63,6 +63,7 @@ class FEMDataBase(object):
         self.history_a = None
         self.history_s = None
         self.history_step_count = 0
+        self.temperature_res = None
 
         # Plot
         self.additional_elements = []

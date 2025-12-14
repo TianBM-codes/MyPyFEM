@@ -332,6 +332,11 @@ class MyPyFEM:
             self.domain.CalAllElementThermalMatrixAndAssemble()
             time_1 = time.time()
             mlogger.debug(time_format.format("Calculate Thermal Matrix", time_1 - self.parsed_time))
+            self.domain.CalculateSteadyTemperature()
+            time_2 = time.time()
+            mlogger.debug(time_format.format("Calculate Node Thermal", time_2 - time_1))
+            writer = ResultsWriter()
+            writer.WriteSteadyTemperatureResultVTUFile(self.output_files[0])
             p_end = time.time()
 
         else:

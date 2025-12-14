@@ -228,7 +228,7 @@ class CDBParser(object):
                         d_node = [int(splits[1])]
                         d_val = [float(splits[3].strip())]
                         d_dir = splits[2].strip()
-                        is_temp_constrain = False
+                        is_temperature_constrain = False
                         if "UX" in d_dir:
                             dir_idx = [0]
                         elif "UY" in d_dir:
@@ -256,12 +256,12 @@ class CDBParser(object):
                                 d_val = [float(splits[3].strip())] * 6
                         elif "TEMP" in d_dir:
                             GlobalInfor[GlobalVariant.AnaType] = AnalyseType.SteadyThermal
-                            self.femdb.temp_constrain.append((d_node, d_val))
-                            is_temp_constrain = True
+                            self.femdb.temperature_constrain.append((d_node[0], d_val[0]))
+                            is_temperature_constrain = True
                         else:
                             raise KeyError(f"Boundary Type:{d_dir}")
 
-                        if not is_temp_constrain:
+                        if not is_temperature_constrain:
                             d_nodes.extend(d_node)
                             directs.extend(dir_idx)
                             values.extend(d_val)
