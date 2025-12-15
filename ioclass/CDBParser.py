@@ -228,6 +228,7 @@ class CDBParser(object):
                         d_node = [int(splits[1])]
                         d_val = [float(splits[3].strip())]
                         d_dir = splits[2].strip()
+                        is_temperature_constrain = False
                         if "UX" in d_dir:
                             dir_idx = [0]
                         elif "UY" in d_dir:
@@ -253,12 +254,17 @@ class CDBParser(object):
                                 dir_idx = [0, 1, 2, 3, 4, 5]
                                 d_node = [int(splits[1])] * 6
                                 d_val = [float(splits[3].strip())] * 6
+                        elif "TEMP" in d_dir:
+                            GlobalInfor[GlobalVariant.AnaType] = AnalyseType.SteadyThermal
+                            self.femdb.temperature_constrain.append((d_node[0], d_val[0]))
+                            is_temperature_constrain = True
                         else:
                             raise KeyError(f"Boundary Type:{d_dir}")
 
-                        d_nodes.extend(d_node)
-                        directs.extend(dir_idx)
-                        values.extend(d_val)
+                        if not is_temperature_constrain:
+                            d_nodes.extend(d_node)
+                            directs.extend(dir_idx)
+                            values.extend(d_val)
                         self.iter_line = cdb_f.readline()
 
                     bd = np.column_stack([d_nodes, directs, values])
@@ -307,10 +313,13 @@ class CDBParser(object):
         计算每个节点在全局方程组中对应的起止编号
         """
         begin_idx = 0
+        temp_eq = 0
         for iter_node in self.femdb.node_list:
             iter_node.start_eq_num = begin_idx
             iter_node.end_eq_num = begin_idx + iter_node.dof_count
+            iter_node.temp_eq_num  = temp_eq
             begin_idx += iter_node.dof_count
+            temp_eq += 1
 
     def ReadEBlock(self, f_handle):
         """
@@ -457,6 +466,10 @@ class CDBParser(object):
                         value_dict[MaterialKey.Density] = float(splits[6])
                     elif splits[3].startswith("NUXY"):
                         value_dict[MaterialKey.Niu] = float(splits[6])
+                    elif splits[3].lower().startswith("kxx"):
+                        value_dict[MaterialKey.Conductivity] = float(splits[6])
+                    elif splits[3].lower().startswith("c"):
+                        value_dict[MaterialKey.SpecificHeat] = float(splits[6])
                     self.iter_line = f_handle.readline()
                 elif self.iter_line.startswith("MP,"):
                     # 首先判断是否为同一种材料属性
@@ -475,12 +488,17 @@ class CDBParser(object):
                         value_dict[MaterialKey.Density] = float(splits[3])
                     elif splits[1].startswith("NUXY"):
                         value_dict[MaterialKey.Niu] = float(splits[3])
+                    elif splits[1].lower().startswith("kxx"):
+                        value_dict[MaterialKey.Conductivity] = float(splits[3])
+                    elif splits[1].lower().startswith("c"):
+                        value_dict[MaterialKey.SpecificHeat] = float(splits[3])
                     self.iter_line = f_handle.readline()
                 else:
                     # 当前行为其他信息, 跳出读材料分支, 读取其他
                     jump_out = not (self.iter_line.startswith("MPDATA,") or self.iter_line.startswith("MPTEMP"))
                     if jump_out:
-                        value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
+                        if MaterialKey.E in value_dict:
+                            value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
                         self.material_map[cur_mat_id] = value_dict
                         break
 

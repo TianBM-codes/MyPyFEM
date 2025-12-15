@@ -35,6 +35,7 @@ class Node(object):
         # 根据单元自由度改变的量, 默认节点有3个自由度
         self.dof_disp = np.asarray([None] * 3, dtype=float)
         self.start_eq_num = None
+        self.temp_eq_num = None
         self.end_eq_num = None
         self.dof_count = None
 

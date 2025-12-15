@@ -80,6 +80,10 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         pass
 
     @abc.abstractmethod
+    def ElementThermalMatrix(self):
+        pass
+
+    @abc.abstractmethod
     def CalculateBasic(self):
         """ Calculate Element Variable """
         pass
