@@ -3,6 +3,101 @@ from typing import Dict
 from femdb.Integration import GaussIntegrationPoint
 
 
+def tri3_shape_grad_xy(coords):
+    """
+    Tri3: 3节点线性三角形
+    coords: (3,2) in global x,y
+    return:
+        dNdx: (3,)  dNdy: (3,)
+        area: scalar
+    """
+    x1, y1 = coords[0]
+    x2, y2 = coords[1]
+    x3, y3 = coords[2]
+
+    # 面积 2A
+    twoA = (x2 - x1) * (y3 - y1) - (x3 - x1) * (y2 - y1)
+    area = 0.5 * twoA
+    if area <= 0:
+        raise ValueError(f"Tri3 area <= 0 (check node ordering), area={area}")
+
+    # 线性三角形形函数导数常数
+    # N1 = (a1 + b1 x + c1 y) / (2A) etc
+    b1 = y2 - y3
+    c1 = x3 - x2
+    b2 = y3 - y1
+    c2 = x1 - x3
+    b3 = y1 - y2
+    c3 = x2 - x1
+
+    dNdx = np.array([b1, b2, b3], dtype=float) / (2 * area)
+    dNdy = np.array([c1, c2, c3], dtype=float) / (2 * area)
+    return dNdx, dNdy, area
+
+
+def quad4_shape_and_grad(xi, eta):
+    """
+    Quad4 bilinear shape functions and derivatives in parent coords (xi,eta)
+    return:
+        N: (4,)
+        dN_dxi: (4,)
+        dN_deta: (4,)
+    node order assumed: (1)(2)(3)(4) = (-,-), (+,-), (+,+), (-,+)
+    """
+    N = 0.25 * np.array([
+        (1 - xi) * (1 - eta),
+        (1 + xi) * (1 - eta),
+        (1 + xi) * (1 + eta),
+        (1 - xi) * (1 + eta)
+    ], dtype=float)
+
+    dN_dxi = 0.25 * np.array([
+        -(1 - eta),
+        +(1 - eta),
+        +(1 + eta),
+        -(1 + eta)
+    ], dtype=float)
+
+    dN_deta = 0.25 * np.array([
+        -(1 - xi),
+        -(1 + xi),
+        +(1 + xi),
+        +(1 - xi)
+    ], dtype=float)
+    return N, dN_dxi, dN_deta
+
+
+def quad4_grad_xy(coords, xi, eta):
+    """
+    coords: (4,2) global x,y
+    return:
+        N: (4,)
+        dNdx: (4,)
+        dNdy: (4,)
+        detJ: scalar
+    """
+    N, dN_dxi, dN_deta = quad4_shape_and_grad(xi, eta)
+
+    x = coords[:, 0]
+    y = coords[:, 1]
+
+    J = np.array([
+        [np.dot(dN_dxi, x), np.dot(dN_deta, x)],
+        [np.dot(dN_dxi, y), np.dot(dN_deta, y)]
+    ], dtype=float)
+
+    detJ = np.linalg.det(J)
+    if detJ <= 0:
+        raise ValueError(f"Quad4 detJ <= 0 at (xi,eta)=({xi},{eta}), detJ={detJ}")
+
+    invJ = np.linalg.inv(J)
+    # [dNdx; dNdy] = invJ * [dN_dxi; dN_deta]
+    grads = invJ @ np.vstack([dN_dxi, dN_deta])  # (2,4)
+    dNdx = grads[0, :]
+    dNdy = grads[1, :]
+    return N, dNdx, dNdy, detJ
+
+
 class IntegForm2D2P:
     """二维2点高斯积分格式"""
 

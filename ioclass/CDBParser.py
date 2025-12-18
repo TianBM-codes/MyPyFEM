@@ -254,7 +254,7 @@ class CDBParser(object):
                                 dir_idx = [0, 1, 2, 3, 4, 5]
                                 d_node = [int(splits[1])] * 6
                                 d_val = [float(splits[3].strip())] * 6
-                        elif "TEMP" in d_dir:
+                        elif "TEMP" in d_dir or "TTOP" in d_dir or "TBOT" in d_dir:
                             GlobalInfor[GlobalVariant.AnaType] = AnalyseType.SteadyThermal
                             self.femdb.temperature_constrain.append((d_node[0], d_val[0]))
                             is_temperature_constrain = True
@@ -449,13 +449,13 @@ class CDBParser(object):
                 # 暂时只读取"MPDATA"关键字
                 if self.iter_line.startswith("MPTEMP,"):
                     self.iter_line = f_handle.readline()
+
                 elif self.iter_line.startswith("MPDATA,"):
                     # 首先判断是否为同一种材料属性
                     splits = self.iter_line.split(",")
                     iter_mat_id = int(splits[4])
                     if iter_mat_id != cur_mat_id:
                         # 读取同一种材料结束, 读取下一种材料或者读取材料结束, 程序跳出材料分支
-                        # self.femdb.materials.append(ISOMaterial(cur_mat_id, value_dict))
                         value_dict[MaterialKey.G] = value_dict[MaterialKey.E] / 2 / (1 + value_dict[MaterialKey.Niu])
                         self.material_map[cur_mat_id] = value_dict
                         self.iter_line = f_handle.readline()
@@ -471,6 +471,7 @@ class CDBParser(object):
                     elif splits[3].lower().startswith("c"):
                         value_dict[MaterialKey.SpecificHeat] = float(splits[6])
                     self.iter_line = f_handle.readline()
+
                 elif self.iter_line.startswith("MP,"):
                     # 首先判断是否为同一种材料属性
                     splits = self.iter_line.split(",")
@@ -493,6 +494,7 @@ class CDBParser(object):
                     elif splits[1].lower().startswith("c"):
                         value_dict[MaterialKey.SpecificHeat] = float(splits[3])
                     self.iter_line = f_handle.readline()
+
                 else:
                     # 当前行为其他信息, 跳出读材料分支, 读取其他
                     jump_out = not (self.iter_line.startswith("MPDATA,") or self.iter_line.startswith("MPTEMP"))

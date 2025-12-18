@@ -47,6 +47,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.D = None  # 本构矩阵
         self.M = None  # 质量矩阵
         self.B_global = None  # 应变矩阵, 用于求解应力
+        self.Ke = None
         self.block_size = None
         self.node_dof_count = None
 

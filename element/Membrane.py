@@ -268,6 +268,9 @@ class CPM6(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
+    def ElementThermalMatrix(self):
+        pass
+
     def ElementStiffness(self, from_origin=False):
         """
         p代表偏导: partial, ph1pr 代表偏h1偏r
@@ -530,6 +533,9 @@ class CPM8(ElementBaseClass, ABC):
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
+
+    def ElementThermalMatrix(self):
+        pass
 
     def ElementStiffness(self, from_origin=False):
         """

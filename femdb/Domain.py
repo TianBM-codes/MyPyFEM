@@ -107,9 +107,10 @@ class Domain(object):
 
         iter_loc = 0
 
-        for kk, ele in enumerate(self.femdb.elements):
-            search_node_ids = ele.search_node_ids
-            Kt = ele.ElementThermalMatrix()
+        for kk, iter_ele in enumerate(self.femdb.elements):
+            iter_ele.CalculateBasic()
+            search_node_ids = iter_ele.search_node_ids
+            Kt = iter_ele.ElementThermalMatrix()
             try:
                 ele_dofs = np.array(
                     [self.femdb.node_list[x].temp_eq_num for x in search_node_ids],
@@ -117,7 +118,7 @@ class Domain(object):
                 )
             except AttributeError as e:
                 print(e)
-                raise TypeError(f"Node temp_eq_num not set correctly in Element: {ele.id}")
+                raise TypeError(f"Node temp_eq_num not set correctly in Element: {iter_ele.id}")
 
             rows_block, cols_block = np.meshgrid(ele_dofs, ele_dofs)
             entries_count = Kt.size

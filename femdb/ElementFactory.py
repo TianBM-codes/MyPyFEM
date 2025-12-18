@@ -74,7 +74,7 @@ class ElementFactory:
             # return CookQuaShell(e_id), 4, 300
             return CookQuaShell(e_id), 4, 6
             # return MITC4Shell(e_id), 4, 6
-        elif e_type in [181, 63]:
+        elif e_type in [181, 63, 131]:
             if opt == 4:
                 # return CookQuaShell(e_id), 4, 300
                 return CookQuaShell(e_id), 4, 6
@@ -147,7 +147,7 @@ class ElementFactory:
             return 3
         elif e_type in ["C3D20R"]:
             return 3
-        elif e_type in [181, 63]:
+        elif e_type in [181, 63, 131]:
             return 6
 
         raise KeyError("No Such ElementType: {}".format(e_type))

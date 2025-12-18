@@ -547,6 +547,9 @@ class DKTPlate(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
+    def ElementThermalMatrix(self):
+        pass
+
     def ElementStiffness(self, from_origin=False):
         """
         Bathe 上册 P349, 转化到参数坐标下的面积积分后, 在积分域内为常数, 所以积分等于面积 0.5
@@ -686,6 +689,9 @@ class DKQPlate(ElementBaseClass, ABC):
         self.D = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
+
+    def ElementThermalMatrix(self):
+        pass
 
     def ElementStiffness(self, from_origin=False):
         """

@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-import numpy as np
 
 from element.Plate import *
 from element.Membrane import *
@@ -285,11 +284,22 @@ class CookTriShell(ElementBaseClass, ABC):
         self.block_size = 324
         self.node_dof_count = 6
 
+    def ElementThermalMatrix(self):
+        dNdx, dNdy, area = tri3_shape_grad_xy(self.local_coord[:,:2])
+        B = np.vstack([dNdx, dNdy])  # 2x3
+        t = self.cha_dict[MaterialKey.Thickness]
+        kappa = self.cha_dict[MaterialKey.Conductivity]
+        self.Ke = (B.T @ B) * (kappa * t * area)
+        return self.Ke
+
+
     def CalElementDMatrix(self, an_type=None):
         """
         计算本构矩阵, 弹性模量和泊松比, Bathe 上册P184
         """
-        pass
+        if not self.cha_dict.__contains__(MaterialKey.Thickness):
+            if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
+                self.cha_dict[MaterialKey.Thickness] = self.cha_dict["RealConst"][0]
 
     def ElementStiffness(self, from_origin=False):
         """
@@ -436,6 +446,25 @@ class CookQuaShell(ElementBaseClass, ABC):
         if not self.cha_dict.__contains__(MaterialKey.Thickness):
             if self.cha_dict.__contains__('RealConst') and len(self.cha_dict["RealConst"]) != 0:
                 self.cha_dict[MaterialKey.Thickness] = self.cha_dict["RealConst"][0]
+
+    def ElementThermalMatrix(self):
+        """
+        温度矩阵, 2x2 Gauss points
+        :return:
+        """
+        self.Ke = np.zeros((4, 4), dtype=float)
+        g = 1.0 / np.sqrt(3.0)
+        gauss = [(-g, -g), (g, -g), (g, g), (-g, g)]
+        w = 1.0
+        t = self.cha_dict[MaterialKey.Thickness]
+        kappa = self.cha_dict[MaterialKey.Conductivity]
+
+        for xi, eta in gauss:
+            _, dNdx, dNdy, detJ = quad4_grad_xy(self.local_coord[:,:2], xi, eta)
+            B = np.vstack([dNdx, dNdy])  # (2,4)
+            self.Ke += (B.T @ B) * (kappa * t * detJ * w)
+
+        return self.Ke
 
     def ElementStiffness(self, from_origin=False):
         """
