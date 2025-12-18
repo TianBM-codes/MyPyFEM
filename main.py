@@ -198,7 +198,7 @@ class MyPyFEM:
             """
             有限元程序作为服务, 动态返回结果
             """
-            # self.domain.CalAllElementStiffness()
+            self.domain.CalAllElementStiffness()
             time_1 = time.time()
             mlogger.debug(time_format.format("Calculate All Stiff", time_1 - self.parsed_time))
             p_end = time.time()
@@ -423,10 +423,10 @@ class MyPyFEM:
         # writer.WriteStaticAnalysisVTUFile(src)
         dat_path = src.with_suffix(".dat")
         dat_path = dat_path.with_stem(dat_path.stem + f"{int(time.time())}")
-        # writer.WriteStaticResult2DatFile2(dat_path, wrapper, struct_id, load)
+        writer.WriteStaticResult2DatFile2(dat_path, wrapper, struct_id, load)
         # writer.WriteMises2DatFile(dat_path.with_stem(dat_path.stem + "_mises"), struct_id)
-        csv_path = src.with_suffix(".csv")
-        writer.WriteResult2CSV(csv_path)
+        # csv_path = src.with_suffix(".csv")
+        # writer.WriteResult2CSV(csv_path)
         time_end = time.time()
         total_time_elapsed = time_end - time1
         mlogger.debug(time_format.format("Write Output", time_end - time7))
@@ -787,7 +787,7 @@ def rotate_model_endpoint():
                 step = 2
             current += step
             iter_path = save_path.with_stem(f"theta{current}")
-            my_fem.RotateModel(current, iter_path)
+            my_fem.RotateModel(current, iter_path, 1001, 12000)
 
         result = {"status": "success"}
         return jsonify(result), 200
