@@ -232,6 +232,51 @@ class Q4Mem(ElementBaseClass, ABC):
         pass
 
 
+@numba.jit(nopython=True, cache=True)
+def tri3_N(r, s):
+    N = np.empty(3, dtype=np.float64)
+    N[0] = 1.0 - r - s
+    N[1] = r
+    N[2] = s
+    return N
+
+
+@numba.jit(nopython=True, cache=True)
+def thermal_load_integral_tri(B_global, integ, D, gauss_rs, T3, alpha, T0):
+    """
+    Tri Cook膜(最终9DOF)热致等效载荷
+    B_global: (ngp,3,9)
+    integ:    (ngp,)
+    D:        (3,3) 含厚度h
+    gauss_rs: (ngp,2)  三角形高斯点(r,s)
+    T3:       (3,)  角点温度
+    """
+    ngp = gauss_rs.shape[0]
+    f = np.zeros(9, dtype=np.float64)
+
+    for k in range(ngp):
+        r = gauss_rs[k, 0]
+        s = gauss_rs[k, 1]
+
+        N = tri3_N(r, s)
+        Tgp = N[0] * T3[0] + N[1] * T3[1] + N[2] * T3[2]
+        dT = Tgp - T0
+        eps0 = alpha * dT
+
+        # tmp = D @ [eps0, eps0, 0]
+        tmp0 = D[0, 0] * eps0 + D[0, 1] * eps0
+        tmp1 = D[1, 0] * eps0 + D[1, 1] * eps0
+        tmp2 = D[2, 0] * eps0 + D[2, 1] * eps0
+
+        wdet = integ[k]
+        B = B_global[k]  # (3,9)
+
+        for j in range(9):
+            f[j] += (B[0, j] * tmp0 + B[1, j] * tmp1 + B[2, j] * tmp2) * wdet
+
+    return f
+
+
 class CPM6(ElementBaseClass, ABC):
     """
     6-node quadratic plane strain triangle, 在这里用作Cook膜单元
@@ -250,6 +295,7 @@ class CPM6(ElementBaseClass, ABC):
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
         self.B = []
         self.integ = []
+        self.gauss_rs = None
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -276,11 +322,17 @@ class CPM6(ElementBaseClass, ABC):
         p代表偏导: partial, ph1pr 代表偏h1偏r
         """
         assert self.node_coords.shape == (6, 2)  # 6节点, 2个坐标分量
+        self.K[:] = 0.0
+        self.integ = []
         points, weights = GaussIntegrationPoint.GetTrianglePointAndWeight(3)
+        self.gauss_rs = np.zeros((len(points), 2), dtype=np.float64)
         B_local = []
         for ii in range(len(points)):
             r, s = points[ii]
             w = weights[ii]
+
+            self.gauss_rs[ii, 0] = r
+            self.gauss_rs[ii, 1] = s
 
             ph1pr, ph2pr, ph3pr = -3 + 4 * (r + s), 4 * r - 1, 0
             ph4pr, ph5pr, ph6pr = 4 * (1 - 2 * r - s), 4 * s, -4 * s
@@ -332,7 +384,12 @@ class CPM6(ElementBaseClass, ABC):
                         [0.5, 0, -b2, 0, 0, 0, 0.5, 0, b2],
                         [0, 0.5, -a2, 0, 0, 0, 0, 0.5, a2]], dtype=float)
 
-        self.B_global = B_local @ T
+        B_local_arr = np.zeros((len(B_local), 3, 12), dtype=np.float64)
+        for i in range(len(B_local)):
+            B_local_arr[i, :, :] = B_local[i]
+        self.B_global = np.zeros((len(B_local), 3, 9), dtype=np.float64)
+        for i in range(len(B_local)):
+            self.B_global[i, :, :] = B_local_arr[i, :, :] @ T
         return T.T @ self.K @ T
 
     def CalculateElementStress(self, displacement):
@@ -343,7 +400,33 @@ class CPM6(ElementBaseClass, ABC):
         node_stress = ExtrapolateMatrix3to3() @ gauss_stress
         return node_stress
 
+    def ElementThermalLoadVector(self, T, T0):
+        """
+        输入三角形角点温度 (3,) -> 输出 Cook三角膜最终 9DOF 热等效载荷 (9,)
+        DOF顺序与 T 后的 B_global 对应，即每节点 [u,v,rz] × 3
+        """
+        alpha = self.cha_dict[MaterialKey.Expansion]
+        T3 = np.asarray(T, dtype=np.float64).reshape(3, )
+
+        if not hasattr(self, "B_global"):
+            raise RuntimeError("Call ElementStiffness() first to build B_global.")
+        if not hasattr(self, "gauss_rs"):
+            raise RuntimeError("gauss_rs not found. Please rebuild element stiffness first.")
+        if len(self.integ) == 0:
+            raise RuntimeError("integ is empty. Please rebuild element stiffness first.")
+
+        # 确保 B_global 是 ndarray (ngp,3,9)
+        Bglob = np.asarray(self.B_global, dtype=np.float64)
+
+        integ = np.asarray(self.integ, dtype=np.float64)
+        gauss_rs = np.asarray(self.gauss_rs, dtype=np.float64)
+
+        return thermal_load_integral_tri(Bglob, integ, self.D, gauss_rs, T3, alpha, T0)
+
     def ElementMass(self):
+        pass
+
+    def CalculateThermalStress(self, U, T, T0):
         pass
 
     def CalculateBasic(self):
@@ -387,6 +470,63 @@ def calculate_shape_functions(r, s):
 
 
 @numba.jit(nopython=True, cache=True)
+def quad4_N(r, s):
+    """
+    标准 Quad4 形函数（节点顺序：1(-1,-1), 2(1,-1), 3(1,1), 4(-1,1)）
+    注意：必须与你壳单元角点顺序一致！若你项目角点顺序不同，请在这里调整。
+    """
+    N = np.empty(4, dtype=np.float64)
+    N[0] = 0.25 * (1.0 - r) * (1.0 - s)
+    N[1] = 0.25 * (1.0 + r) * (1.0 - s)
+    N[2] = 0.25 * (1.0 + r) * (1.0 + s)
+    N[3] = 0.25 * (1.0 - r) * (1.0 + s)
+    return N
+
+
+@numba.jit(nopython=True, cache=True)
+def thermal_load_integral(B_global, integ, D, gauss_rs, T4, alpha, T0):
+    """
+    计算 Cook 膜（最终 12 DOF）热致等效载荷：
+      f += (B^T D eps_th) * (w*detJ)
+    其中 eps_th = alpha*(Tgp-T0)*[1,1,0]^T
+
+    B_global: (9,3,12)
+    integ:    (9,)
+    D:        (3,3) (已含厚度 h)
+    gauss_rs: (9,2) 9个高斯点(r,s)
+    T4:       (4,) 角点温度
+    """
+    f = np.zeros(12, dtype=np.float64)
+    for k in range(9):
+        r = gauss_rs[k, 0]
+        s = gauss_rs[k, 1]
+
+        # 高斯点温度插值
+        N = quad4_N(r, s)
+        Tgp = N[0] * T4[0] + N[1] * T4[1] + N[2] * T4[2] + N[3] * T4[3]
+        dT = Tgp - T0
+
+        # eps_th = alpha*dT*[1,1,0]
+        eps0 = alpha * dT
+
+        # tmp = D @ eps_th
+        # eps_th = [eps0, eps0, 0]
+        tmp0 = D[0, 0] * eps0 + D[0, 1] * eps0  # D00*eps0 + D01*eps0 + D02*0
+        tmp1 = D[1, 0] * eps0 + D[1, 1] * eps0
+        tmp2 = D[2, 0] * eps0 + D[2, 1] * eps0
+
+        wdet = integ[k]
+
+        # f += B^T @ tmp * wdet
+        # B: 3x12
+        B = B_global[k]
+        for j in range(12):
+            f[j] += (B[0, j] * tmp0 + B[1, j] * tmp1 + B[2, j] * tmp2) * wdet
+
+    return f
+
+
+@numba.jit(nopython=True, cache=True)
 def calculate_jacobian(phpr, phps, node_coords):
     """计算雅可比矩阵 - 使用@符号"""
     # 更简洁的实现
@@ -403,7 +543,7 @@ def calculate_jacobian(phpr, phps, node_coords):
         [-J_ij[1, 0] * inv_det, J_ij[0, 0] * inv_det]
     ])
 
-    return J_ij, det_J, J_inv
+    return det_J, J_inv
 
 
 @numba.jit(nopython=True, cache=True)
@@ -438,30 +578,41 @@ def calculate_B_matrix(phpr, phps, J_inv):
 
 @numba.jit(nopython=True, cache=True)
 def calculate_stiffness_integral(node_coords, D, points, weights):
-    """主积分计算函数 - 使用@符号"""
-    K = np.zeros((16, 16))
-    integ = np.zeros(9)
-    B_local = []
+    """
+    3x3 Gauss -> 9 points
+    return:
+      K: (16,16)
+      integ: (9,)
+      B_local_arr: (9,3,16)
+      gauss_rs: (9,2)
+    """
+    K = np.zeros((16, 16), dtype=np.float64)
+    integ = np.zeros(9, dtype=np.float64)
+    B_local_arr = np.zeros((9, 3, 16), dtype=np.float64)
+    gauss_rs = np.zeros((9, 2), dtype=np.float64)
 
     idx = 0
     for ri in range(3):
-        r, w_r = points[ri], weights[ri]
+        r = points[ri]
+        w_r = weights[ri]
         for si in range(3):
-            s, w_s = points[si], weights[si]
+            s = points[si]
+            w_s = weights[si]
+
+            gauss_rs[idx, 0] = r
+            gauss_rs[idx, 1] = s
 
             phpr, phps = calculate_shape_functions(r, s)
-            J_ij, det_J, J_inv = calculate_jacobian(phpr, phps, node_coords)
-            B = calculate_B_matrix(phpr, phps, J_inv)
-
-            B_local.append(B.copy())
+            det_J, J_inv = calculate_jacobian(phpr, phps, node_coords)
+            B = calculate_B_matrix(phpr, phps, J_inv)  # (3,16)
+            B_local_arr[idx, :, :] = B
             weight = w_r * w_s * det_J
             integ[idx] = weight
 
-            # 使用@符号进行矩阵运算 - 更简洁清晰
             K += (B.T @ D @ B) * weight
             idx += 1
 
-    return K, integ, B_local
+    return K, integ, B_local_arr, gauss_rs
 
 
 @numba.jit(nopython=True, cache=True)
@@ -516,6 +667,7 @@ class CPM8(ElementBaseClass, ABC):
         self.vtu_type = "quad"
         self.T_matrix = None  # 整体坐标转到局部坐标的矩阵, 是转换位移的
         self.integ = []
+        self.N_gp = []
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -529,13 +681,62 @@ class CPM8(ElementBaseClass, ABC):
             h = self.cha_dict[MaterialKey.Thickness]
         else:
             raise KeyError("Don't Contain RealConst and Thickness")
-        a = e / (1 - niu ** 2) * h
-        self.D = a * np.array([[1, niu, 0],
+        a = e / (1 - niu ** 2)
+        self.Q = a * np.array([[1, niu, 0],
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
+        self.D = self.Q * h
 
     def ElementThermalMatrix(self):
         pass
+
+    def ElementThermalLoadVector(self, T, T0):
+        """
+        输入该膜单元四个角点温度 (4,) -> 输出热等效载荷 (12,)
+        DOF 顺序与 self.B_global 对应（Cook膜最终12DOF）
+        """
+        alpha = self.cha_dict[MaterialKey.Expansion]
+
+        T4 = np.asarray(T, dtype=np.float64).reshape(4, )
+
+        if not hasattr(self, "B_global"):
+            raise RuntimeError("Call ElementStiffness() first to build B_global.")
+        if not hasattr(self, "gauss_rs"):
+            raise RuntimeError("gauss_rs not found. Please rebuild element stiffness first.")
+
+        return thermal_load_integral(self.B_global, self.integ, self.D, self.gauss_rs, T4, alpha, T0)
+
+    def CalculateThermalStress(self, U, T, T0):
+        """
+        计算温度导致的热应力
+        :param U:
+        :param T:
+        :param T0:
+        :return:
+        """
+        alpha = self.cha_dict[MaterialKey.Expansion]
+        u12 = np.asarray(U, dtype=np.float64).reshape(12, )
+        T4 = np.asarray(T, dtype=np.float64).reshape(4, )
+
+        sigma_gp = np.zeros((9, 3), dtype=np.float64)
+
+        for k in range(9):
+            # 机械应变
+            eps = self.B_global[k] @ u12  # (3,)
+
+            # 温度插值
+            r = self.gauss_rs[k, 0]
+            s = self.gauss_rs[k, 1]
+            N = quad4_N(r, s)
+            Tgp = N[0] * T4[0] + N[1] * T4[1] + N[2] * T4[2] + N[3] * T4[3]
+            dT = Tgp - T0
+
+            eps_th = alpha * dT * np.array([1.0, 1.0, 0.0], dtype=np.float64)
+
+            # 应力(Pa)：用 Q（不含厚度）
+            sigma_gp[k] = self.Q @ (eps - eps_th)
+
+        return sigma_gp
 
     def ElementStiffness(self, from_origin=False):
         """
@@ -546,7 +747,7 @@ class CPM8(ElementBaseClass, ABC):
         points, weights = GaussIntegrationPoint.GetSamplePointAndWeight(3)
 
         # 计算主要部分
-        K, integ, B_local = calculate_stiffness_integral(
+        K, integ, B_local_arr, gauss_rs = calculate_stiffness_integral(
             self.node_coords, self.D, points, weights
         )
 
@@ -556,7 +757,12 @@ class CPM8(ElementBaseClass, ABC):
         # 更新实例变量
         self.K = K
         self.integ = integ
-        self.B_global = [B @ T for B in B_local]  # 这里也使用@符号
+        self.gauss_rs = gauss_rs
+
+        Bglob = np.zeros((9, 3, 12), dtype=np.float64)
+        for i in range(9):
+            Bglob[i, :, :] = B_local_arr[i, :, :] @ T
+        self.B_global = Bglob
 
         return K_transformed
 

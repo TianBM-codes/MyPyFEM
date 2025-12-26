@@ -205,6 +205,26 @@ class CDBParser(object):
                     # TODO: 处理加速度, 重力
                     self.iter_line = cdb_f.readline()
 
+                elif self.iter_line.startswith("TREF,"):
+                    self.femdb.thermal_reference = float(self.iter_line.split(",")[1])
+                    self.iter_line = cdb_f.readline()
+
+                elif self.iter_line.startswith("BFUNIF,"):
+                    """
+                    设置所有节点的温度值, 如果有这个字段, 就默认是计算热应力问题
+                    """
+                    GlobalInfor[GlobalVariant.AnaType] = AnalyseType.HeatStress
+                    splits = self.iter_line.split(",")
+                    try:
+                        uni_temp = float(splits[2])
+                        for iter_node in self.femdb.node_list:
+                            self.femdb.temperature_constrain.append((iter_node.id, uni_temp))
+                    except ValueError as _:
+                        pass
+
+                    self.iter_line = cdb_f.readline()
+
+
                 elif self.iter_line.startswith("CERIG"):
                     splits = self.iter_line.strip().split(",")
                     m_node = int(splits[1])
@@ -270,6 +290,12 @@ class CDBParser(object):
                     bd = np.column_stack([d_nodes, directs, values])
                     self.femdb.load_case.AddBoundary(bd)
 
+                elif self.iter_line.startswith("BF,"):
+                    GlobalInfor[GlobalVariant.AnaType] = AnalyseType.HeatStress
+                    splits = self.iter_line.split(",")
+                    self.femdb.temperature_constrain.append((int(splits[1]), float(splits[3])))
+                    self.iter_line = cdb_f.readline()
+
                 elif self.iter_line.startswith("F,"):
                     # 一般F也不止施加在一个自由度上, 所以用while暂不跳出分支
                     while self.iter_line.startswith("F,"):
@@ -317,7 +343,7 @@ class CDBParser(object):
         for iter_node in self.femdb.node_list:
             iter_node.start_eq_num = begin_idx
             iter_node.end_eq_num = begin_idx + iter_node.dof_count
-            iter_node.temp_eq_num  = temp_eq
+            iter_node.temp_eq_num = temp_eq
             begin_idx += iter_node.dof_count
             temp_eq += 1
 
@@ -470,6 +496,10 @@ class CDBParser(object):
                         value_dict[MaterialKey.Conductivity] = float(splits[6])
                     elif splits[3].lower().startswith("c"):
                         value_dict[MaterialKey.SpecificHeat] = float(splits[6])
+                    elif splits[3].startswith("ALPX"):
+                        value_dict[MaterialKey.Expansion] = float(splits[6])
+                    else:
+                        print(f"UnKnown Material key: {splits[3]}")
                     self.iter_line = f_handle.readline()
 
                 elif self.iter_line.startswith("MP,"):
@@ -493,6 +523,10 @@ class CDBParser(object):
                         value_dict[MaterialKey.Conductivity] = float(splits[3])
                     elif splits[1].lower().startswith("c"):
                         value_dict[MaterialKey.SpecificHeat] = float(splits[3])
+                    elif splits[1].startswith("ALPX"):
+                        value_dict[MaterialKey.Expansion] = float(splits[3])
+                    else:
+                        print(f"UnKnown Material key: {splits[1]}")
                     self.iter_line = f_handle.readline()
 
                 else:

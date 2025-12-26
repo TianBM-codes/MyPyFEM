@@ -285,13 +285,12 @@ class CookTriShell(ElementBaseClass, ABC):
         self.node_dof_count = 6
 
     def ElementThermalMatrix(self):
-        dNdx, dNdy, area = tri3_shape_grad_xy(self.local_coord[:,:2])
+        dNdx, dNdy, area = tri3_shape_grad_xy(self.local_coord[:, :2])
         B = np.vstack([dNdx, dNdy])  # 2x3
         t = self.cha_dict[MaterialKey.Thickness]
         kappa = self.cha_dict[MaterialKey.Conductivity]
         self.Ke = (B.T @ B) * (kappa * t * area)
         return self.Ke
-
 
     def CalElementDMatrix(self, an_type=None):
         """
@@ -395,6 +394,16 @@ class CookTriShell(ElementBaseClass, ABC):
         sigma_zz, tau_yz, tau_xz = plate_stress[:, 0], plate_stress[:, 1], plate_stress[:, 2]
         return np.array([sigma_xx, sigma_yy, sigma_zz, tau_yz, tau_xz, tau_xy])
 
+    def ElementThermalLoadVector(self, T, T0):
+        mem_f9 = self.membrane.ElementThermalLoadVector(T, T0)
+        f_local18 = np.zeros(18)
+        for i in range(3):
+            f_local18[6 * i + 0] = mem_f9[3 * i + 0]  # u
+            f_local18[6 * i + 1] = mem_f9[3 * i + 1]  # v
+            f_local18[6 * i + 5] = mem_f9[3 * i + 2]  # rz
+        f_global18 = self.local2global_matrix.T @ f_local18
+        return f_global18
+
     def ElementMass(self):
         pass
 
@@ -418,6 +427,9 @@ class CookTriShell(ElementBaseClass, ABC):
         :return:
         """
         return self.ElementStiffness(from_origin=True)
+
+    def CalculateThermalStress(self, U, T, T0):
+        pass
 
 
 class CookQuaShell(ElementBaseClass, ABC):
@@ -460,7 +472,7 @@ class CookQuaShell(ElementBaseClass, ABC):
         kappa = self.cha_dict[MaterialKey.Conductivity]
 
         for xi, eta in gauss:
-            _, dNdx, dNdy, detJ = quad4_grad_xy(self.local_coord[:,:2], xi, eta)
+            _, dNdx, dNdy, detJ = quad4_grad_xy(self.local_coord[:, :2], xi, eta)
             B = np.vstack([dNdx, dNdy])  # (2,4)
             self.Ke += (B.T @ B) * (kappa * t * detJ * w)
 
@@ -545,6 +557,42 @@ class CookQuaShell(ElementBaseClass, ABC):
         self.K[-1, -1] = k_mtx_m[-1, -1]
 
         return self.local2global_matrix.T @ self.K @ self.local2global_matrix
+
+    def ElementThermalLoadVector(self, T, T0):
+        """
+        :param T: 壳四角点温度，顺序与壳单元角点一致
+        :param T0:
+        :return: 壳单元 24 维热等效载荷（全局坐标）
+        """
+        mem_f12 = self.membrane.ElementThermalLoadVector(T, T0)
+        f_local24 = np.zeros(24, dtype=np.float64)
+        for i in range(4):
+            f_local24[6 * i + 0] = mem_f12[3 * i + 0]  # u
+            f_local24[6 * i + 1] = mem_f12[3 * i + 1]  # v
+            f_local24[6 * i + 5] = mem_f12[3 * i + 2]  # rz
+
+        f_global24 = self.local2global_matrix.T @ f_local24
+        return f_global24
+
+    def CalculateThermalStress(self, U, T, T0):
+        """
+        壳单元热应力（目前只算膜应力）
+        :param U:
+        :param T:
+        :param T0:
+        :return:
+        """
+        u_local24 = self.local2global_matrix.T @ np.asarray(U, dtype=np.float64).reshape(24, )
+
+        # 提取膜 12 DOF: [u,v,rz]×4
+        u12 = np.zeros(12, dtype=np.float64)
+        for i in range(4):
+            u12[3 * i + 0] = u_local24[6 * i + 0]  # u
+            u12[3 * i + 1] = u_local24[6 * i + 1]  # v
+            u12[3 * i + 2] = u_local24[6 * i + 5]  # rz
+
+        # 膜应力（局部坐标 σx,σy,τxy）
+        return self.membrane.CalculateThermalStress(u12, T, T0)
 
     def CalculateElementStress(self, displacement):
         """

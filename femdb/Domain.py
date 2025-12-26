@@ -89,7 +89,6 @@ class Domain(object):
                 #     print(f"calculated ele's stiff count: {calculated_eles_count}")
             self.femdb.stiff_list.append(stiff)
 
-
     def CalAllElementThermalMatrixAndAssemble(self):
         """
         计算所有单元的稳态导热矩阵
@@ -135,14 +134,12 @@ class Domain(object):
             shape=(matrix_dimension, matrix_dimension)
         ).tocsc()
 
-
         # for (node_id, T_val) in self.femdb.temperature_constrain:
         #     node_index = self.femdb.node_hash[node_id]
         #     dof = self.femdb.node_list[node_index].temp_eq_num
         #     self.femdb.global_thermal_matrix[:, dof] = 0.0
         #     self.femdb.global_thermal_matrix[dof, :] = 0.0
         #     self.femdb.global_thermal_matrix[dof, dof] = 1.0
-
 
     def CheckRedundantNodes(self):
         no_dup_nodes = np.zeros(len(self.femdb.node_list), dtype=np.uint32)
@@ -329,9 +326,89 @@ class Domain(object):
             node_index = self.femdb.node_hash[node_id]
             dof = self.femdb.node_list[node_index].temp_eq_num
             self.femdb.global_thermal_matrix[dof, dof] = 1e21
-            f[dof] = T_val*1e21
+            f[dof] = T_val * 1e21
         self.femdb.temperature_res = pypardiso.spsolve(self.femdb.global_thermal_matrix.tocsc(), f)
 
+    def CalculateHeatDisplacement(self):
+        """
+        计算热应力
+        :return:
+        """
+        node_count = len(self.femdb.node_list)
+        if len(self.femdb.temperature_constrain) < node_count:
+            self.CalculateSteadyTemperature()
+        else:
+            self.femdb.temperature_res = np.zeros(node_count, dtype=np.float64)
+            for (node_id, T_val) in self.femdb.temperature_constrain:
+                node_index = self.femdb.node_hash[node_id]
+                dof = self.femdb.node_list[node_index].temp_eq_num
+                self.femdb.temperature_res[dof] = T_val
+        """
+        所有节点温度已经确定, 现求解热变形
+        """
+        n_dof_u = self.femdb.global_stiff_matrix.shape[0]
+        self.femdb.global_thermal_struct_load = np.zeros(n_dof_u, dtype=np.float64)
+        T_all = self.femdb.temperature_res
+        T0 = self.femdb.thermal_reference
+
+        for iter_ele in self.femdb.elements:
+            search_idx = []
+            for ii in iter_ele.search_node_ids:
+                index = self.femdb.node_list[ii].temp_eq_num
+                search_idx.append(index)
+            f_ele = iter_ele.ElementThermalLoadVector(T_all[search_idx], T0)
+            ele_node_dof = iter_ele.node_dof_count
+            for ii, idx in enumerate(iter_ele.search_node_ids):
+                start = self.femdb.node_list[idx].start_eq_num
+                end = start + ele_node_dof
+                self.femdb.global_thermal_struct_load[start:end] += f_ele[ii * ele_node_dof:(ii + 1) * ele_node_dof]
+
+        """
+        求解热致位移
+        """
+        self.femdb.temperature_dis = pypardiso.spsolve(self.femdb.global_stiff_matrix, self.femdb.global_thermal_struct_load)
+
+    def CalculateHeatStress(self):
+        """
+        计算稳态温度 -> 热致位移 -> 热致节点Mises
+        结果写入：
+          self.femdb.temperature_res
+          self.femdb.temperature_dis
+          self.femdb.temperature_mises
+        """
+        node_count = len(self.femdb.node_list)
+
+        T_all = self.femdb.temperature_res
+        T0 = self.femdb.thermal_reference
+
+        # -------------------------------------------------
+        # 3) 计算热致应力 -> 节点Mises（按连接单元数平均）
+        #    目前：只基于膜应力 (σx,σy,τxy)，得到平面应力Mises
+        # -------------------------------------------------
+        self.femdb.temperature_mises = np.zeros(node_count, dtype=np.float64)
+        U_all = self.femdb.temperature_dis
+        for ele in self.femdb.elements:
+            Ue = np.zeros(24, dtype=np.float64)
+            T4 = np.zeros(4, dtype=np.float64)
+
+            for i, nidx in enumerate(ele.search_node_ids):
+                start = self.femdb.node_list[nidx].start_eq_num
+                Ue[6 * i:6 * i + 6] = U_all[start:start + 6]
+
+                T4[i] = T_all[self.femdb.node_list[nidx].temp_eq_num]
+
+            # 高斯点应力 (9,3)：(σx,σy,τxy) in local coords
+            sigma_gp = ele.CalculateThermalStress(Ue, T4, T0)
+
+            # 简单稳健：用高斯点平均作为单元应力，再分配到四节点
+            sx, sy, txy = sigma_gp[:, 0].mean(), sigma_gp[:, 1].mean(), sigma_gp[:, 2].mean()
+
+            # 平面应力 von Mises
+            vm = np.sqrt(sx * sx - sx * sy + sy * sy + 3.0 * txy * txy)
+
+            # 分配到节点并按连接单元数平均（与你 SolveStress 一致）
+            for nidx in ele.search_node_ids:
+                self.femdb.temperature_mises[nidx] += vm / self.femdb.node_connected_element_count[nidx]
 
     def CalculateGreenFunction(self, output_dir):
         """

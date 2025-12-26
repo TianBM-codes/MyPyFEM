@@ -45,6 +45,7 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
         self.unv_code = None  # SiPESC平台显示的UNV结果, 单元代号
         self.eq_numbers = np.asarray([], dtype=np.uint32)  # 方程号, 即在求解矩阵中的第几行, 也即自由度排序后的index
         self.D = None  # 本构矩阵
+        self.Q = None  # 材料矩阵
         self.M = None  # 质量矩阵
         self.B_global = None  # 应变矩阵, 用于求解应力
         self.Ke = None
@@ -101,6 +102,14 @@ class ElementBaseClass(metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def ElementMass(self):
+        pass
+
+    @abc.abstractmethod
+    def ElementThermalLoadVector(self, T, T0):
+        pass
+
+    @abc.abstractmethod
+    def CalculateThermalStress(self, U, T, T0):
         pass
 
     @abc.abstractmethod

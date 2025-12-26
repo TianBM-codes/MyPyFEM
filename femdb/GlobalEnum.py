@@ -115,7 +115,7 @@ class MaterialKey(Enum):
     G = 4
     Thickness = 5
     Conductivity = 6  # 热传导系数
-    Expansion = 7
+    Expansion = 7  # 热膨胀系数
     SpecificHeat = 8  # 比热容
     Area = 9
     Rho = 10
@@ -175,6 +175,7 @@ class AnalyseType(Enum):
     FatigueAnalysis = 11
     TestFunction = 12
     SteadyThermal = 13
+    HeatStress = 14
 
 
 class InputFileType(Enum):

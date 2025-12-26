@@ -156,6 +156,32 @@ class ResultsWriter(object):
             point_data={"temperature": self.femdb.temperature_res},
         )
 
+    def WriteTemperatureDisAndMises2VTUFile(self, path):
+        """
+        将热致位移写入结果文件
+        :param path:
+        :return:
+        """
+        coords = np.asarray([node.coord for node in self.femdb.node_list])
+        all_eles = {}
+
+        for iter_ele in self.femdb.elements:
+            iter_relation = iter_ele.GetNodeSearchIndex().tolist()
+            ele_type = iter_ele.vtu_type
+            if all_eles.__contains__(ele_type):
+                all_eles[ele_type].append(iter_relation)
+            else:
+                all_eles[ele_type] = [iter_relation]
+        dis_value = np.reshape(self.femdb.temperature_dis, (-1, ModelInfo.PER_NODE_DOF))[:, :3]
+        meshio.write_points_cells(
+            filename=path,
+            points=coords,
+            cells=all_eles,
+            # point_data={"temperature_dis": dis_value,
+            #             "temperature_mises": self.femdb.temperature_mises},
+            point_data={"temperature_dis": dis_value}
+        )
+
     def WriteMises2DatFile(self, dat_path, struct_id):
         """
         将Mises结果写入文件

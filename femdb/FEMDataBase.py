@@ -35,6 +35,8 @@ class FEMDataBase(object):
         self.equation_constrain_couple = []
         self.equation_constrain_idx = []
         self.temperature_constrain = []
+        self.thermal_reference = None
+        self.global_thermal_struct_load = None
 
         # Preprocess Fem
         self.matrix_num_count = 0
@@ -64,6 +66,8 @@ class FEMDataBase(object):
         self.history_s = None
         self.history_step_count = 0
         self.temperature_res = None
+        self.temperature_dis = None  # 热致位移
+        self.temperature_mises = None  # 热致应力
 
         # Plot
         self.additional_elements = []

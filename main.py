@@ -35,8 +35,8 @@ app = Flask(__name__)
 """
 Define Output Format And Print Each Step Time Elapsed
 """
-time_format = r"{:>25s} --> {:<.3f} seconds"
-last_line_format = "{:>25s} --> {:<.3f} seconds"
+time_format = r"{:>29s} --> {:<.3f} seconds"
+last_line_format = "{:>29s} --> {:<.3f} seconds"
 
 
 class MyPyFEM:
@@ -102,7 +102,7 @@ class MyPyFEM:
         求解文件, 步骤如下所示, 该函数中不应包含对不同文件类型的分类, 即判断文件类型的bdf cdb等应在其他函数中完成
         """
         self.program_begin = time.time()
-        mlogger.debug("{} Analysis Calculate Begin {}".format("#" * 6, "#" * 6))
+        mlogger.debug("{} Analysis Calculate Begin {}".format("#" * 9, "#" * 9))
         reader = self.InitReader()
         reader.ParseFileAndInitFEMDB()
         """
@@ -118,7 +118,7 @@ class MyPyFEM:
         self.domain = Domain(self.check_model)
         summary = self.domain.femdb.GetModelSummary()
         mlogger.debug(" " + "-" * 40)
-        summary_format = r"{:>25s} --> {:<}"
+        summary_format = r"{:>29s} --> {:<}"
         mlogger.debug(" Model Summary:")
         for key, value in summary.items():
             mlogger.debug(summary_format.format(key, value))
@@ -327,6 +327,7 @@ class MyPyFEM:
             writer = ResultsWriter(True)
             sql = "SELECT sid struct_id, CONCAT('RSGB', sid) FROM t_sensor_basic_info WHERE sensor_type='RSGB';"
             sids, struct_ids, tables = writer.mysql_db.execute_sql(sql)
+            p_end = time.time()
 
         elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.SteadyThermal:
             self.domain.CalAllElementThermalMatrixAndAssemble()
@@ -338,6 +339,32 @@ class MyPyFEM:
             writer = ResultsWriter()
             writer.WriteSteadyTemperatureResultVTUFile(self.output_files[0])
             p_end = time.time()
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.HeatStress:
+            self.domain.CalAllElementStiffness()
+            time_1 = time.time()
+            mlogger.debug(time_format.format("Calculate All Stiffness", time_1 - self.parsed_time))
+
+            self.domain.AssembleStiffnessMatrixByPenalty()
+            time_2 = time.time()
+            mlogger.debug(time_format.format("Assemble Global Stiff", time_2 - time_1))
+
+            self.domain.AddBoundaryByPenalty()
+            time_3 = time.time()
+            mlogger.debug(time_format.format("Add Boundary Effect", time_3 - time_2))
+
+            self.domain.CalculateHeatDisplacement()
+            time_4 = time.time()
+            mlogger.debug(time_format.format("Calculate Heat Displacement", time_4 - time_3))
+
+            # self.domain.CalculateHeatStress()
+            time_5 = time.time()
+            mlogger.debug(time_format.format("Calculate Heat Stress", time_5 - time_4))
+
+            writer = ResultsWriter()
+            writer.WriteTemperatureDisAndMises2VTUFile(self.output_files[0])
+            p_end = time.time()
+            mlogger.debug(time_format.format("Write Output", p_end - time_5))
 
         else:
             mlogger.fatal("UnSupport Analyse Type")

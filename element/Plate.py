@@ -547,6 +547,12 @@ class DKTPlate(ElementBaseClass, ABC):
                                [niu, 1, 0],
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
+    def CalculateThermalStress(self, U, T, T0):
+        pass
+
+    def ElementThermalLoadVector(self, T, T0):
+        pass
+
     def ElementThermalMatrix(self):
         pass
 
@@ -691,6 +697,12 @@ class DKQPlate(ElementBaseClass, ABC):
                                [0, 0, 0.5 * (1 - niu)]], dtype=float)
 
     def ElementThermalMatrix(self):
+        pass
+
+    def ElementThermalLoadVector(self, T):
+        pass
+
+    def CalculateThermalStress(self, U, T, T0):
         pass
 
     def ElementStiffness(self, from_origin=False):
