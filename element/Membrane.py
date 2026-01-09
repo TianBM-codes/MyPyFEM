@@ -484,7 +484,7 @@ def quad4_N(r, s):
 
 
 @numba.jit(nopython=True, cache=True)
-def thermal_load_integral(B_global, integ, D, gauss_rs, T4, alpha, T0):
+def thermal_load_integral_quad(B_global, integ, D, gauss_rs, T4, alpha, T0):
     """
     计算 Cook 膜（最终 12 DOF）热致等效载荷：
       f += (B^T D eps_th) * (w*detJ)
@@ -704,7 +704,7 @@ class CPM8(ElementBaseClass, ABC):
         if not hasattr(self, "gauss_rs"):
             raise RuntimeError("gauss_rs not found. Please rebuild element stiffness first.")
 
-        return thermal_load_integral(self.B_global, self.integ, self.D, self.gauss_rs, T4, alpha, T0)
+        return thermal_load_integral_quad(self.B_global, self.integ, self.D, self.gauss_rs, T4, alpha, T0)
 
     def CalculateThermalStress(self, U, T, T0):
         """
