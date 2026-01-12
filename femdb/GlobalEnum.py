@@ -17,6 +17,7 @@ mlogger.addHandler(handler)
 # 配置matplot, 关闭其logging
 logging.getLogger('matplotlib.font_manager').disabled = True
 logging.getLogger('matplotlib.pyplot').disabled = True
+logging.getLogger('matplotlib').setLevel(logging.ERROR)
 plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
@@ -176,6 +177,7 @@ class AnalyseType(Enum):
     TestFunction = 12
     SteadyThermal = 13
     HeatStress = 14
+    ExpansionOpt = 15
 
 
 class InputFileType(Enum):
