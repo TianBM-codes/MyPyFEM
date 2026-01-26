@@ -135,3 +135,12 @@ class C3D6(ElementBaseClass, ABC):
 
     def ReCalculateElementStiffness(self):
         pass
+
+    def CalculateThermalStress(self, U, T, T0):
+        pass
+
+    def ElementThermalLoadVector(self, T, T0):
+        pass
+
+    def ElementThermalMatrix(self):
+        pass

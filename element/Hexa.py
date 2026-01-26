@@ -814,6 +814,15 @@ class C3D8(ElementBaseClass, ABC):
         return xsj, shp
 
 
+    def CalculateThermalStress(self, U, T, T0):
+        pass
+
+    def ElementThermalMatrix(self):
+        pass
+
+    def ElementThermalLoadVector(self, T, T0):
+        pass
+
 """
     稀疏矩阵存储应变阵, 发现还没全矩阵计算快
         rows = [0, 0, 0, 0, 0, 0, 0, 0,

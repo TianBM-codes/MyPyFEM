@@ -118,10 +118,23 @@ class InpParser(object):
                 elif self.iter_line.lower().startswith("*amplitude"):
                     self.ReadAmplitude(inp_f)
 
+                # elif self.iter_line.lower().startswith("*surface"):
+                #     self.ReadSurface(inp_f)
+                #
+                # elif self.iter_line.lower().startswith("*end assembly"):
+                #     self.iter_line = inp_f.readline().strip()
+                #
                 else:
                     if not self.iter_line:
-                        break
-                    self.iter_line = inp_f.readline().strip()
+                        """
+                        只允许一个空行
+                        """
+                        try:
+                            self.iter_line = inp_f.readline().strip()
+                        except ValueError as e:
+                            break
+                    else:
+                        self.iter_line = inp_f.readline().strip()
 
         """
         单元属性、材料、厚度等信息在文件解析中完成, 而不是在FEMDataBase中完成
@@ -350,8 +363,13 @@ class InpParser(object):
             elif self.iter_line.startswith("**"):
                 self.materials[mat_name] = pars_dict
                 break
+            elif self.iter_line.lower().startswith("*connector behavior"):
+                self.iter_line = f_handle.readline().strip()
+            elif self.iter_line.lower().startswith("*connector elasticity"):
+                self.iter_line = f_handle.readline().strip()
+                self.iter_line = f_handle.readline().strip()
             else:
-                mlogger.fatal("Fatal Error: UnSupport Material Para Line:{}".format(self.iter_line))
+                mlogger.fatal("UnSupport Material Para Line:{}".format(self.iter_line))
                 sys.exit(1)
 
         if new_material:
@@ -380,6 +398,7 @@ class InpParser(object):
             begin_idx, end_idx, inc, = self.iter_line.split(",")
             for i in range(int(begin_idx), int(end_idx) + 1, int(inc)):
                 nodes.append(i)
+            self.iter_line = f_handle.readline().strip()
         else:
             while not self.iter_line.startswith("*"):
                 for nd in self.iter_line.split(","):
@@ -387,6 +406,23 @@ class InpParser(object):
                         nodes.append(int(nd))
                 self.iter_line = f_handle.readline().strip()
         self.node_set[set_name] = nodes
+
+        """
+        对于很多个nset并列的, 利于调试debug
+        """
+        if self.iter_line.lower().startswith("*nset,"):
+            self.ReadNSet(f_handle)
+
+    def ReadSurface(self, f_handle):
+        """
+        读取表面
+        :param f_handle:
+        :return:
+        """
+        self.iter_line = f_handle.readline().strip()
+        self.iter_line = f_handle.readline().strip()
+        if self.iter_line.lower().startswith("*surface"):
+            self.ReadSurface(f_handle)
 
     def ReadElset(self, f_handle):
         """
@@ -417,6 +453,12 @@ class InpParser(object):
                         eles.append(int(ele_id))
                 self.iter_line = f_handle.readline().strip()
         self.ele_sets[set_name] = EleSet(set_name, eles)
+
+        """
+        便于调试, 对于多个set放置在一块的
+        """
+        if self.iter_line.lower().startswith('*elset'):
+            self.ReadElset(f_handle)
 
     def ReadLoadCase(self, f_handle):
         """
@@ -544,6 +586,7 @@ class InpParser(object):
 if __name__ == "__main__":
     # print(ReadSectionLine("*Beam Section, elset=_PickedSet8, material=Material-1, temperature=GRADIENTS, section=PIPE\n"))
     # input_file = r"../numerical example/ABAQUS/Job-1.inp"
-    input_file = f"D:/WorkSpace/FEM/NumericalCases/examples/ABAQUS/static/linear/Plane/aircraft-wing.inp"
+    # input_file = f"D:/WorkSpace/FEM/NumericalCases/examples/ABAQUS/static/linear/Plane/aircraft-wing.inp"
+    input_file = r"D:\WorkSpace\WebThreeJS\PyModelToJson\model\inp\door.inp"
     npp = InpParser(input_path=input_file)
     npp.ParseFileAndInitFEMDB()

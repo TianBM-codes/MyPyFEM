@@ -121,6 +121,12 @@ class C3D4(ElementBaseClass):
     def ElementMass(self):
         pass
 
+    def ElementThermalLoadVector(self, T, T0):
+        pass
+
+    def CalculateThermalStress(self, U, T, T0):
+        pass
+
     def CalculateBasic(self):
         pass
 

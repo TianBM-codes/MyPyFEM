@@ -66,7 +66,7 @@ class ElementFactory:
             return CPS4(e_id), 4, 2
 
         # 3D Element
-        elif e_type in ["S3"]:
+        elif e_type in ["S3", "S3R"]:
             # return CookTriShell(e_id), 3, 171
             return CookTriShell(e_id), 3, 6
             # return MITC3Shell(e_id), 3, 6
@@ -86,11 +86,11 @@ class ElementFactory:
             else:
                 raise KeyError("Shell 181/63 don't support opt {}".format(opt))
 
-        elif e_type in ["C3D8"]:
+        elif e_type in ["C3D8", "C3D8R"]:
             return C3D8(e_id), 8, 3
-        elif e_type in ["C3D8R"]:
-            mlogger.fatal("No impl such element")
-            sys.exit(1)
+        # elif e_type in ["C3D8R"]:
+        #     mlogger.fatal("No impl such element")
+        #     sys.exit(1)
         elif e_type in ["C3D6"]:
             # return C3D6(e_id), 6, 171
             return C3D6(e_id), 6, 3
@@ -133,7 +133,7 @@ class ElementFactory:
             return 6
 
         # 2D Element
-        elif e_type in ["S3"]:
+        elif e_type in ["S3", "S3R"]:
             return 6
         elif e_type in ["S4", "S4R", "S4RT"]:
             return 6
