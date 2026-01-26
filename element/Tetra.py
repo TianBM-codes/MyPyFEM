@@ -70,6 +70,12 @@ class C3D4(ElementBaseClass):
 
         return self.Kt
 
+    def CalculateThermalStress(self, U, T, T0):
+        pass
+
+    def ElementThermalLoadVector(self, T, T0):
+        pass
+
     def ElementStiffness(self, from_origin=False):
         """
         Reference:

@@ -16,6 +16,7 @@ from ioclass.BDFParser import BDFParser
 from ioclass.ResultsWriter import ResultsWriter
 from femdb.Domain import Domain
 from femdb.GlobalFEMVariant import ModelInfo
+from optimization.Optimization import Optimization
 from projects.qizhongji.QiZhongJiZiTai import MQ1330Wrapper, MQ1330
 import projects.qizhongji.sensorDataPreprocessing as sDataPreprocessing
 
@@ -365,6 +366,39 @@ class MyPyFEM:
             writer.WriteTemperatureDisAndMises2VTUFile(self.output_files[0])
             p_end = time.time()
             mlogger.debug(time_format.format("Write Output", p_end - time_5))
+
+        elif GlobalInfor[GlobalVariant.AnaType] == AnalyseType.ExpansionOpt:
+            self.domain.CalAllElementStiffness()
+            time_1 = time.time()
+            mlogger.debug(time_format.format("Calculate All Stiffness", time_1 - self.parsed_time))
+
+            self.domain.AssembleStiffnessMatrixByPenalty()
+            time_2 = time.time()
+            mlogger.debug(time_format.format("Assemble Global Stiff", time_2 - time_1))
+
+            self.domain.AddBoundaryByPenalty()
+            time_3 = time.time()
+            mlogger.debug(time_format.format("Add Boundary Effect", time_3 - time_2))
+
+            self.domain.CalculateHeatDisplacement()
+            time_4 = time.time()
+            mlogger.debug(time_format.format("Calculate Heat Displacement", time_4 - time_3))
+
+            """
+            优化参数设置
+            """
+            obs_node_ids = [4192, 4195]
+            obs_dof_names = ["uz"]
+            d_obs = [6.4, 6.4]
+            alpha_ref_value = 1e-5
+
+            opt = Optimization()
+            opt.OptExpansionByDis(obs_node_ids, obs_dof_names, d_obs, alpha_ref_value)
+            time_5 = time.time()
+            mlogger.debug(time_format.format("Optimization Expansion", time_5 - time_4))
+
+            p_end = time.time()
+            # mlogger.debug(time_format.format("Write Output", p_end - time_5))
 
         else:
             mlogger.fatal("UnSupport Analyse Type")
